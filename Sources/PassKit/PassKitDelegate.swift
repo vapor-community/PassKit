@@ -97,7 +97,7 @@ public protocol PassKitDelegate: class {
     var pemPrivateKey: String { get }
 
     /// The password to the private key file.
-    var pemPrivateKeyPassword: String { get }
+    var pemPrivateKeyPassword: String? { get }
 }
 
 public extension PassKitDelegate {
@@ -110,7 +110,11 @@ public extension PassKitDelegate {
     }
 
     var pemPrivateKey: String {
-        get { return "passkey.pem" }
+        get { return "passkey.pkey" }
+    }
+
+    var pemPrivateKeyPassword: String? {
+        get { return nil }
     }
 
     var sslBinary: URL {

@@ -51,21 +51,6 @@ public class PassKit {
         kit.registerRoutes(authorizationCode: authorizationCode)
     }
 
-    /// Registers routes to send push notifications for updated passes
-    ///
-    /// ### Example ###
-    /// ```
-    /// try pk.registerPushRoutes(environment: .sandbox, middleware: PushAuthMiddleware())
-    /// ```
-    ///
-    /// - Parameters:
-    ///   - environment: The environment to use:  `sandbox` or `production`
-    ///   - middleware: The `Middleware` which will control authentication for the routes.
-    ///   - logger: The logger you wish to use.  If `nil`, one will be created
-    public func registerPushRoutes(environment: APNSwiftConfiguration.Environment, middleware: Middleware, logger: Logger? = nil) throws {
-        try kit.registerPushRoutes(environment: environment, middleware: middleware, logger: logger)
-    }
-
     public static func register(migrations: Migrations) {
         migrations.add(PKPass())
         migrations.add(PKDevice())
@@ -118,43 +103,6 @@ public class PassKitCustom<P, D, R: PassKitRegistration, E: PassKitErrorLog> whe
         v1auth.get("passes", ":type", ":passSerial", use: ctrl.latestVersionOfPass)
         v1auth.delete("devices", ":deviceLibraryIdentifier", "registrations", ":type", ":passSerial", use: ctrl.unregisterDevice)
     }
-
-    /// Registers routes to send push notifications for updated passes
-    ///
-    /// ### Example ###
-    /// ```
-    /// try pk.registerPushRoutes(environment: .sandbox, middleware: PushAuthMiddleware())
-    /// ```
-    ///
-    /// - Parameters:
-    ///   - environment: The environment to use:  `sandbox` or `production`
-    ///   - middleware: The `Middleware` which will control authentication for the routes.
-    ///   - logger: The logger you wish to use.  If `nil`, one will be created
-    public func registerPushRoutes(environment: APNSwiftConfiguration.Environment, middleware: Middleware, logger: Logger? = nil) throws {
-        let privateKeyPath = URL(fileURLWithPath: delegate.pemPrivateKey, relativeTo: delegate.sslSigningFilesDirectory).unixPath()
-        let pemPath = URL(fileURLWithPath: delegate.pemCertificate, relativeTo: delegate.sslSigningFilesDirectory).unixPath()
-
-        app.apns.configuration = try .init(privateKeyPath: privateKeyPath, pemPath: pemPath, topic: "", environment: environment, logger: logger) {
-            $0(self.delegate.pemPrivateKeyPassword.utf8)
-        }
-
-        let pushAuth = v1.grouped(middleware)
-
-        pushAuth.post("push", ":type", ":passSerial", use: ctrl.pushUpdatesForPass)
-        pushAuth.get("push", ":type", ":passSerial", use: ctrl.tokensForPassUpdate)
-    }
 }
 
-// This will go away as soon as Kyle accepts my pull request
-extension APNSwiftConfiguration {
-    public init<T: Collection>(privateKeyPath: String, pemPath: String, topic: String, environment: APNSwiftConfiguration.Environment,
-                               logger: Logger? = nil, passphraseCallback: @escaping NIOSSLPassphraseCallback<T>) throws
-        where T.Element == UInt8 {
-            try self.init(keyIdentifier: "", teamIdentifier: "", signer: APNSwiftSigner(buffer: ByteBufferAllocator().buffer(capacity: 1024)), topic: topic, environment: environment, logger: logger)
-            let key = try NIOSSLPrivateKey(file: privateKeyPath, format: .pem, passphraseCallback: passphraseCallback)
-            self.tlsConfiguration.privateKey = NIOSSLPrivateKeySource.privateKey(key)
-            self.tlsConfiguration.certificateVerification = .noHostnameVerification
-            self.tlsConfiguration.certificateChain = try [.certificate(.init(file: pemPath, format: .pem))]
-    }
-}
 

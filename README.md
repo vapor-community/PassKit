@@ -7,8 +7,7 @@ A Vapor package which handles all the server side elements required to implement
 
 ## NOTE
 
-This package requires Vapor 4. Please note that push notifications currently won't work due to 
-[this APNSwift issue](https://github.com/kylebrowning/APNSwift/issues/79).
+This package requires Vapor 4. 
 
 
 ## Usage
@@ -192,20 +191,6 @@ If you don't like the schema names that are used by default, you can instead ins
 ```swift
 let pk = PassKitCustom<MyPassType, MyDeviceType, MyRegistrationType, MyErrorType>(app: app, delegate: delegate)
 ```
-
-#### Push Notifications
-
-If you wish to include routes specifically for sending push notifications to updated passes you can also include this line in your `routes(_:)` method.  You'll
-need to pass in whatever `Middleware` you want Vapor to use to authenticate the two routes.
-
-```swift
-try pk.registerPushRoutes(environment: .sandbox, middleware: PushAuthMiddleware())
-```
-
-That will add two routes:
-
-- POST .../api/v1/push/*passTypeIdentifier*/*passBarcode* (Sends notifications)
-- GET .../api/v1/push/*passTypeIdentifier*/*passBarcode* (Retrieves a list of push tokens which would be sent a notification)
 
 ### Register Migrations
 
