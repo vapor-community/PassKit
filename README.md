@@ -185,6 +185,14 @@ func routes(_ app: Application) throws {
 }
 ```
 
+#### Custom Implementation
+
+If you don't like the schema names that are used by default, you can instead instantiate the generic `PassKitCustom` and provide your model types.
+
+```swift
+let pk = PassKitCustom<MyPassType, MyDeviceType, MyRegistrationType, MyErrorType>(app: app, delegate: delegate)
+```
+
 ### Register Migrations
 
 Finally, if you're using the default schemas provided by this package you can register the default models in your `configure(_:)` method:
@@ -206,12 +214,3 @@ That will add two routes:
 
 - POST .../api/v1/push/*passTypeIdentifier*/*passBarcode* (Sends notifications)
 - GET .../api/v1/push/*passTypeIdentifier*/*passBarcode* (Retrieves a list of push tokens which would be sent a notification)
-
-### Custom Implementation
-
-If you don't like the schema names that are used by default, you can instead instantiate the generic `PassKitCustom` and provide your model types.
-
-```swift
-let pk = PassKitCustom<MyPassType, MyDeviceType, MyRegistrationType, MyErrorType>(app: app, delegate: delegate)
-```
-
