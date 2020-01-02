@@ -76,7 +76,7 @@ CREATE OR REPLACE FUNCTION "public"."UpdateModified"() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
 BEGIN
-    UPDATE passes
+    UPDATE \(PKPass.schema)
     SET modified = now()
     WHERE "id" = NEW.pass_id;
 
