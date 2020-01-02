@@ -193,14 +193,6 @@ If you don't like the schema names that are used by default, you can instead ins
 let pk = PassKitCustom<MyPassType, MyDeviceType, MyRegistrationType, MyErrorType>(app: app, delegate: delegate)
 ```
 
-### Register Migrations
-
-Finally, if you're using the default schemas provided by this package you can register the default models in your `configure(_:)` method:
-
-```swift
-PassKit.register(migrations: app.migrations)
-```
-
 #### Push Notifications
 
 If you wish to include routes specifically for sending push notifications to updated passes you can also include this line in your `routes(_:)` method.  You'll
@@ -214,3 +206,12 @@ That will add two routes:
 
 - POST .../api/v1/push/*passTypeIdentifier*/*passBarcode* (Sends notifications)
 - GET .../api/v1/push/*passTypeIdentifier*/*passBarcode* (Retrieves a list of push tokens which would be sent a notification)
+
+### Register Migrations
+
+Finally, if you're using the default schemas provided by this package you can register the default models in your `configure(_:)` method:
+
+```swift
+PassKit.register(migrations: app.migrations)
+```
+
