@@ -57,34 +57,44 @@ extension PassData: Migration {
             .field("pass_id", .uuid, .required)
             .foreignKey("pass_id", references: PKPass.schema, "id", onDelete: .cascade)
             .create()
+            .flatMap {
+                guard let db = database as? PostgresDatabase else {
+                    fatalError("Looks like you're not using PostgreSQL any longer!")
+                }
+                
+                return db.sql().raw(triggers).run()
+        }
     }
 
     public func revert(on database: Database) -> EventLoopFuture<Void> {
         database.schema(Self.schema).delete()
     }
 }
-```
 
-**Important**: Whenever your pass data changes, you must updated the *modified* time of the linked pass so that Apple knows to send you a new pass. You can implement this as a trigger in PostgreSQL like so:
-
-```sql
-CREATE OR REPLACE FUNCTION public."UpdateModified"() RETURNS trigger
+private let triggers = SQLQueryString(stringLiteral: """
+CREATE OR REPLACE FUNCTION "public"."UpdateModified"() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
 BEGIN
-	UPDATE passes
-	SET modified = now()
-	WHERE "id" = NEW.pass_id;	
+    UPDATE passes
+    SET modified = now()
+    WHERE "id" = NEW.pass_id;
 
-	RETURN NEW;
+    RETURN NEW;
 END;
 $$;
 
+DROP TRIGGER IF EXISTS "OnPassDataUpdated" ON "public"."\(PassData.schema)";
+
 CREATE TRIGGER "OnPassDataUpdated"
-AFTER UPDATE OF "punches" ON "public"."pass_data"
+AFTER UPDATE OF "punches" ON "public"."\(PassData.schema)"
 FOR EACH ROW
 EXECUTE PROCEDURE "public"."UpdateModified"();
+"""
+)
 ```
+
+**IMPORTANT**: Whenever your pass data changes, you must update the *modified* time of the linked pass so that Apple knows to send you a new pass. The given example, above, is for PostgreSQL, but the concept should be the same for any database.  The syntax for the triggers will simply be a little different.
 
 ### Implement the delegate.
 
