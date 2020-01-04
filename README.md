@@ -107,7 +107,7 @@ import PassKit
 class PKD: PassKitDelegate {
     var sslSigningFilesDirectory = URL(fileURLWithPath: "/www/myapp/sign", isDirectory: true)
 
-    var pemPrivateKeyPassword = "12345"
+    var pemPrivateKeyPassword: String? = "12345"
 
     func encode<P: PassKitPass>(pass: P, db: Database, encoder: JSONEncoder) -> EventLoopFuture<Data> {
         // The specific PassData class you use here may vary based on the pass.type if you have multiple
