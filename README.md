@@ -184,6 +184,21 @@ func routes(_ app: Application) throws {
 }
 ```
 
+#### Push Notifications
+
+If you wish to include routes specifically for sending push notifications to updated passes you can also include this line in your `routes(_:)` method.  You'll
+need to pass in whatever `Middleware` you want Vapor to use to authenticate the two routes.  Note that PassKit will *not* send a push notification if you
+use the sandbox, which is why this method doesn't let you pass the APNs environment type.
+
+```swift
+try pk.registerPushRoutes(middleware: PushAuthMiddleware())
+```
+
+That will add two routes:
+
+- POST .../api/v1/push/*passTypeIdentifier*/*passBarcode* (Sends notifications)
+- GET .../api/v1/push/*passTypeIdentifier*/*passBarcode* (Retrieves a list of push tokens which would be sent a notification)
+
 #### Custom Implementation
 
 If you don't like the schema names that are used by default, you can instead instantiate the generic `PassKitCustom` and provide your model types.

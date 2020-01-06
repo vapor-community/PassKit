@@ -199,10 +199,67 @@ internal struct ApiController<P, D, R: PassKitRegistration, E: PassKitErrorLog> 
             .flatten(on: req.eventLoop)
             .map { .ok }
     }
+
+    func pushUpdatesForPass(req: Request) throws -> EventLoopFuture<HTTPStatus> {
+        logger?.debug("Called pushUpdatesForPass")
+
+        return try registrationsForPush(req: req)
+            .flatMap {
+                $0.map { reg in
+                    let payload = "{}".data(using: .utf8)!
+                    var rawBytes = ByteBufferAllocator().buffer(capacity: payload.count)
+                    rawBytes.writeBytes(payload)
+
+                    return req.apns.send(rawBytes: rawBytes, pushType: .background, to: reg.device.pushToken, topic: reg.pass.type)
+                        .flatMapError {
+                            // Unless APNs said it was a bad device token, just ignore the error.
+                            guard case let APNSwiftError.ResponseError.badRequest(response) = $0, response == .badDeviceToken else {
+                                return req.eventLoop.future()
+                            }
+
+                            // Be sure the device deletes before the registration is deleted.
+                            // If you let them run in parallel issues might arise depending on
+                            // the hooks people have set for when a registration deletes, as it
+                            // might try to delete the same device again.
+                            return reg.device.delete(on: req.db)
+                                .flatMapError { _ in req.eventLoop.future() }
+                                .flatMap { reg.delete(on: req.db) }
+                    }
+                }
+                .flatten(on: req.eventLoop)
+            }
+            .map { _ in .noContent }
+    }
+
+    func tokensForPassUpdate(req: Request) throws -> EventLoopFuture<[String]> {
+        logger?.debug("Called tokensForPassUpdate")
+
+        return try registrationsForPush(req: req).map { $0.map { $0.device.pushToken } }
+    }
 }
 
 // MARK: Private methods
 private extension ApiController {
+    func registrationsForPush(req: Request) throws -> EventLoopFuture<[R]> {
+        guard let id = req.parameters.get("passSerial", as: UUID.self) else {
+            throw Abort(.badRequest)
+        }
+
+        let type = req.parameters.get("type")!
+
+        // This could be done by enforcing the caller to have a Siblings property
+        // wrapper, but there's not really any value to forcing that on them when
+        // we can just do the query ourselves like this.
+        return R.query(on: req.db)
+            .join(\._$pass)
+            .join(\._$device)
+            .with(\._$pass)
+            .with(\._$device)
+            .filter(P.self, \._$type == type)
+            .filter(P.self, \._$id == id)
+            .all()
+    }
+    
     func generateManifestFile(using encoder: JSONEncoder, in root: URL) throws {
         var manifest: [String: String] = [:]
 

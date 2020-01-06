@@ -29,7 +29,6 @@
 import Vapor
 import ZIPFoundation
 import APNSwift
-import NIOSSL
 import Fluent
 
 public class PassKit {
@@ -49,6 +48,10 @@ public class PassKit {
     ///   - authorizationCode: The `authenticationToken` which you are going to use in the `pass.json` file.
     public func registerRoutes(authorizationCode: String? = nil) {
         kit.registerRoutes(authorizationCode: authorizationCode)
+    }
+
+    public func registerPushRoutes(middleware: Middleware, logger: Logger? = nil) throws {
+        try kit.registerPushRoutes(middleware: middleware, logger: logger)
     }
 
     public static func register(migrations: Migrations) {
@@ -102,6 +105,35 @@ public class PassKitCustom<P, D, R: PassKitRegistration, E: PassKitErrorLog> whe
         v1auth.post("devices", ":deviceLibraryIdentifier", "registrations", ":type", ":passSerial", use: ctrl.registerDevice)
         v1auth.get("passes", ":type", ":passSerial", use: ctrl.latestVersionOfPass)
         v1auth.delete("devices", ":deviceLibraryIdentifier", "registrations", ":type", ":passSerial", use: ctrl.unregisterDevice)
+    }
+
+    /// Registers routes to send push notifications for updated passes
+    ///
+    /// ### Example ###
+    /// ```
+    /// try pk.registerPushRoutes(environment: .sandbox, middleware: PushAuthMiddleware())
+    /// ```
+    ///
+    /// - Parameters:
+    ///   - middleware: The `Middleware` which will control authentication for the routes.
+    ///   - logger: The logger you wish to use.  If `nil`, one will be created
+    public func registerPushRoutes(middleware: Middleware, logger: Logger? = nil) throws {
+        let privateKeyPath = URL(fileURLWithPath: delegate.pemPrivateKey, relativeTo: delegate.sslSigningFilesDirectory).unixPath()
+        let pemPath = URL(fileURLWithPath: delegate.pemCertificate, relativeTo: delegate.sslSigningFilesDirectory).unixPath()
+
+        // PassKit *only* works with the production APNs.  You can't pass in .sandbox here.
+        if let pwd = delegate.pemPrivateKeyPassword {
+            app.apns.configuration = try .init(privateKeyPath: privateKeyPath, pemPath: pemPath, topic: "", environment: .production, logger: logger) {
+                $0(pwd.utf8)
+            }
+        } else {
+            app.apns.configuration = try .init(privateKeyPath: privateKeyPath, pemPath: pemPath, topic: "", environment: .production, logger: logger)
+        }
+
+        let pushAuth = v1.grouped(middleware)
+
+        pushAuth.post("push", ":type", ":passSerial", use: ctrl.pushUpdatesForPass)
+        pushAuth.get("push", ":type", ":passSerial", use: ctrl.tokensForPassUpdate)
     }
 }
 
