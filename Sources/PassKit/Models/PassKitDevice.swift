@@ -30,10 +30,7 @@ import Vapor
 import Fluent
 
 /// Represents the `Model` that stores PassKit devices.
-public protocol PassKitDevice: Model {
-    /// The table's primary key
-    var id: Int? { get set }
-    
+public protocol PassKitDevice: Model where IDValue == Int {
     /// The push token used for sending updates to the device.
     var pushToken: String { get set }
     

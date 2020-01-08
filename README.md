@@ -93,7 +93,7 @@ EXECUTE PROCEDURE "public"."UpdateModified"();
 )
 ```
 
-**IMPORTANT**: Whenever your pass data changes, you must update the *modified* time of the linked pass so that Apple knows to send you a new pass. The given example, above, is for PostgreSQL, but the concept should be the same for any database.  The syntax for the triggers will simply be a little different.
+**IMPORTANT**: Whenever your pass data changes, you must update the *modified* time of the linked pass so that Apple knows to send you a new pass. The given example, above, is for PostgreSQL, but the concept should be the same for any database.  The syntax for the triggers will simply be a little different.  You can do this in `ModelMiddleware` but I like to have the database itself do it so if anything outside the app makes a change, it still updates.
 
 ### Implement the delegate.
 
@@ -131,6 +131,8 @@ class PKD: PassKitDelegate {
     }
 }
 ```
+
+You **must** explicitly declare `pemPrivateKeyPassword` as a `String?` or Swift will ignore it as it'll think it's a `String` instead.
 
 #### Handle cleanup
 
@@ -188,7 +190,8 @@ func routes(_ app: Application) throws {
 
 If you wish to include routes specifically for sending push notifications to updated passes you can also include this line in your `routes(_:)` method.  You'll
 need to pass in whatever `Middleware` you want Vapor to use to authenticate the two routes.  Note that PassKit will *not* send a push notification if you
-use the sandbox, which is why this method doesn't let you pass the APNs environment type.
+use the sandbox, which is why this method doesn't let you pass the APNs environment type.  If you've not yet configured APNSwift, calling this method will
+do so for you.
 
 ```swift
 try pk.registerPushRoutes(middleware: PushAuthMiddleware())
@@ -198,6 +201,31 @@ That will add two routes:
 
 - POST .../api/v1/push/*passTypeIdentifier*/*passBarcode* (Sends notifications)
 - GET .../api/v1/push/*passTypeIdentifier*/*passBarcode* (Retrieves a list of push tokens which would be sent a notification)
+
+Whether you include the routes or not, you'll want to add a method that sends push notifications when your pass data updates.  If you did *not* include
+the routes remember to configure APNSwift yourself.  You can implement it like so:
+
+```swift
+struct PassDataMiddleware: ModelMiddleware {
+    private unowned let app: Application
+
+    init(app: Application) {
+        self.app = app
+    }
+
+    func update(model: PassData, on db: Database, next: AnyModelResponder) -> EventLoopFuture<Void> {
+        next.update(model, on: db).flatMap {
+            PassKit.sendPushNotifications(for: model.$pass, on: db, app: self.app)
+        }
+    }
+}
+```
+
+and register it in *configure.swift*:
+
+```swift
+app.databases.middleware.use(PassDataMiddleware(app: app), on: .psql)
+```
 
 #### Custom Implementation
 

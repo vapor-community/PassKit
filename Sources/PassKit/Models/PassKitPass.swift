@@ -29,16 +29,10 @@
 import Vapor
 import Fluent
 
-/// Represents the `Model` that stores PassKit passes.
-public protocol PassKitPass: Model {
+/// Represents the `Model` that stores PassKit passes..  Uses a UUID so people can't easily guess your pass IDs
+public protocol PassKitPass: Model where IDValue == UUID {
     /// The pass type
     var type: String { get set }
-    
-    /// The table's primary key.
-    /// - Note: A `UUID` is used instead of an `Int` because this is part of the URL
-    ///         path and we want to ensure people can't send in a random integer and
-    ///         thus effect your passes.
-    var id: UUID? { get set }
     
     /// The last time the pass was modified.
     var modified: Date { get set }
