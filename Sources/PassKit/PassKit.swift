@@ -412,10 +412,13 @@ public class PassKitCustom<P, D, R: PassKitRegistration, E: PassKitErrorLog> whe
     private static func generateManifestFile(using encoder: JSONEncoder, in root: URL) throws {
         var manifest: [String: String] = [:]
 
-        let noDotFiles = NoDotFiles()
         let fm = FileManager()
-        fm.delegate = noDotFiles
 
+        #if os(macOS)
+        let noDotFiles = NoDotFiles()
+        fm.delegate = noDotFiles
+        #endif
+        
         let paths = try fm.subpathsOfDirectory(atPath: root.unixPath())
         try paths
             .forEach { relativePath in
@@ -475,10 +478,13 @@ public class PassKitCustom<P, D, R: PassKitRegistration, E: PassKitErrorLog> whe
                     .flatMap { encoded in
                         do {
                             // Remember that FileManager isn't thread safe, so don't create it outside and use it here!
-                            let noDotFiles = NoDotFiles()
                             let fileManager = FileManager()
+                            
+                            #if os(macOS)
+                            let noDotFiles = NoDotFiles()
                             fileManager.delegate = noDotFiles
-
+                            #endif
+                            
                             if src.hasDirectoryPath {
                                 try fileManager.copyItem(at: src, to: root)
                             } else {

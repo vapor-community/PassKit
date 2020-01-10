@@ -28,9 +28,10 @@
 
 import Foundation
 
+#if os(macOS)
 class NoDotFiles: NSObject, FileManagerDelegate {
-    // Server side swift doesn't contain the version of this method that takes a URL
-    func fileManager(_ fileManager: FileManager, shouldCopyItemAtPath srcPath: String, toPath dstPath: String) -> Bool {
-        URL(fileURLWithPath: srcPath).lastPathComponent.prefix(1) != "."
+    func fileManager(_ fileManager: FileManager, shouldCopyItemAt srcURL: URL, to dstURL: URL) -> Bool {
+        srcURL.lastPathComponent.prefix(1) != "."
     }
 }
+#endif
