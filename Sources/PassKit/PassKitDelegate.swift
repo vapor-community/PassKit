@@ -81,6 +81,10 @@ public protocol PassKitDelegate: class {
     /// - Note: Be sure to use the `URL(fileURLWithPath:)` constructor.
     var sslBinary: URL { get }
 
+    /// The full path to the `zip` command as a file URL.
+    /// - Note: Be sure to use the `URL(fileURLWithPath:)` constructor.
+    var zipBinary: URL { get }
+    
     /// The name of Apple's WWDR.pem certificate as contained in `sslSigningFiles` path.
     ///
     /// Defaults to `WWDR.pem`
@@ -121,6 +125,10 @@ public extension PassKitDelegate {
         get { return URL(fileURLWithPath: "/usr/bin/openssl") }
     }
 
+    var zipBinary: URL {
+        get { return URL(fileURLWithPath: "/usr/bin/zip") }
+    }
+    
     func generateSignatureFile(in root: URL) -> Bool {
         return false
     }

@@ -16,8 +16,8 @@ let package = Package(
     dependencies: [
         .package(url: "https://github.com/vapor/vapor.git", from: "4.0.0-beta"),
         .package(url: "https://github.com/vapor/fluent.git", from: "4.0.0-beta"),
+        //.package(url: "https://github.com/vapor/toolbox.git", from: "18.0.0-beta"),
         .package(url: "https://github.com/vapor/apns.git", from: "1.0.0-beta"),
-        .package(url: "https://github.com/weichsel/ZIPFoundation.git", from: "0.9.0"),
         .package(url: "https://github.com/apple/swift-log.git", from: "1.0.0")
     ],
     targets: [
@@ -25,7 +25,7 @@ let package = Package(
         // Targets can depend on other targets in this package, and on products in packages which this package depends on.
         .target(
             name: "PassKit",
-            dependencies: ["Fluent", "Vapor", "ZIPFoundation", "APNS", "Logging"]),
+            dependencies: ["Fluent", "Vapor", "APNS", "Logging"]),
         .testTarget(
             name: "PassKitTests",
             dependencies: ["PassKit"]),
