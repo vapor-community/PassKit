@@ -61,36 +61,45 @@ extension PassData: Migration {
                     fatalError("Looks like you're not using PostgreSQL any longer!")
                 }
                 
-                return db.sql().raw(triggers).run()
+                return .andAllSucceed(
+                    trigger.map { db.sql().raw($0).run() },
+                    on: db.eventLoop
+                )
         }
     }
-
+    
     public func revert(on database: Database) -> EventLoopFuture<Void> {
         database.schema(Self.schema).delete()
     }
 }
 
-private let triggers = SQLQueryString(stringLiteral: """
-CREATE OR REPLACE FUNCTION "public"."UpdateModified"() RETURNS trigger
+// db.sql().raw() doesn't allow for multiple statements, so make it an array
+private let trigger: [SQLQueryString] = [
+    """
+    CREATE OR REPLACE FUNCTION "public"."UpdateModified"() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
-BEGIN
+    BEGIN
     UPDATE \(PKPass.schema)
     SET modified = now()
     WHERE "id" = NEW.pass_id;
-
+    
     RETURN NEW;
-END;
-$$;
-
-DROP TRIGGER IF EXISTS "OnPassDataUpdated" ON "public"."\(PassData.schema)";
-
-CREATE TRIGGER "OnPassDataUpdated"
-AFTER UPDATE OF "punches" ON "public"."\(PassData.schema)"
-FOR EACH ROW
-EXECUTE PROCEDURE "public"."UpdateModified"();
-"""
-)
+    END;
+    $$;
+    """,
+    
+    """
+    DROP TRIGGER IF EXISTS "OnPassDataUpdated" ON "public"."\(PassData.schema)";
+    """,
+    
+    """
+    CREATE TRIGGER "OnPassDataUpdated"
+    AFTER UPDATE OF "punches" ON "public"."\(PassData.schema)"
+    FOR EACH ROW
+    EXECUTE PROCEDURE "public"."UpdateModified"();
+    """
+]
 ```
 
 **IMPORTANT**: Whenever your pass data changes, you must update the *modified* time of the linked pass so that Apple knows to send you a new pass. The given example, above, is for PostgreSQL, but the concept should be the same for any database.  The syntax for the triggers will simply be a little different.  You can do this in `ModelMiddleware` but I like to have the database itself do it so if anything outside the app makes a change, it still updates.
