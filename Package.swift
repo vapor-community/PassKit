@@ -16,7 +16,6 @@ let package = Package(
     dependencies: [
         .package(url: "https://github.com/vapor/vapor.git", from: "4.0.0-beta"),
         .package(url: "https://github.com/vapor/fluent.git", from: "4.0.0-beta"),
-        //.package(url: "https://github.com/vapor/toolbox.git", from: "18.0.0-beta"),
         .package(url: "https://github.com/vapor/apns.git", from: "1.0.0-beta"),
         .package(url: "https://github.com/apple/swift-log.git", from: "1.0.0")
     ],

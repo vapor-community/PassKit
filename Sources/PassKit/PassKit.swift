@@ -124,18 +124,33 @@ public class PassKitCustom<P, D, R: PassKitRegistration, E: PassKitErrorLog> whe
     ///
     /// - Parameters:
     ///   - middleware: The `Middleware` which will control authentication for the routes.
+    /// - Throws: An error of type `PassKitError`
     public func registerPushRoutes(middleware: Middleware) throws {
-        let privateKeyPath = URL(fileURLWithPath: delegate.pemPrivateKey, relativeTo: delegate.sslSigningFilesDirectory).unixPath()
+        let privateKeyPath = URL(fileURLWithPath: delegate.pemPrivateKey, relativeTo:
+            delegate.sslSigningFilesDirectory).unixPath()
+
+        guard FileManager.default.fileExists(atPath: privateKeyPath) else {
+            throw PassKitError.pemPrivateKeyMissing
+        }
+
         let pemPath = URL(fileURLWithPath: delegate.pemCertificate, relativeTo: delegate.sslSigningFilesDirectory).unixPath()
-        
+
+        guard FileManager.default.fileExists(atPath: privateKeyPath) else {
+            throw PassKitError.pemCertificateMissing
+        }
+
         // PassKit *only* works with the production APNs.  You can't pass in .sandbox here.
         if app.apns.configuration == nil {
-            if let pwd = delegate.pemPrivateKeyPassword {
-                app.apns.configuration = try .init(privateKeyPath: privateKeyPath, pemPath: pemPath, topic: "", environment: .production, logger: logger) {
-                    $0(pwd.utf8)
+            do {
+                if let pwd = delegate.pemPrivateKeyPassword {
+                    app.apns.configuration = try .init(privateKeyPath: privateKeyPath, pemPath: pemPath, topic: "", environment: .production, logger: logger) {
+                        $0(pwd.utf8)
+                    }
+                } else {
+                    app.apns.configuration = try .init(privateKeyPath: privateKeyPath, pemPath: pemPath, topic: "", environment: .production, logger: logger)
                 }
-            } else {
-                app.apns.configuration = try .init(privateKeyPath: privateKeyPath, pemPath: pemPath, topic: "", environment: .production, logger: logger)
+            } catch {
+                throw PassKitError.nioPrivateKeyReadFailed(error)
             }
         }
         
@@ -437,10 +452,16 @@ public class PassKitCustom<P, D, R: PassKitRegistration, E: PassKitErrorLog> whe
             // If the caller's delegate generated a file we don't have to do it.
             return
         }
-        
+
+        let sslBinary = delegate.sslBinary
+
+        guard FileManager.default.fileExists(atPath: sslBinary.unixPath()) else {
+            throw PassKitError.opensslBinaryMissing
+        }
+
         let proc = Process()
         proc.currentDirectoryURL = delegate.sslSigningFilesDirectory
-        proc.executableURL = delegate.sslBinary
+        proc.executableURL = sslBinary
         
         proc.arguments = [
             "smime", "-binary", "-sign",
@@ -462,19 +483,19 @@ public class PassKitCustom<P, D, R: PassKitRegistration, E: PassKitErrorLog> whe
     }
     
     private func zip(directory: URL, to: URL) throws {
+        let zipBinary = delegate.zipBinary
+        guard FileManager.default.fileExists(atPath: zipBinary.unixPath()) else {
+            throw PassKitError.zipBinaryMissing
+        }
+        
         let proc = Process()
         proc.currentDirectoryURL = directory
-        proc.executableURL = delegate.zipBinary
+        proc.executableURL = zipBinary
         
         proc.arguments = [ to.unixPath(), "-r", "-q", "." ]
         
         try proc.run()
         proc.waitUntilExit()
-    }
-    
-    enum PassKitError: Error {
-        case templateNotDirectory
-        case failedToZipPass
     }
     
     private func generatePassContent(for pass: P, on db: Database) -> EventLoopFuture<Data> {
@@ -485,8 +506,12 @@ public class PassKitCustom<P, D, R: PassKitRegistration, E: PassKitErrorLog> whe
         
         return delegate.template(for: pass, db: db)
             .flatMap { src in
-                guard src.hasDirectoryPath else {
-                    return db.eventLoop.makeFailedFuture(PassKitError.templateNotDirectory)
+                var isDir: ObjCBool = false
+
+                guard src.hasDirectoryPath &&
+                    FileManager.default.fileExists(atPath: src.unixPath(), isDirectory: &isDir) &&
+                    isDir.boolValue else {
+                        return db.eventLoop.makeFailedFuture(PassKitError.templateNotDirectory)
                 }
                 
                 return self.delegate.encode(pass: pass, db: db, encoder: encoder)
