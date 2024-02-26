@@ -29,7 +29,7 @@
 import Vapor
 import Fluent
 
-public protocol PassKitDelegate: class {
+public protocol PassKitDelegate: AnyObject {
     /// Should return a `URL` which points to the template data for the pass.
     ///
     /// The URL should point to a directory containing all the images and

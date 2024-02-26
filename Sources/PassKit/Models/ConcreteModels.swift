@@ -32,7 +32,7 @@ import Fluent
 final public class PKDevice: PassKitDevice {
     public static let schema = "devices"
 
-    @ID(key: "id")
+    @ID(custom: "id")
     public var id: Int?
 
     @Field(key: "push_token")
@@ -67,7 +67,7 @@ extension PKDevice: Migration {
 open class PKPass: PassKitPass {
     public static let schema = "passes"
 
-    @ID(key: "id")
+    @ID
     public var id: UUID?
 
     @Field(key: "modified")
@@ -98,7 +98,7 @@ extension PKPass: Migration {
 final public class PKErrorLog: PassKitErrorLog {
     public static let schema = "errors"
 
-    @ID(key: "id")
+    @ID(custom: "id")
     public var id: Int?
 
     @Field(key: "created")
@@ -135,7 +135,7 @@ final public class PKRegistration: PassKitRegistration {
 
     public static let schema = "registrations"
 
-    @ID(key: "id")
+    @ID(custom: "id")
     public var id: Int?
 
     @Parent(key: "device_id")

@@ -28,6 +28,8 @@
 
 import Vapor
 import APNS
+import VaporAPNS
+import APNSCore
 import Fluent
 
 public class PassKit {
@@ -58,16 +60,16 @@ public class PassKit {
         migrations.add(PKErrorLog())
     }
     
-    public static func sendPushNotificationsForPass(id: UUID, of type: String, on db: Database, app: Application) -> EventLoopFuture<Void> {
-        PassKitCustom<PKPass, PKDevice, PKRegistration, PKErrorLog>.sendPushNotificationsForPass(id: id, of: type, on: db, app: app)
+    public static func sendPushNotificationsForPass(id: UUID, of type: String, on db: Database, app: Application) async throws {
+        try await PassKitCustom<PKPass, PKDevice, PKRegistration, PKErrorLog>.sendPushNotificationsForPass(id: id, of: type, on: db, app: app)
     }
     
-    public static func sendPushNotifications(for pass: PKPass, on db: Database, app: Application) -> EventLoopFuture<Void> {
-        PassKitCustom<PKPass, PKDevice, PKRegistration, PKErrorLog>.sendPushNotifications(for: pass, on: db, app: app)
+    public static func sendPushNotifications(for pass: PKPass, on db: Database, app: Application) async throws {
+        try await PassKitCustom<PKPass, PKDevice, PKRegistration, PKErrorLog>.sendPushNotifications(for: pass, on: db, app: app)
     }
     
-    public static func sendPushNotifications(for pass: Parent<PKPass>, on db: Database, app: Application) -> EventLoopFuture<Void> {
-        PassKitCustom<PKPass, PKDevice, PKRegistration, PKErrorLog>.sendPushNotifications(for: pass, on: db, app: app)
+    public static func sendPushNotifications(for pass: ParentProperty<PKRegistration, PKPass>, on db: Database, app: Application) async throws {
+        try await PassKitCustom<PKPass, PKDevice, PKRegistration, PKErrorLog>.sendPushNotifications(for: pass, on: db, app: app)
     }
 }
 
@@ -143,11 +145,11 @@ public class PassKitCustom<P, D, R: PassKitRegistration, E: PassKitErrorLog> whe
         if app.apns.configuration == nil {
             do {
                 if let pwd = delegate.pemPrivateKeyPassword {
-                    app.apns.configuration = try .init(privateKeyPath: privateKeyPath, pemPath: pemPath, topic: "", environment: .production, logger: logger) {
+                    app.apns.configuration = .init(authenticationMethod: try .tls(privateKeyPath: privateKeyPath, pemPath: pemPath, passphraseCallback: {
                         $0(pwd.utf8)
-                    }
+                    }), topic: "", environment: .production, logger: logger)
                 } else {
-                    app.apns.configuration = try .init(privateKeyPath: privateKeyPath, pemPath: pemPath, topic: "", environment: .production, logger: logger)
+                    app.apns.configuration = .init(authenticationMethod: try .tls(privateKeyPath: privateKeyPath, pemPath: pemPath), topic: "", environment: .production, logger: logger)
                 }
             } catch {
                 throw PassKitError.nioPrivateKeyReadFailed(error)
@@ -320,7 +322,7 @@ public class PassKitCustom<P, D, R: PassKitRegistration, E: PassKitErrorLog> whe
             .map { .ok }
     }
     
-    func pushUpdatesForPass(req: Request) throws -> EventLoopFuture<HTTPStatus> {
+    func pushUpdatesForPass(req: Request) async throws -> HTTPStatus {
         logger?.debug("Called pushUpdatesForPass")
         
         guard let id = req.parameters.get("passSerial", as: UUID.self) else {
@@ -329,11 +331,11 @@ public class PassKitCustom<P, D, R: PassKitRegistration, E: PassKitErrorLog> whe
         
         let type = req.parameters.get("type")!
         
-        return Self.sendPushNotificationsForPass(id: id, of: type, on: req.db, app: req.application)
-            .map { _ in .noContent }
+        try await Self.sendPushNotificationsForPass(id: id, of: type, on: req.db, app: req.application)
+        return .noContent
     }
     
-    func tokensForPassUpdate(req: Request) throws -> EventLoopFuture<[String]> {
+    func tokensForPassUpdate(req: Request) async throws -> [String] {
         logger?.debug("Called tokensForPassUpdate")
         
         guard let id = req.parameters.get("passSerial", as: UUID.self) else {
@@ -342,7 +344,8 @@ public class PassKitCustom<P, D, R: PassKitRegistration, E: PassKitErrorLog> whe
         
         let type = req.parameters.get("type")!
         
-        return Self.registrationsForPass(id: id, of: type, on: req.db).map { $0.map { $0.device.pushToken } }
+        let registrations = try await Self.registrationsForPass(id: id, of: type, on: req.db)
+        return registrations.map { $0.device.pushToken }
     }
     
     private static func createRegistration(device: D, pass: P, req: Request) -> EventLoopFuture<HTTPStatus> {
@@ -365,61 +368,45 @@ public class PassKitCustom<P, D, R: PassKitRegistration, E: PassKitErrorLog> whe
     }
     
     // MARK: - Push Notifications
-    public static func sendPushNotificationsForPass(id: UUID, of type: String, on db: Database, app: Application) -> EventLoopFuture<Void> {
-        Self.registrationsForPass(id: id, of: type, on: db)
-            .flatMap {
-                $0.map { reg in
-                    let payload = "{}".data(using: .utf8)!
-                    var rawBytes = ByteBufferAllocator().buffer(capacity: payload.count)
-                    rawBytes.writeBytes(payload)
-                    
-                    return app.apns.send(rawBytes: rawBytes, pushType: .background, to: reg.device.pushToken, topic: reg.pass.type)
-                        .flatMapError {
-                            // Unless APNs said it was a bad device token, just ignore the error.
-                            guard case let APNSwiftError.ResponseError.badRequest(response) = $0, response == .badDeviceToken else {
-                                return db.eventLoop.future()
-                            }
-                            
-                            // Be sure the device deletes before the registration is deleted.
-                            // If you let them run in parallel issues might arise depending on
-                            // the hooks people have set for when a registration deletes, as it
-                            // might try to delete the same device again.
-                            return reg.device.delete(on: db)
-                                .flatMapError { _ in db.eventLoop.future() }
-                                .flatMap { reg.delete(on: db) }
-                    }
-                }
-                .flatten(on: db.eventLoop)
+    public static func sendPushNotificationsForPass(id: UUID, of type: String, on db: Database, app: Application) async throws {
+        let registrations = try await Self.registrationsForPass(id: id, of: type, on: db)
+        for reg in registrations {
+            let payload = Payload()
+            let alert = APNSBackgroundNotification(expiration: .immediately, topic: reg.pass.type, payload: payload)
+            try await app.apns.client.sendBackgroundNotification(
+                alert,
+                deviceToken: reg.device.pushToken
+            )
         }
     }
-    
-    public static func sendPushNotifications(for pass: P, on db: Database, app: Application) -> EventLoopFuture<Void> {
+
+    public static func sendPushNotifications(for pass: P, on db: Database, app: Application) async throws {
         guard let id = pass.id else {
-            return db.eventLoop.makeFailedFuture(FluentError.idRequired)
+            throw FluentError.idRequired
         }
         
-        return Self.sendPushNotificationsForPass(id: id, of: pass.type, on: db, app: app)
+        try await Self.sendPushNotificationsForPass(id: id, of: pass.type, on: db, app: app)
     }
     
-    public static func sendPushNotifications(for pass: Parent<P>, on db: Database, app: Application) -> EventLoopFuture<Void> {
-        let future: EventLoopFuture<P>
+    public static func sendPushNotifications(for pass: ParentProperty<R, P>, on db: Database, app: Application) async throws {
+        let value: P
         
-        if let eagerLoaded = pass.eagerLoaded {
-            future = db.eventLoop.makeSucceededFuture(eagerLoaded)
+        if let eagerLoaded = pass.value {
+            value = eagerLoaded
         } else {
-            future = pass.get(on: db)
+            value = try await pass.get(on: db)
         }
         
-        return future.flatMap { sendPushNotifications(for: $0, on: db, app: app) }
+       try await sendPushNotifications(for: value, on: db, app: app)
     }
     
-    private static func registrationsForPass(id: UUID, of type: String, on db: Database) -> EventLoopFuture<[R]> {
+    private static func registrationsForPass(id: UUID, of type: String, on db: Database) async throws -> [R] {
         // This could be done by enforcing the caller to have a Siblings property
         // wrapper, but there's not really any value to forcing that on them when
         // we can just do the query ourselves like this.
-        R.query(on: db)
-            .join(\._$pass)
-            .join(\._$device)
+        try await R.query(on: db)
+            .join(parent: \._$pass)
+            .join(parent: \._$device)
             .with(\._$pass)
             .with(\._$device)
             .filter(P.self, \._$type == type)
@@ -549,3 +536,5 @@ public class PassKitCustom<P, D, R: PassKitRegistration, E: PassKitErrorLog> whe
         }
     }
 }
+
+struct Payload: Codable {}
