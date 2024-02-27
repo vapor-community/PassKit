@@ -128,33 +128,33 @@ public class PassKitCustom<P, D, R: PassKitRegistration, E: PassKitErrorLog> whe
     ///   - middleware: The `Middleware` which will control authentication for the routes.
     /// - Throws: An error of type `PassKitError`
     public func registerPushRoutes(middleware: Middleware) throws {
-        let privateKeyPath = URL(fileURLWithPath: delegate.pemPrivateKey, relativeTo:
-            delegate.sslSigningFilesDirectory).unixPath()
-
-        guard FileManager.default.fileExists(atPath: privateKeyPath) else {
-            throw PassKitError.pemPrivateKeyMissing
-        }
-
-        let pemPath = URL(fileURLWithPath: delegate.pemCertificate, relativeTo: delegate.sslSigningFilesDirectory).unixPath()
-
-        guard FileManager.default.fileExists(atPath: privateKeyPath) else {
-            throw PassKitError.pemCertificateMissing
-        }
-
+//        let privateKeyPath = URL(fileURLWithPath: delegate.pemPrivateKey, relativeTo:
+//            delegate.sslSigningFilesDirectory).unixPath()
+//
+//        guard FileManager.default.fileExists(atPath: privateKeyPath) else {
+//            throw PassKitError.pemPrivateKeyMissing
+//        }
+//
+//       let pemPath = URL(fileURLWithPath: delegate.pemCertificate, relativeTo: delegate.sslSigningFilesDirectory).unixPath()
+//
+//        guard FileManager.default.fileExists(atPath: privateKeyPath) else {
+//            throw PassKitError.pemCertificateMissing
+//        }
+//
         // PassKit *only* works with the production APNs.  You can't pass in .sandbox here.
-        if app.apns.configuration == nil {
-            do {
-                if let pwd = delegate.pemPrivateKeyPassword {
-                    app.apns.configuration = .init(authenticationMethod: try .tls(privateKeyPath: privateKeyPath, pemPath: pemPath, passphraseCallback: {
-                        $0(pwd.utf8)
-                    }), topic: "", environment: .production, logger: logger)
-                } else {
-                    app.apns.configuration = .init(authenticationMethod: try .tls(privateKeyPath: privateKeyPath, pemPath: pemPath), topic: "", environment: .production, logger: logger)
-                }
-            } catch {
-                throw PassKitError.nioPrivateKeyReadFailed(error)
-            }
-        }
+//        if app.apns.configuration == nil {
+//            do {
+//                if let pwd = delegate.pemPrivateKeyPassword {
+//                    app.apns.configuration = .init(authenticationMethod: try .tls(privateKeyPath: privateKeyPath, pemPath: pemPath, passphraseCallback: {
+//                        $0(pwd.utf8)
+//                    }), topic: "", environment: .production, logger: logger)
+//                } else {
+//                    app.apns.configuration = .init(authenticationMethod: try .tls(privateKeyPath: privateKeyPath, pemPath: pemPath), topic: "", environment: .production, logger: logger)
+//                }
+//            } catch {
+//                throw PassKitError.nioPrivateKeyReadFailed(error)
+//            }
+//        }
         
         let pushAuth = v1.grouped(middleware)
         
@@ -371,10 +371,9 @@ public class PassKitCustom<P, D, R: PassKitRegistration, E: PassKitErrorLog> whe
     public static func sendPushNotificationsForPass(id: UUID, of type: String, on db: Database, app: Application) async throws {
         let registrations = try await Self.registrationsForPass(id: id, of: type, on: db)
         for reg in registrations {
-            let payload = Payload()
-            let alert = APNSBackgroundNotification(expiration: .immediately, topic: reg.pass.type, payload: payload)
+            let backgroundNotification = APNSBackgroundNotification(expiration: .immediately, topic: reg.pass.type, payload: EmptyPayload())
             try await app.apns.client.sendBackgroundNotification(
-                alert,
+                backgroundNotification,
                 deviceToken: reg.device.pushToken
             )
         }
@@ -536,5 +535,3 @@ public class PassKitCustom<P, D, R: PassKitRegistration, E: PassKitErrorLog> whe
         }
     }
 }
-
-struct Payload: Codable {}
