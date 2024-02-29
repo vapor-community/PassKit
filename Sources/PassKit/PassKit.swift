@@ -430,7 +430,7 @@ public class PassKitCustom<P, D, R: PassKitRegistration, E: PassKitErrorLog> whe
             
             let data = try Data(contentsOf: file)
             let hash = Insecure.SHA1.hash(data: data)
-            manifest[relativePath] = hash.description
+            manifest[relativePath] = hash.map { String(format: "%02hhx", $0) }.joined()
         }
         
         let encoded = try encoder.encode(manifest)
