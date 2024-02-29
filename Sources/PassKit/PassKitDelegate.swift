@@ -114,7 +114,7 @@ public extension PassKitDelegate {
     }
 
     var pemPrivateKey: String {
-        get { return "passkey.pkey" }
+        get { return "passkey.pem" }
     }
 
     var pemPrivateKeyPassword: String? {
