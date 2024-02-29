@@ -42,8 +42,6 @@ public class PassKit {
     /// Registers all the routes required for PassKit to work.
     ///
     /// - Parameters:
-    ///   - app: The `Application` passed to `routes(_:)`
-    ///   - delegate: The `PassKitDelegate` to use.
     ///   - authorizationCode: The `authenticationToken` which you are going to use in the `pass.json` file.
     public func registerRoutes(authorizationCode: String? = nil) {
         kit.registerRoutes(authorizationCode: authorizationCode)
@@ -103,8 +101,6 @@ public class PassKitCustom<P, D, R: PassKitRegistration, E: PassKitErrorLog> whe
     /// Registers all the routes required for PassKit to work.
     ///
     /// - Parameters:
-    ///   - app: The `Application` passed to `routes(_:)`
-    ///   - delegate: The `PassKitDelegate` to use.
     ///   - authorizationCode: The `authenticationToken` which you are going to use in the `pass.json` file.
     public func registerRoutes(authorizationCode: String? = nil) {
         v1.get("devices", ":deviceLibraryIdentifier", "registrations", ":type", use: passesForDevice)
