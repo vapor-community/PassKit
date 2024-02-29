@@ -52,6 +52,10 @@ public class PassKit {
     public func registerPushRoutes(middleware: Middleware) throws {
         try kit.registerPushRoutes(middleware: middleware)
     }
+
+    public func generatePassContent(for pass: PKPass, on db: Database) -> EventLoopFuture<Data> {
+        kit.generatePassContent(for: pass, on: db)
+    }
     
     public static func register(migrations: Migrations) {
         migrations.add(PKPass())
@@ -484,7 +488,7 @@ public class PassKitCustom<P, D, R: PassKitRegistration, E: PassKitErrorLog> whe
         proc.waitUntilExit()
     }
     
-    private func generatePassContent(for pass: P, on db: Database) -> EventLoopFuture<Data> {
+    public func generatePassContent(for pass: P, on db: Database) -> EventLoopFuture<Data> {
         let tmp = FileManager.default.temporaryDirectory
         let root = tmp.appendingPathComponent(UUID().uuidString, isDirectory: true)
         let zipFile = tmp.appendingPathComponent("\(UUID().uuidString).zip")
