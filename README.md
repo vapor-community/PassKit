@@ -173,13 +173,10 @@ func routes(_ app: Application) throws {
 
 #### Push Notifications
 
-If you wish to include routes specifically for sending push notifications to updated passes you can also include this line in your `routes(_:)` method.
-You'll need to pass in whatever `Middleware` you want Vapor to use to authenticate the two routes.
-You have to configure APNSwift before calling this method.
-Note that PassKit will *not* send a push notification if you use the sandbox.
+This line registers routes specifically for sending push notifications to updated passes. You have to include it in your `routes(_:)` method because it sets up APNSwift. You'll need to pass in whatever `Middleware` you want Vapor to use to authenticate the two routes.
 
 ```swift
-try pk.registerPushRoutes(middleware: PushAuthMiddleware())
+try pk.registerPushRoutes(middleware: SecretMiddleware())
 ```
 
 That will add two routes:
@@ -187,7 +184,7 @@ That will add two routes:
 - POST .../api/v1/push/*passTypeIdentifier*/*passBarcode* (Sends notifications)
 - GET .../api/v1/push/*passTypeIdentifier*/*passBarcode* (Retrieves a list of push tokens which would be sent a notification)
 
-Whether you include the routes or not, you'll want to add a middleware that sends push notifications and updates the `modified` field when your pass data updates.
+You'll want to add a middleware that sends push notifications and updates the `modified` field when your pass data updates.
 
 **IMPORTANT**: Whenever your pass data changes, you must update the *modified* time of the linked pass so that Apple knows to send you a new pass.
 
@@ -205,8 +202,8 @@ struct PassDataMiddleware: AsyncModelMiddleware {
         let pkPass = try await model.$pass.get(on: db)
         pkPass.modified = Date()
         try await pkPass.update(on: db)
-        try await PassKit.sendPushNotifications(for: model.$pass.get(on: db), on: db, app: self.app)
         try await next.update(model, on: db)
+        try await PassKit.sendPushNotifications(for: model.$pass.get(on: db), on: db, app: self.app)
     }
 }
 ```
