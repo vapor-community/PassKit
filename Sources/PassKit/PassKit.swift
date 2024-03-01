@@ -31,6 +31,7 @@ import APNS
 import VaporAPNS
 import APNSCore
 import Fluent
+import NIOSSL
 
 public class PassKit {
     private let kit: PassKitCustom<PKPass, PKDevice, PKRegistration, PKErrorLog>
@@ -128,33 +129,35 @@ public class PassKitCustom<P, D, R: PassKitRegistration, E: PassKitErrorLog> whe
     ///   - middleware: The `Middleware` which will control authentication for the routes.
     /// - Throws: An error of type `PassKitError`
     public func registerPushRoutes(middleware: Middleware) throws {
-//        let privateKeyPath = URL(fileURLWithPath: delegate.pemPrivateKey, relativeTo:
-//            delegate.sslSigningFilesDirectory).unixPath()
-//
-//        guard FileManager.default.fileExists(atPath: privateKeyPath) else {
-//            throw PassKitError.pemPrivateKeyMissing
-//        }
-//
-//       let pemPath = URL(fileURLWithPath: delegate.pemCertificate, relativeTo: delegate.sslSigningFilesDirectory).unixPath()
-//
-//        guard FileManager.default.fileExists(atPath: privateKeyPath) else {
-//            throw PassKitError.pemCertificateMissing
-//        }
-//
-        // PassKit *only* works with the production APNs.  You can't pass in .sandbox here.
-//        if app.apns.configuration == nil {
-//            do {
-//                if let pwd = delegate.pemPrivateKeyPassword {
-//                    app.apns.configuration = .init(authenticationMethod: try .tls(privateKeyPath: privateKeyPath, pemPath: pemPath, passphraseCallback: {
-//                        $0(pwd.utf8)
-//                    }), topic: "", environment: .production, logger: logger)
-//                } else {
-//                    app.apns.configuration = .init(authenticationMethod: try .tls(privateKeyPath: privateKeyPath, pemPath: pemPath), topic: "", environment: .production, logger: logger)
-//                }
-//            } catch {
-//                throw PassKitError.nioPrivateKeyReadFailed(error)
-//            }
-//        }
+        let privateKeyPath = URL(fileURLWithPath: delegate.pemPrivateKey, relativeTo:
+            delegate.sslSigningFilesDirectory).unixPath()
+
+        guard FileManager.default.fileExists(atPath: privateKeyPath) else {
+            throw PassKitError.pemPrivateKeyMissing
+        }
+
+        let pemPath = URL(fileURLWithPath: delegate.pemCertificate, relativeTo: delegate.sslSigningFilesDirectory).unixPath()
+
+        guard FileManager.default.fileExists(atPath: privateKeyPath) else {
+            throw PassKitError.pemCertificateMissing
+        }
+
+        // PassKit *only* works with the production APNs. You can't pass in .sandbox here.
+        let apnsConfig = APNSClientConfiguration(
+            authenticationMethod: try .tls(
+                privateKey: .file(pemPath),
+                certificateChain: NIOSSLCertificate.fromPEMFile(pemPath).map { .certificate($0) }
+            ),
+            environment: .production
+        )
+        app.apns.containers.use(
+            apnsConfig,
+            eventLoopGroupProvider: .shared(app.eventLoopGroup),
+            responseDecoder: JSONDecoder(),
+            requestEncoder: JSONEncoder(),
+            as: .init(string: "passkit"),
+            isDefault: false
+        )
         
         let pushAuth = v1.grouped(middleware)
         
@@ -372,7 +375,7 @@ public class PassKitCustom<P, D, R: PassKitRegistration, E: PassKitErrorLog> whe
         let registrations = try await Self.registrationsForPass(id: id, of: type, on: db)
         for reg in registrations {
             let backgroundNotification = APNSBackgroundNotification(expiration: .immediately, topic: reg.pass.type, payload: EmptyPayload())
-            try await app.apns.client.sendBackgroundNotification(
+            try await app.apns.client(.init(string: "passkit")).sendBackgroundNotification(
                 backgroundNotification,
                 deviceToken: reg.device.pushToken
             )
