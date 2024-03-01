@@ -389,10 +389,15 @@ public class PassKitCustom<P, D, R: PassKitRegistration, E: PassKitErrorLog> whe
         let registrations = try await Self.registrationsForPass(id: id, of: type, on: db)
         for reg in registrations {
             let backgroundNotification = APNSBackgroundNotification(expiration: .immediately, topic: reg.pass.type, payload: EmptyPayload())
-            try await app.apns.client(.init(string: "passkit")).sendBackgroundNotification(
-                backgroundNotification,
-                deviceToken: reg.device.pushToken
-            )
+            do {
+                try await app.apns.client(.init(string: "passkit")).sendBackgroundNotification(
+                    backgroundNotification,
+                    deviceToken: reg.device.pushToken
+                )
+            } catch let error as APNSCore.APNSError where error.reason == .badDeviceToken {
+                try await reg.device.delete(on: db)
+                try await reg.delete(on: db)
+            }
         }
     }
 
