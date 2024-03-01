@@ -143,13 +143,27 @@ public class PassKitCustom<P, D, R: PassKitRegistration, E: PassKitErrorLog> whe
         }
 
         // PassKit *only* works with the production APNs. You can't pass in .sandbox here.
-        let apnsConfig = APNSClientConfiguration(
-            authenticationMethod: try .tls(
-                privateKey: .file(pemPath),
-                certificateChain: NIOSSLCertificate.fromPEMFile(pemPath).map { .certificate($0) }
-            ),
-            environment: .production
-        )
+        let apnsConfig: APNSClientConfiguration
+        if let pwd = delegate.pemPrivateKeyPassword {
+            apnsConfig = APNSClientConfiguration(
+                authenticationMethod: try .tls(
+                    privateKey: .privateKey(
+                        NIOSSLPrivateKey(file: privateKeyPath, format: .pem) { closure in
+                            closure(pwd.utf8)
+                        }),
+                    certificateChain: NIOSSLCertificate.fromPEMFile(pemPath).map { .certificate($0) }
+                ),
+                environment: .production
+            )
+        } else {
+            apnsConfig = APNSClientConfiguration(
+                authenticationMethod: try .tls(
+                    privateKey: .file(privateKeyPath),
+                    certificateChain: NIOSSLCertificate.fromPEMFile(pemPath).map { .certificate($0) }
+                ),
+                environment: .production
+            )
+        }
         app.apns.containers.use(
             apnsConfig,
             eventLoopGroupProvider: .shared(app.eventLoopGroup),
