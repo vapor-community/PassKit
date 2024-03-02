@@ -47,6 +47,42 @@ struct CreatePassData: AsyncMigration {
 }
 ```
 
+### Handle cleanup
+
+Depending on your implementation details, you'll likely want to automatically clean out the passes and devices table when a registration is deleted.
+You'll need to implement based on your type of SQL database as there's not yet a Fluent way to implement something like SQL's `NOT EXISTS` call with a `DELETE` statement.
+If you're using PostgreSQL, you can setup these triggers/methods:
+
+```sql
+CREATE OR REPLACE FUNCTION public."RemoveUnregisteredItems"() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$BEGIN  
+       DELETE FROM devices d
+       WHERE NOT EXISTS (
+           SELECT 1
+           FROM registrations r
+           WHERE d."id" = r.device_id
+           LIMIT 1
+       );
+                
+       DELETE FROM passes p
+       WHERE NOT EXISTS (
+           SELECT 1
+           FROM registrations r
+           WHERE p."id" = r.pass_id
+           LIMIT 1
+       );
+                
+       RETURN OLD;
+END
+$$;
+
+CREATE TRIGGER "OnRegistrationDelete" 
+AFTER DELETE ON "public"."registrations"
+FOR EACH ROW
+EXECUTE PROCEDURE "public"."RemoveUnregisteredItems"();
+```
+
 ### Model the `pass.json` contents
 
 Create a `struct` that implements `Encodable` which will contain all the fields for the generated `pass.json` file.
@@ -120,42 +156,6 @@ class PKD: PassKitDelegate {
 
 You **must** explicitly declare `pemPrivateKeyPassword` as a `String?` or Swift will ignore it as it'll think it's a `String` instead.
 
-#### Handle cleanup
-
-Depending on your implementation details, you'll likely want to automatically clean out the passes and devices table when a registration is deleted.
-You'll need to implement based on your type of SQL database as there's not yet a Fluent way to implement something like SQL's `NOT EXISTS` call with a `DELETE` statement.
-If you're using PostgreSQL, you can setup these triggers/methods:
-
-```sql
-CREATE OR REPLACE FUNCTION public."RemoveUnregisteredItems"() RETURNS trigger
-    LANGUAGE plpgsql
-    AS $$BEGIN  
-       DELETE FROM devices d
-       WHERE NOT EXISTS (
-           SELECT 1
-           FROM registrations r
-           WHERE d."id" = r.device_id
-           LIMIT 1
-       );
-                
-       DELETE FROM passes p
-       WHERE NOT EXISTS (
-           SELECT 1
-           FROM registrations r
-           WHERE p."id" = r.pass_id
-           LIMIT 1
-       );
-                
-       RETURN OLD;
-END
-$$;
-
-CREATE TRIGGER "OnRegistrationDelete" 
-AFTER DELETE ON "public"."registrations"
-FOR EACH ROW
-EXECUTE PROCEDURE "public"."RemoveUnregisteredItems"();
-```
-
 ### Register Routes
 
 Next, register the routes in `routes.swift`.  Notice how the `delegate` is created as
@@ -173,7 +173,7 @@ func routes(_ app: Application) throws {
 
 #### Push Notifications
 
-This line registers routes specifically for sending push notifications to updated passes. You have to include it in your `routes(_:)` method because it sets up APNSwift. You'll need to pass in whatever `Middleware` you want Vapor to use to authenticate the two routes.
+If you wish to include routes specifically for sending push notifications to updated passes you can also include this line in your `routes(_:)` method. You'll need to pass in whatever `Middleware` you want Vapor to use to authenticate the two routes. If you don't include this line, you have to configure an APNS container yourself
 
 ```swift
 try pk.registerPushRoutes(middleware: SecretMiddleware())
@@ -184,11 +184,7 @@ That will add two routes:
 - POST .../api/v1/push/*passTypeIdentifier*/*passBarcode* (Sends notifications)
 - GET .../api/v1/push/*passTypeIdentifier*/*passBarcode* (Retrieves a list of push tokens which would be sent a notification)
 
-You'll want to add a middleware that sends push notifications and updates the `modified` field when your pass data updates.
-
-**IMPORTANT**: Whenever your pass data changes, you must update the *modified* time of the linked pass so that Apple knows to send you a new pass.
-
-You can implement it like so:
+Whether you include the routes or not, you'll want to add a middleware that sends push notifications and updates the `modified` field when your pass data updates. You can implement it like so:
 
 ```swift
 struct PassDataMiddleware: AsyncModelMiddleware {
@@ -214,6 +210,42 @@ and register it in *configure.swift*:
 app.databases.middleware.use(PassDataMiddleware(app: app), on: .psql)
 ```
 
+**IMPORTANT**: Whenever your pass data changes, you must update the *modified* time of the linked pass so that Apple knows to send you a new pass.
+
+If you did not include the routes remember to configure APNSwift yourself like this:
+
+```swift
+let apnsConfig: APNSClientConfiguration
+if let pemPrivateKeyPassword {
+    apnsConfig = APNSClientConfiguration(
+        authenticationMethod: try .tls(
+            privateKey: .privateKey(
+                NIOSSLPrivateKey(file: privateKeyPath, format: .pem) { closure in
+                    closure(pemPrivateKeyPassword.utf8)
+                }),
+            certificateChain: NIOSSLCertificate.fromPEMFile(pemPath).map { .certificate($0) }
+        ),
+        environment: .production
+    )
+} else {
+    apnsConfig = APNSClientConfiguration(
+        authenticationMethod: try .tls(
+            privateKey: .file(privateKeyPath),
+            certificateChain: NIOSSLCertificate.fromPEMFile(pemPath).map { .certificate($0) }
+        ),
+        environment: .production
+    )
+}
+app.apns.containers.use(
+    apnsConfig,
+    eventLoopGroupProvider: .shared(app.eventLoopGroup),
+    responseDecoder: JSONDecoder(),
+    requestEncoder: JSONEncoder(),
+    as: .init(string: "passkit"),
+    isDefault: false
+)
+```
+
 #### Custom Implementation
 
 If you don't like the schema names that are used by default, you can instead instantiate the generic `PassKitCustom` and provide your model types.
@@ -224,10 +256,51 @@ let pk = PassKitCustom<MyPassType, MyDeviceType, MyRegistrationType, MyErrorType
 
 ### Register Migrations
 
-Finally, if you're using the default schemas provided by this package you can register the default models in your `configure(_:)` method:
+If you're using the default schemas provided by this package you can register the default models in your `configure(_:)` method:
 
 ```swift
 PassKit.register(migrations: app.migrations)
 ```
 
 Register the default models before the migration of your pass data model.
+
+### Generate Pass Content
+
+To generate and distribute the `.pkpass` bundle, pass a `PassKit` object to your `RouteCollection`:
+
+```swift
+import Vapor
+import PassKit
+
+struct PassesController: RouteCollection {
+    let passKit: PassKit
+
+    func boot(routes: RoutesBuilder) throws {
+        ...
+    }
+}
+```
+
+and then use it in the route handler:
+
+```swift
+fileprivate func passHandler(_ req: Request) async throws -> Response {
+    ...
+    guard let passData = try await PassData.query(on: req.db)
+        .filter(...)
+        .with(\.$pass)
+        .first()
+    else {
+        throw Abort(.notFound)
+    }
+
+    let bundle = try await passKit.generatePassContent(for: passData.pass, on: req.db).get()
+    let body = Response.Body(data: bundle)
+    var headers = HTTPHeaders()
+    headers.add(name: .contentType, value: "application/vnd.apple.pkpass")
+    headers.add(name: .contentDisposition, value: "attachment; filename=pass.pkpass") // Add this header only if you are serving the pass in a web page
+    headers.add(name: .lastModified, value: String(passData.pass.modified.timeIntervalSince1970))
+    headers.add(name: .contentTransferEncoding, value: "binary")
+    return Response(status: .ok, headers: headers, body: body)
+}
+```
