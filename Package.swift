@@ -2,6 +2,15 @@
 
 import PackageDescription
 
+var swiftSettings: [SwiftSetting] { [
+    .enableUpcomingFeature("ExistentialAny"),
+    .enableUpcomingFeature("ConciseMagicFile"),
+    .enableUpcomingFeature("ForwardTrailingClosures"),
+    .enableUpcomingFeature("DisableOutwardActorInference"),
+    .enableUpcomingFeature("StrictConcurrency"),
+    .enableExperimentalFeature("StrictConcurrency=complete"),
+] }
+
 let package = Package(
     name: "PassKit",
     platforms: [
@@ -17,18 +26,26 @@ let package = Package(
         .package(url: "https://github.com/apple/swift-log.git", from: "1.5.4")
     ],
     targets: [
-        .target(name: "PassKit", dependencies: [
-            .product(name: "Fluent", package: "fluent"),
-            .product(name: "Vapor", package: "vapor"),
-            .product(name: "VaporAPNS", package: "apns"),
-            .product(name: "Logging", package: "swift-log")
-        ]),
-        .testTarget(name: "PassKitTests", dependencies: [
-            .target(name: "PassKit"),
-            .product(name: "Fluent", package: "fluent"),
-            .product(name: "Vapor", package: "vapor"),
-            .product(name: "VaporAPNS", package: "apns"),
-            .product(name: "Logging", package: "swift-log")
-        ]),
+        .target(
+            name: "PassKit",
+            dependencies: [
+                .product(name: "Fluent", package: "fluent"),
+                .product(name: "Vapor", package: "vapor"),
+                .product(name: "VaporAPNS", package: "apns"),
+                .product(name: "Logging", package: "swift-log")
+            ],
+            swiftSettings: swiftSettings
+        ),
+        .testTarget(
+            name: "PassKitTests",
+            dependencies: [
+                .target(name: "PassKit"),
+                .product(name: "Fluent", package: "fluent"),
+                .product(name: "Vapor", package: "vapor"),
+                .product(name: "VaporAPNS", package: "apns"),
+                .product(name: "Logging", package: "swift-log")
+            ],
+            swiftSettings: swiftSettings
+        ),
     ]
 )

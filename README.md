@@ -37,7 +37,7 @@ struct CreatePassData: AsyncMigration {
         try await database.schema(Self.schema)
             .id()
             .field("punches", .int, .required)
-            .field("pass_id", .uuid, .required, .references(PKPass.schema, "id", onDelete: .cascade))
+            .field("pass_id", .uuid, .required, .references(PKPass.schema, .id, onDelete: .cascade))
             .create()
     }
     

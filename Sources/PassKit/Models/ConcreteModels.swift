@@ -32,7 +32,7 @@ import Fluent
 final public class PKDevice: PassKitDevice {
     public static let schema = "devices"
 
-    @ID(custom: "id")
+    @ID(custom: .id)
     public var id: Int?
 
     @Field(key: "push_token")
@@ -49,18 +49,18 @@ final public class PKDevice: PassKitDevice {
     public init() {}
 }
 
-extension PKDevice: Migration {
-    public func prepare(on database: Database) -> EventLoopFuture<Void> {
-        database.schema(Self.schema)
-            .field("id", .int, .identifier(auto: true))
+extension PKDevice: AsyncMigration {
+    public func prepare(on database: any Database) async throws {
+        try await database.schema(Self.schema)
+            .field(.id, .int, .identifier(auto: true))
             .field("push_token", .string, .required)
             .field("device_library_identifier", .string, .required)
             .unique(on: "push_token", "device_library_identifier")
             .create()
     }
 
-    public func revert(on database: Database) -> EventLoopFuture<Void> {
-        database.schema(Self.schema).delete()
+    public func revert(on database: any Database) async throws {
+        try await database.schema(Self.schema).delete()
     }
 }
 
@@ -81,24 +81,24 @@ open class PKPass: PassKitPass {
     }
 }
 
-extension PKPass: Migration {
-    public func prepare(on database: Database) -> EventLoopFuture<Void> {
-        database.schema(Self.schema)
-            .field("id", .uuid, .identifier(auto: false))
+extension PKPass: AsyncMigration {
+    public func prepare(on database: any Database) async throws {
+        try await database.schema(Self.schema)
+            .id()
             .field("modified", .datetime, .required)
             .field("type_identifier", .string, .required)
             .create()
     }
 
-    public func revert(on database: Database) -> EventLoopFuture<Void> {
-        database.schema(Self.schema).delete()
+    public func revert(on database: any Database) async throws {
+        try await database.schema(Self.schema).delete()
     }
 }
 
 final public class PKErrorLog: PassKitErrorLog {
     public static let schema = "errors"
 
-    @ID(custom: "id")
+    @ID(custom: .id)
     public var id: Int?
 
     @Field(key: "created")
@@ -115,17 +115,17 @@ final public class PKErrorLog: PassKitErrorLog {
     public init() {}
 }
 
-extension PKErrorLog: Migration {
-    public func prepare(on database: Database) -> EventLoopFuture<Void> {
-        database.schema(Self.schema)
-            .field("id", .int, .identifier(auto: true))
+extension PKErrorLog: AsyncMigration {
+    public func prepare(on database: any Database) async throws {
+        try await database.schema(Self.schema)
+            .field(.id, .int, .identifier(auto: true))
             .field("created", .datetime, .required)
             .field("message", .string, .required)
             .create()
     }
 
-    public func revert(on database: Database) -> EventLoopFuture<Void> {
-        database.schema(PKErrorLog.schema).delete()
+    public func revert(on database: any Database) async throws {
+        try await database.schema(PKErrorLog.schema).delete()
     }
 }
 
@@ -135,7 +135,7 @@ final public class PKRegistration: PassKitRegistration {
 
     public static let schema = "registrations"
 
-    @ID(custom: "id")
+    @ID(custom: .id)
     public var id: Int?
 
     @Parent(key: "device_id")
@@ -147,18 +147,18 @@ final public class PKRegistration: PassKitRegistration {
     public init() {}
 }
 
-extension PKRegistration: Migration {
-    public func prepare(on database: Database) -> EventLoopFuture<Void> {
-        database.schema(Self.schema)
-            .field("id", .int, .identifier(auto: true))
+extension PKRegistration: AsyncMigration {
+    public func prepare(on database: any Database) async throws {
+        try await database.schema(Self.schema)
+            .field(.id, .int, .identifier(auto: true))
             .field("device_id", .int, .required)
             .field("pass_id", .uuid, .required)
-            .foreignKey("device_id", references: PKDevice.schema, "id", onDelete: .cascade)
-            .foreignKey("pass_id", references: PKPass.schema, "id", onDelete: .cascade)
+            .foreignKey("device_id", references: PKDevice.schema, .id, onDelete: .cascade)
+            .foreignKey("pass_id", references: PKPass.schema, .id, onDelete: .cascade)
             .create()
     }
 
-    public func revert(on database: Database) -> EventLoopFuture<Void> {
-        database.schema(Self.schema).delete()
+    public func revert(on database: any Database) async throws {
+        try await database.schema(Self.schema).delete()
     }
 }

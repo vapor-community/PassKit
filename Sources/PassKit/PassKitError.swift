@@ -18,7 +18,7 @@ public enum PassKitError: Error {
     case pemPrivateKeyMissing
 
     /// Swift NIO failed to read the key.
-    case nioPrivateKeyReadFailed(Error)
+    case nioPrivateKeyReadFailed(any Error)
 
     /// The path to the zip binary is incorrect.
     case zipBinaryMissing

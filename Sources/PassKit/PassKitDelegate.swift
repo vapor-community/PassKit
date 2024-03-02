@@ -43,7 +43,7 @@ public protocol PassKitDelegate: AnyObject {
     ///
     /// ### Note ###
     /// Be sure to use the `URL(fileURLWithPath:isDirectory:)` constructor.
-    func template<P: PassKitPass>(for: P, db: Database) -> EventLoopFuture<URL>
+    func template<P: PassKitPass>(for: P, db: any Database) -> EventLoopFuture<URL>
 
     /// Generates the SSL `signature` file.
     ///
@@ -64,7 +64,7 @@ public protocol PassKitDelegate: AnyObject {
     ///   - db: The SQL database to query against.
     ///   - encoder: The `JSONEncoder` which you should use.
     /// - See: [Understanding the Keys](https://developer.apple.com/library/archive/documentation/UserExperience/Reference/PassKit_Bundle/Chapters/Introduction.html)
-    func encode<P: PassKitPass>(pass: P, db: Database, encoder: JSONEncoder) -> EventLoopFuture<Data>
+    func encode<P: PassKitPass>(pass: P, db: any Database, encoder: JSONEncoder) -> EventLoopFuture<Data>
 
     /// Should return a `URL` which points to the template data for the pass.
     ///
