@@ -29,27 +29,28 @@
 import Vapor
 import Fluent
 
-public protocol PassKitDelegate: AnyObject {
+public protocol PassKitDelegate: AnyObject, Sendable {
     /// Should return a `URL` which points to the template data for the pass.
     ///
-    /// The URL should point to a directory containing all the images and
-    /// localizations for the generated pkpass archive but should *not* contain any of these items:
-    ///  - manifest.json
-    ///  - pass.json
-    ///  - signature
+    /// The URL should point to a directory containing all the images and localizations for the generated `.pkpass` archive but should *not* contain any of these items:
+    ///  - `manifest.json`
+    ///  - `pass.json`
+    ///  - `signature`
+    ///
     /// - Parameters:
     ///   - pass: The pass data from the SQL server.
     ///   - db: The SQL database to query against.
     ///
-    /// ### Note ###
-    /// Be sure to use the `URL(fileURLWithPath:isDirectory:)` constructor.
-    func template<P: PassKitPass>(for: P, db: any Database) -> EventLoopFuture<URL>
+    /// - Returns: A `URL` which points to the template data for the pass.
+    ///
+    /// > Important: Be sure to use the `URL(fileURLWithPath:isDirectory:)` constructor.
+    func template<P: PassKitPass>(for: P, db: any Database) async throws -> URL
 
     /// Generates the SSL `signature` file.
     ///
     /// If you need to implement custom S/Mime signing you can use this
-    /// method to do so.  You must generate a detached DER signature of the
-    /// `manifest.json` file.
+    /// method to do so. You must generate a detached DER signature of the `manifest.json` file.
+    ///
     /// - Parameter root: The location of the `manifest.json` and where to write the `signature` to.
     /// - Returns: Return `true` if you generated a custom `signature`, otherwise `false`.
     func generateSignatureFile(in root: URL) -> Bool
@@ -59,30 +60,34 @@ public protocol PassKitDelegate: AnyObject {
     /// This method should generate the entire pass JSON. You are provided with
     /// the pass data from the SQL database and you should return a properly
     /// formatted pass file encoding.
+    ///
     /// - Parameters:
     ///   - pass: The pass data from the SQL server
     ///   - db: The SQL database to query against.
     ///   - encoder: The `JSONEncoder` which you should use.
-    /// - See: [Understanding the Keys](https://developer.apple.com/library/archive/documentation/UserExperience/Reference/PassKit_Bundle/Chapters/Introduction.html)
-    func encode<P: PassKitPass>(pass: P, db: any Database, encoder: JSONEncoder) -> EventLoopFuture<Data>
+    /// - Returns: The encoded pass JSON data.
+    ///
+    /// > Tip: See the [Pass](https://developer.apple.com/documentation/walletpasses/pass) object to understand the keys.
+    func encode<P: PassKitPass>(pass: P, db: any Database, encoder: JSONEncoder) async throws -> Data
 
     /// Should return a `URL` which points to the template data for the pass.
     ///
     /// The URL should point to a directory containing the files specified by these keys:
-    /// - wwdrCertificate
-    /// - pemCertificate
-    /// - pemPrivateKey
+    /// - `wwdrCertificate`
+    /// - `pemCertificate`
+    /// - `pemPrivateKey`
     ///
-    /// ### Note ###
-    /// Be sure to use the `URL(fileURLWithPath:isDirectory:)` initializer!
+    /// > Important: Be sure to use the `URL(fileURLWithPath:isDirectory:)` initializer!
     var sslSigningFilesDirectory: URL { get }
 
     /// The location of the `openssl` command as a file URL.
-    /// - Note: Be sure to use the `URL(fileURLWithPath:)` constructor.
+    ///
+    /// > Important: Be sure to use the `URL(fileURLWithPath:)` constructor.
     var sslBinary: URL { get }
 
     /// The full path to the `zip` command as a file URL.
-    /// - Note: Be sure to use the `URL(fileURLWithPath:)` constructor.
+    /// 
+    /// > Important: Be sure to use the `URL(fileURLWithPath:)` constructor.
     var zipBinary: URL { get }
     
     /// The name of Apple's WWDR.pem certificate as contained in `sslSigningFiles` path.
