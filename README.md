@@ -119,37 +119,38 @@ struct PassJsonData: Encodable {
 
 Create a delegate file that implements `PassKitDelegate`.
 In the `sslSigningFilesDirectory` you specify there must be the `WWDR.pem`, `passcertificate.pem` and `passkey.pem` files. If they are named like that you're good to go, otherwise you have to specify the custom name.
+Obtaining the three certificates files could be a bit tricky, you could get some guidance from [this guide](https://github.com/alexandercerutti/passkit-generator/wiki/Generating-Certificates) and [this video](https://www.youtube.com/watch?v=rJZdPoXHtzI).
 There are other fields available which have reasonable default values. See the delegate's documentation.
 Because the files for your pass' template and the method of encoding might vary by pass type, you'll be provided the pass for those methods.
 
 ```swift
 import Vapor
+import Fluent
 import PassKit
 
-class PKD: PassKitDelegate {
-    var sslSigningFilesDirectory = URL(fileURLWithPath: "/www/myapp/sign", isDirectory: true)
+final class PKDelegate: PassKitDelegate {
+    let sslSigningFilesDirectory = URL(fileURLWithPath: "/www/myapp/sign", isDirectory: true)
 
-    var pemPrivateKeyPassword: String? = Environment.get("PEM_PRIVATE_KEY_PASSWORD")!
+    let pemPrivateKeyPassword: String? = Environment.get("PEM_PRIVATE_KEY_PASSWORD")!
 
-    func encode<P: PassKitPass>(pass: P, db: Database, encoder: JSONEncoder) -> EventLoopFuture<Data> {
+    func encode<P: PassKitPass>(pass: P, db: Database, encoder: JSONEncoder) async throws -> Data {
         // The specific PassData class you use here may vary based on the pass.type if you have multiple
         // different types of passes, and thus multiple types of pass data.
-        return PassData.query(on: db)
-            .filter(\.$pass == pass.id!)
+        guard let passData = try await PassData.query(on: db)
+            .filter(\.$pass.$id == pass.id!)
             .first()
-            .unwrap(or: Abort(.internalServerError))
-            .flatMap { passData in
-                guard let data = try? encoder.encode(PassJsonData(data: passData, pass: pass)) else {
-                    return db.eventLoop.makeFailedFuture(Abort(.internalServerError))
-                }
-                return db.eventLoop.makeSucceededFuture(data)
+        else {
+            throw Abort(.internalServerError)
         }
+        guard let data = try? encoder.encode(PassJsonData(data: passData, pass: pass)) else {
+            throw Abort(.internalServerError)
+        }
+        return data
     }
 
-    func template<P: PassKitPass>(for: P, db: Database) -> EventLoopFuture<URL> {
+    func template<P: PassKitPass>(for: P, db: Database) async throws -> URL {
         // The location might vary depending on the type of pass.
-        let url = URL(fileURLWithPath: "/www/myapp/pass", isDirectory: true)
-        return db.eventLoop.makeSucceededFuture(url)
+        return URL(fileURLWithPath: "/www/myapp/pass", isDirectory: true)
     }
 }
 ```
@@ -163,7 +164,7 @@ a global variable. You need to ensure that the delegate doesn't go out of scope 
 This will implement all of the routes that PassKit expects to exist on your server for you.
 
 ```swift
-let delegate = PKD()
+let delegate = PKDelegate()
 
 func routes(_ app: Application) throws {
     let pk = PassKit(app: app, delegate: delegate)
@@ -294,7 +295,7 @@ fileprivate func passHandler(_ req: Request) async throws -> Response {
         throw Abort(.notFound)
     }
 
-    let bundle = try await passKit.generatePassContent(for: passData.pass, on: req.db).get()
+    let bundle = try await passKit.generatePassContent(for: passData.pass, on: req.db)
     let body = Response.Body(data: bundle)
     var headers = HTTPHeaders()
     headers.add(name: .contentType, value: "application/vnd.apple.pkpass")
