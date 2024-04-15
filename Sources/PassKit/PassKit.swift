@@ -504,11 +504,7 @@ public final class PassKitCustom<P, D, R: PassKitRegistration, E: PassKitErrorLo
         let encoder = JSONEncoder()
         
         let src = try await delegate.template(for: pass, db: db)
-        var isDir: ObjCBool = false
-        
-        guard src.hasDirectoryPath &&
-                FileManager.default.fileExists(atPath: src.unixPath(), isDirectory: &isDir) &&
-                isDir.boolValue else {
+        guard (try? src.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? false else {
             throw PassKitError.templateNotDirectory
         }
         
