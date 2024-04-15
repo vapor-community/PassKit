@@ -29,11 +29,11 @@
 import Vapor
 import APNS
 import VaporAPNS
-import APNSCore
+@preconcurrency import APNSCore
 import Fluent
 import NIOSSL
 
-public class PassKit {
+public final class PassKit: Sendable {
     private let kit: PassKitCustom<PKPass, PKDevice, PKRegistration, PKErrorLog>
     
     public init(app: Application, delegate: any PassKitDelegate, logger: Logger? = nil) {
@@ -42,8 +42,7 @@ public class PassKit {
     
     /// Registers all the routes required for PassKit to work.
     ///
-    /// - Parameters:
-    ///   - authorizationCode: The `authenticationToken` which you are going to use in the `pass.json` file.
+    /// - Parameter authorizationCode: The `authenticationToken` which you are going to use in the `pass.json` file.
     public func registerRoutes(authorizationCode: String? = nil) {
         kit.registerRoutes(authorizationCode: authorizationCode)
     }
@@ -52,8 +51,8 @@ public class PassKit {
         try kit.registerPushRoutes(middleware: middleware)
     }
 
-    public func generatePassContent(for pass: PKPass, on db: any Database) -> EventLoopFuture<Data> {
-        kit.generatePassContent(for: pass, on: db)
+    public func generatePassContent(for pass: PKPass, on db: any Database) async throws -> Data {
+        try await kit.generatePassContent(for: pass, on: db)
     }
     
     public static func register(migrations: Migrations) {
@@ -83,12 +82,12 @@ public class PassKit {
 /// - Device Type
 /// - Registration Type
 /// - Error Log Type
-public class PassKitCustom<P, D, R: PassKitRegistration, E: PassKitErrorLog> where P == R.PassType, D == R.DeviceType {
+public final class PassKitCustom<P, D, R: PassKitRegistration, E: PassKitErrorLog>: Sendable where P == R.PassType, D == R.DeviceType {
     public unowned let delegate: any PassKitDelegate
     private unowned let app: Application
     
     private let processQueue = DispatchQueue(label: "com.vapor-community.PassKit", qos: .utility, attributes: .concurrent)
-    private let v1: any RoutesBuilder
+    private let v1: FakeSendable<any RoutesBuilder>
     private let logger: Logger?
     
     public init(app: Application, delegate: any PassKitDelegate, logger: Logger? = nil) {
@@ -96,37 +95,35 @@ public class PassKitCustom<P, D, R: PassKitRegistration, E: PassKitErrorLog> whe
         self.logger = logger
         self.app = app
         
-        v1 = app.grouped("api", "v1")
+        v1 = FakeSendable(value: app.grouped("api", "v1"))
     }
     
     /// Registers all the routes required for PassKit to work.
     ///
-    /// - Parameters:
-    ///   - authorizationCode: The `authenticationToken` which you are going to use in the `pass.json` file.
+    /// - Parameter authorizationCode: The `authenticationToken` which you are going to use in the `pass.json` file.
     public func registerRoutes(authorizationCode: String? = nil) {
-        v1.get("devices", ":deviceLibraryIdentifier", "registrations", ":type", use: passesForDevice)
-        v1.post("log", use: logError)
+        v1.value.get("devices", ":deviceLibraryIdentifier", "registrations", ":type", use: { try await self.passesForDevice(req: $0) })
+        v1.value.post("log", use: { try await self.logError(req: $0) })
         
         guard let code = authorizationCode ?? Environment.get("PASS_KIT_AUTHORIZATION") else {
             fatalError("Must pass in an authorization code")
         }
         
-        let v1auth = v1.grouped(ApplePassMiddleware(authorizationCode: code))
+        let v1auth = v1.value.grouped(ApplePassMiddleware(authorizationCode: code))
         
-        v1auth.post("devices", ":deviceLibraryIdentifier", "registrations", ":type", ":passSerial", use: registerDevice)
-        v1auth.get("passes", ":type", ":passSerial", use: latestVersionOfPass)
-        v1auth.delete("devices", ":deviceLibraryIdentifier", "registrations", ":type", ":passSerial", use: unregisterDevice)
+        v1auth.post("devices", ":deviceLibraryIdentifier", "registrations", ":type", ":passSerial", use: { try await self.registerDevice(req: $0) })
+        v1auth.get("passes", ":type", ":passSerial", use: { try await self.latestVersionOfPass(req: $0) })
+        v1auth.delete("devices", ":deviceLibraryIdentifier", "registrations", ":type", ":passSerial", use: { try await self.unregisterDevice(req: $0) })
     }
     
     /// Registers routes to send push notifications for updated passes
     ///
     /// ### Example ###
-    /// ```
+    /// ```swift
     /// try pk.registerPushRoutes(environment: .sandbox, middleware: PushAuthMiddleware())
     /// ```
     ///
-    /// - Parameters:
-    ///   - middleware: The `Middleware` which will control authentication for the routes.
+    /// - Parameter middleware: The `Middleware` which will control authentication for the routes.
     /// - Throws: An error of type `PassKitError`
     public func registerPushRoutes(middleware: any Middleware) throws {
         let privateKeyPath = URL(fileURLWithPath: delegate.pemPrivateKey, relativeTo:
@@ -173,14 +170,14 @@ public class PassKitCustom<P, D, R: PassKitRegistration, E: PassKitErrorLog> whe
             isDefault: false
         )
         
-        let pushAuth = v1.grouped(middleware)
+        let pushAuth = v1.value.grouped(middleware)
         
-        pushAuth.post("push", ":type", ":passSerial", use: pushUpdatesForPass)
-        pushAuth.get("push", ":type", ":passSerial", use: tokensForPassUpdate)
+        pushAuth.post("push", ":type", ":passSerial", use: { try await self.pushUpdatesForPass(req: $0) })
+        pushAuth.get("push", ":type", ":passSerial", use: { try await self.tokensForPassUpdate(req: $0) })
     }
     
     // MARK: - API Routes
-    @Sendable func registerDevice(req: Request) async throws -> HTTPStatus {
+    func registerDevice(req: Request) async throws -> HTTPStatus {
         logger?.debug("Called register device")
         
         guard let serial = req.parameters.get("passSerial", as: UUID.self) else {
@@ -220,7 +217,7 @@ public class PassKitCustom<P, D, R: PassKitRegistration, E: PassKitErrorLog> whe
         }
     }
     
-    @Sendable func passesForDevice(req: Request) async throws -> PassesForDeviceDto {
+    func passesForDevice(req: Request) async throws -> PassesForDeviceDto {
         logger?.debug("Called passesForDevice")
         
         let type = req.parameters.get("type")!
@@ -253,7 +250,7 @@ public class PassKitCustom<P, D, R: PassKitRegistration, E: PassKitErrorLog> whe
         return PassesForDeviceDto(with: serialNumbers, maxDate: maxDate)
     }
     
-    @Sendable func latestVersionOfPass(req: Request) async throws -> Response {
+    func latestVersionOfPass(req: Request) async throws -> Response {
         logger?.debug("Called latestVersionOfPass")
         
         guard FileManager.default.fileExists(atPath: delegate.zipBinary.unixPath()) else {
@@ -283,7 +280,7 @@ public class PassKitCustom<P, D, R: PassKitRegistration, E: PassKitErrorLog> whe
             throw Abort(.notModified)
         }
         
-        let data = try await self.generatePassContent(for: pass, on: req.db).get()
+        let data = try await self.generatePassContent(for: pass, on: req.db)
         let body = Response.Body(data: data)
         
         var headers = HTTPHeaders()
@@ -294,7 +291,7 @@ public class PassKitCustom<P, D, R: PassKitRegistration, E: PassKitErrorLog> whe
         return Response(status: .ok, headers: headers, body: body)
     }
     
-    @Sendable func unregisterDevice(req: Request) async throws -> HTTPStatus {
+    func unregisterDevice(req: Request) async throws -> HTTPStatus {
         logger?.debug("Called unregisterDevice")
         
         let type = req.parameters.get("type")!
@@ -315,7 +312,7 @@ public class PassKitCustom<P, D, R: PassKitRegistration, E: PassKitErrorLog> whe
         return .ok
     }
     
-    @Sendable func logError(req: Request) throws -> EventLoopFuture<HTTPStatus> {
+    func logError(req: Request) async throws -> HTTPStatus {
         logger?.debug("Called logError")
         
         let body: ErrorLogDto
@@ -330,13 +327,12 @@ public class PassKitCustom<P, D, R: PassKitRegistration, E: PassKitErrorLog> whe
             throw Abort(.badRequest)
         }
         
-        return body.logs
-            .map { E(message: $0).create(on: req.db) }
-            .flatten(on: req.eventLoop)
-            .map { .ok }
+        try await body.logs.map(E.init(message:)).create(on: req.db)
+            
+        return .ok
     }
     
-    @Sendable func pushUpdatesForPass(req: Request) async throws -> HTTPStatus {
+    func pushUpdatesForPass(req: Request) async throws -> HTTPStatus {
         logger?.debug("Called pushUpdatesForPass")
         
         guard let id = req.parameters.get("passSerial", as: UUID.self) else {
@@ -349,7 +345,7 @@ public class PassKitCustom<P, D, R: PassKitRegistration, E: PassKitErrorLog> whe
         return .noContent
     }
     
-    @Sendable func tokensForPassUpdate(req: Request) async throws -> [String] {
+    func tokensForPassUpdate(req: Request) async throws -> [String] {
         logger?.debug("Called tokensForPassUpdate")
         
         guard let id = req.parameters.get("passSerial", as: UUID.self) else {
@@ -501,54 +497,40 @@ public class PassKitCustom<P, D, R: PassKitRegistration, E: PassKitErrorLog> whe
         proc.waitUntilExit()
     }
     
-    public func generatePassContent(for pass: P, on db: any Database) -> EventLoopFuture<Data> {
+    public func generatePassContent(for pass: P, on db: any Database) async throws -> Data {
         let tmp = FileManager.default.temporaryDirectory
         let root = tmp.appendingPathComponent(UUID().uuidString, isDirectory: true)
         let zipFile = tmp.appendingPathComponent("\(UUID().uuidString).zip")
         let encoder = JSONEncoder()
         
-        return delegate.template(for: pass, db: db)
-            .flatMap { src in
-                var isDir: ObjCBool = false
-
-                guard src.hasDirectoryPath &&
-                    FileManager.default.fileExists(atPath: src.unixPath(), isDirectory: &isDir) &&
-                    isDir.boolValue else {
-                        return db.eventLoop.makeFailedFuture(PassKitError.templateNotDirectory)
-                }
-                
-                return self.delegate.encode(pass: pass, db: db, encoder: encoder)
-                    .flatMap { encoded in
-                        let result: EventLoopPromise<Data> = db.eventLoop.makePromise()
-                        
-                        self.processQueue.async {
-                            do {
-                                try FileManager.default.copyItem(at: src, to: root)
-                            
-                                defer {
-                                    _ = try? FileManager.default.removeItem(at: root)
-                                }
-                                
-                                try encoded.write(to: root.appendingPathComponent("pass.json"))
-                                
-                                try Self.generateManifestFile(using: encoder, in: root)
-                                try self.generateSignatureFile(in: root)
-                                                                
-                                try self.zip(directory: root, to: zipFile)
-                                
-                                defer {
-                                    _ = try? FileManager.default.removeItem(at: zipFile)
-                                }
-                                
-                                let data = try Data(contentsOf: zipFile)
-                                result.completeWith(.success(data))
-                            } catch {
-                                result.completeWith(.failure(error))
-                            }
-                        }
-                        
-                        return result.futureResult
-                }
+        let src = try await delegate.template(for: pass, db: db)
+        guard (try? src.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? false else {
+            throw PassKitError.templateNotDirectory
+        }
+        
+        let encoded = try await self.delegate.encode(pass: pass, db: db, encoder: encoder)
+        
+        do {
+            try FileManager.default.copyItem(at: src, to: root)
+            
+            defer {
+                _ = try? FileManager.default.removeItem(at: root)
+            }
+            
+            try encoded.write(to: root.appendingPathComponent("pass.json"))
+            
+            try Self.generateManifestFile(using: encoder, in: root)
+            try self.generateSignatureFile(in: root)
+            
+            try self.zip(directory: root, to: zipFile)
+            
+            defer {
+                _ = try? FileManager.default.removeItem(at: zipFile)
+            }
+            
+            return try Data(contentsOf: zipFile)
+        } catch {
+            throw error
         }
     }
 }

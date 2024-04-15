@@ -11,9 +11,9 @@ let package = Package(
         .library(name: "PassKit", targets: ["PassKit"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/vapor/vapor.git", from: "4.92.4"),
+        .package(url: "https://github.com/vapor/vapor.git", from: "4.92.5"),
         .package(url: "https://github.com/vapor/fluent.git", from: "4.9.0"),
-        .package(url: "https://github.com/vapor/apns.git", from: "4.0.0"),
+        .package(url: "https://github.com/vapor/apns.git", from: "4.1.0"),
         .package(url: "https://github.com/apple/swift-log.git", from: "1.5.4")
     ],
     targets: [
@@ -46,6 +46,6 @@ var swiftSettings: [SwiftSetting] { [
     .enableUpcomingFeature("ConciseMagicFile"),
     .enableUpcomingFeature("ForwardTrailingClosures"),
     .enableUpcomingFeature("DisableOutwardActorInference"),
-//    .enableUpcomingFeature("StrictConcurrency"),
-//    .enableExperimentalFeature("StrictConcurrency=complete"),
+    .enableUpcomingFeature("StrictConcurrency"),
+    .enableExperimentalFeature("StrictConcurrency=complete"),
 ] }
