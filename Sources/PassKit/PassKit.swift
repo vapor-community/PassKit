@@ -327,9 +327,7 @@ public final class PassKitCustom<P, D, R: PassKitRegistration, E: PassKitErrorLo
             throw Abort(.badRequest)
         }
         
-        for log in body.logs {
-            try await E(message: log).create(on: req.db)
-        }
+        try await body.logs.map(E.init(message:)).create(on: req.db)
             
         return .ok
     }
