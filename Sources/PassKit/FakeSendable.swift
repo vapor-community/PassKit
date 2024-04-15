@@ -26,8 +26,6 @@
 /// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 /// THE SOFTWARE.
 
-import Foundation
-
 // This is a temporary fix until RoutesBuilder and EmptyPayload are not Sendable
 struct FakeSendable<T>: @unchecked Sendable {
     let value: T
