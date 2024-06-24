@@ -166,7 +166,7 @@ public final class PassesCustom<P, D, R: PassKitRegistration, E: PassKitErrorLog
             eventLoopGroupProvider: .shared(app.eventLoopGroup),
             responseDecoder: JSONDecoder(),
             requestEncoder: JSONEncoder(),
-            as: .init(string: "passkit"),
+            as: .init(string: "passes"),
             isDefault: false
         )
         

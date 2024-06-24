@@ -1,7 +1,6 @@
 # PassKit
 
 [![Swift Package Manager compatible](https://img.shields.io/badge/SPM-compatible-brightgreen.svg)](https://github.com/apple/swift-package-manager)
-[![Platform](https://img.shields.io/badge/Platforms-macOS%20|%20Linux-lightgrey.svg)](https://github.com/gargoylesoft/PassKit)
 
 🎟️ A Vapor package which handles all the server side elements required to implement passes for Apple Wallet.
 
