@@ -192,11 +192,11 @@ public final class PassesCustom<P, D, R: PassKitRegistration, E: PassKitErrorLog
             throw Abort(.badRequest)
         }
         
-        let type = req.parameters.get("type")!
+        let passTypeIdentifier = req.parameters.get("type")!
         let deviceLibraryIdentifier = req.parameters.get("deviceLibraryIdentifier")!
         
         guard let pass = try await P.query(on: req.db)
-            .filter(\._$type == type)
+            .filter(\._$passTypeIdentifier == passTypeIdentifier)
             .filter(\._$id == serial)
             .first()
         else {
@@ -227,7 +227,7 @@ public final class PassesCustom<P, D, R: PassKitRegistration, E: PassKitErrorLog
         
         if let since: TimeInterval = req.query["passesUpdatedSince"] {
             let when = Date(timeIntervalSince1970: since)
-            query = query.filter(P.self, \._$modified > when)
+            query = query.filter(P.self, \._$updatedAt > when)
         }
         
         let registrations = try await query.all()
@@ -242,8 +242,8 @@ public final class PassesCustom<P, D, R: PassKitRegistration, E: PassKitErrorLog
             let pass = r.pass
             
             serialNumbers.append(pass.id!.uuidString)
-            if pass.modified > maxDate {
-                maxDate = pass.modified
+            if let updatedAt = pass.updatedAt, updatedAt > maxDate {
+                maxDate = updatedAt
             }
         }
         
@@ -263,20 +263,20 @@ public final class PassesCustom<P, D, R: PassKitRegistration, E: PassKitErrorLog
             ifModifiedSince = ims
         }
         
-        guard let type = req.parameters.get("type"),
+        guard let passTypeIdentifier = req.parameters.get("type"),
             let id = req.parameters.get("passSerial", as: UUID.self) else {
                 throw Abort(.badRequest)
         }
         
         guard let pass = try await P.query(on: req.db)
             .filter(\._$id == id)
-            .filter(\._$type == type)
+            .filter(\._$passTypeIdentifier == passTypeIdentifier)
             .first()
         else {
             throw Abort(.notFound)
         }
         
-        guard ifModifiedSince < pass.modified.timeIntervalSince1970 else {
+        guard ifModifiedSince < pass.updatedAt?.timeIntervalSince1970 ?? 0 else {
             throw Abort(.notModified)
         }
         
@@ -285,7 +285,7 @@ public final class PassesCustom<P, D, R: PassKitRegistration, E: PassKitErrorLog
         
         var headers = HTTPHeaders()
         headers.add(name: .contentType, value: "application/vnd.apple.pkpass")
-        headers.add(name: .lastModified, value: String(pass.modified.timeIntervalSince1970))
+        headers.add(name: .lastModified, value: String(pass.updatedAt?.timeIntervalSince1970 ?? 0))
         headers.add(name: .contentTransferEncoding, value: "binary")
         
         return Response(status: .ok, headers: headers, body: body)
@@ -359,7 +359,7 @@ public final class PassesCustom<P, D, R: PassKitRegistration, E: PassKitErrorLog
     }
     
     private static func createRegistration(device: D, pass: P, req: Request) async throws -> HTTPStatus {
-        let r = try await R.for(deviceLibraryIdentifier: device.deviceLibraryIdentifier, passTypeIdentifier: pass.type, on: req.db)
+        let r = try await R.for(deviceLibraryIdentifier: device.deviceLibraryIdentifier, passTypeIdentifier: pass.passTypeIdentifier, on: req.db)
             .filter(P.self, \._$id == pass.id!)
             .first()
         if r != nil {
@@ -379,7 +379,7 @@ public final class PassesCustom<P, D, R: PassKitRegistration, E: PassKitErrorLog
     public static func sendPushNotificationsForPass(id: UUID, of type: String, on db: any Database, app: Application) async throws {
         let registrations = try await Self.registrationsForPass(id: id, of: type, on: db)
         for reg in registrations {
-            let backgroundNotification = APNSBackgroundNotification(expiration: .immediately, topic: reg.pass.type, payload: EmptyPayload())
+            let backgroundNotification = APNSBackgroundNotification(expiration: .immediately, topic: reg.pass.passTypeIdentifier, payload: EmptyPayload())
             do {
                 try await app.apns.client(.init(string: "passkit")).sendBackgroundNotification(
                     backgroundNotification,
@@ -397,7 +397,7 @@ public final class PassesCustom<P, D, R: PassKitRegistration, E: PassKitErrorLog
             throw FluentError.idRequired
         }
         
-        try await Self.sendPushNotificationsForPass(id: id, of: pass.type, on: db, app: app)
+        try await Self.sendPushNotificationsForPass(id: id, of: pass.passTypeIdentifier, on: db, app: app)
     }
     
     public static func sendPushNotifications(for pass: ParentProperty<R, P>, on db: any Database, app: Application) async throws {
@@ -412,7 +412,7 @@ public final class PassesCustom<P, D, R: PassKitRegistration, E: PassKitErrorLog
        try await sendPushNotifications(for: value, on: db, app: app)
     }
     
-    private static func registrationsForPass(id: UUID, of type: String, on db: any Database) async throws -> [R] {
+    private static func registrationsForPass(id: UUID, of passTypeIdentifier: String, on db: any Database) async throws -> [R] {
         // This could be done by enforcing the caller to have a Siblings property
         // wrapper, but there's not really any value to forcing that on them when
         // we can just do the query ourselves like this.
@@ -421,7 +421,7 @@ public final class PassesCustom<P, D, R: PassKitRegistration, E: PassKitErrorLog
             .join(parent: \._$device)
             .with(\._$pass)
             .with(\._$device)
-            .filter(P.self, \._$type == type)
+            .filter(P.self, \._$passTypeIdentifier == passTypeIdentifier)
             .filter(P.self, \._$id == id)
             .all()
     }

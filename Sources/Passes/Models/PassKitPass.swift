@@ -29,13 +29,13 @@
 import Vapor
 import Fluent
 
-/// Represents the `Model` that stores PassKit passes..  Uses a UUID so people can't easily guess your pass IDs
+/// Represents the `Model` that stores PassKit passes. Uses a UUID so people can't easily guess your pass IDs
 public protocol PassKitPass: Model where IDValue == UUID {
-    /// The pass type
-    var type: String { get set }
+    /// The pass type identifier.
+    var passTypeIdentifier: String { get set }
     
     /// The last time the pass was modified.
-    var modified: Date { get set }
+    var updatedAt: Date? { get set }
 }
 
 internal extension PassKitPass {
@@ -48,21 +48,21 @@ internal extension PassKitPass {
         return id
     }
     
-    var _$type: Field<String> {
-        guard let mirror = Mirror(reflecting: self).descendant("_type"),
-            let type = mirror as? Field<String> else {
-                fatalError("type property must be declared using @Field")
+    var _$passTypeIdentifier: Field<String> {
+        guard let mirror = Mirror(reflecting: self).descendant("_passTypeIdentifier"),
+            let passTypeIdentifier = mirror as? Field<String> else {
+                fatalError("passTypeIdentifier property must be declared using @Field")
         }
         
-        return type
+        return passTypeIdentifier
     }
     
-    var _$modified: Field<Date> {
-        guard let mirror = Mirror(reflecting: self).descendant("_modified"),
-            let modified = mirror as? Field<Date> else {
-                fatalError("modified property must be declared using @Field")
+    var _$updatedAt: Timestamp<DefaultTimestampFormat> {
+        guard let mirror = Mirror(reflecting: self).descendant("_updatedAt"),
+            let updatedAt = mirror as? Timestamp<DefaultTimestampFormat> else {
+                fatalError("updatedAt property must be declared using @Timestamp(on: .update)")
         }
         
-        return modified
+        return updatedAt
     }
 }

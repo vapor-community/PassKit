@@ -66,7 +66,7 @@ internal extension PassKitRegistration {
             .join(parent: \._$device)
             .with(\._$pass)
             .with(\._$device)
-            .filter(PassType.self, \._$type == passTypeIdentifier)
+            .filter(PassType.self, \._$passTypeIdentifier == passTypeIdentifier)
             .filter(DeviceType.self, \._$deviceLibraryIdentifier == deviceLibraryIdentifier)
     }
 }
