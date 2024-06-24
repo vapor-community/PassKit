@@ -29,6 +29,7 @@
 import Vapor
 import Fluent
 
+/// The `Model` that stores PassKit devices.
 final public class PKDevice: PassKitDevice, @unchecked Sendable {
     public static let schema = "devices"
 
@@ -64,6 +65,7 @@ extension PKDevice: AsyncMigration {
     }
 }
 
+/// The `Model` that stores PassKit passes.
 open class PKPass: PassKitPass, @unchecked Sendable {
     public static let schema = "passes"
 
@@ -97,6 +99,7 @@ extension PKPass: AsyncMigration {
     }
 }
 
+/// The `Model` that stores PassKit error logs.
 final public class PKErrorLog: PassKitErrorLog, @unchecked Sendable {
     public static let schema = "errors"
 
@@ -130,6 +133,7 @@ extension PKErrorLog: AsyncMigration {
     }
 }
 
+/// The `Model` that stores PassKit registrations.
 final public class PKRegistration: PassKitRegistration, @unchecked Sendable {
     public typealias PassType = PKPass
     public typealias DeviceType = PKDevice

@@ -29,6 +29,7 @@
 import Vapor
 import Fluent
 
+/// Represents the `Model` that stores custom app data associated to PassKit passes.
 public protocol PassKitPassData: Model {
     associatedtype PassType: PassKitPass
 

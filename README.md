@@ -277,7 +277,7 @@ app.apns.containers.use(
     eventLoopGroupProvider: .shared(app.eventLoopGroup),
     responseDecoder: JSONDecoder(),
     requestEncoder: JSONEncoder(),
-    as: .init(string: "passkit"),
+    as: .init(string: "passes"),
     isDefault: false
 )
 ```

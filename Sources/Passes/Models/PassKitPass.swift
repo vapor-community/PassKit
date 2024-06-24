@@ -29,7 +29,7 @@
 import Vapor
 import Fluent
 
-/// Represents the `Model` that stores PassKit passes. Uses a UUID so people can't easily guess your pass IDs
+/// Represents the `Model` that stores PassKit passes. Uses a UUID so people can't easily guess pass IDs
 public protocol PassKitPass: Model where IDValue == UUID {
     /// The pass type identifier.
     var passTypeIdentifier: String { get set }

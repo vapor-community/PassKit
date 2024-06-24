@@ -29,6 +29,7 @@
 import Vapor
 import Fluent
 
+/// The delegate which is responsible for generating the pass files.
 public protocol PassesDelegate: AnyObject, Sendable {
     /// Should return a `URL` which points to the template data for the pass.
     ///
