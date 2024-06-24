@@ -35,7 +35,11 @@ and add it to your target's dependencies:
 Your data model should contain all the fields that you store for your pass, as well as a foreign key for the pass itself.
 
 ```swift
-final class PassData: PassKitPassData {
+import Fluent
+import struct Foundation.UUID
+import Passes
+
+final class PassData: PassKitPassData, @unchecked Sendable {
     static let schema = "pass_data"
 
     @ID
@@ -48,7 +52,7 @@ final class PassData: PassKitPassData {
     @Field(key: "punches")
     var punches: Int
 
-    init() {}
+    init() { }
 }
 
 struct CreatePassData: AsyncMigration {
@@ -148,7 +152,7 @@ import Fluent
 import Passes
 
 final class PKDelegate: PassesDelegate {
-    let sslSigningFilesDirectory = URL(fileURLWithPath: "/www/myapp/sign", isDirectory: true)
+    let sslSigningFilesDirectory = URL(fileURLWithPath: "Certificates/", isDirectory: true)
 
     let pemPrivateKeyPassword: String? = Environment.get("PEM_PRIVATE_KEY_PASSWORD")!
 
@@ -169,7 +173,7 @@ final class PKDelegate: PassesDelegate {
 
     func template<P: PassKitPass>(for: P, db: Database) async throws -> URL {
         // The location might vary depending on the type of pass.
-        return URL(fileURLWithPath: "/www/myapp/pass", isDirectory: true)
+        return URL(fileURLWithPath: "PassKitTemplate/", isDirectory: true)
     }
 }
 ```
@@ -183,10 +187,13 @@ a global variable. You need to ensure that the delegate doesn't go out of scope 
 This will implement all of the routes that PassKit expects to exist on your server for you.
 
 ```swift
-let delegate = PKDelegate()
+import Vapor
+import Passes
+
+let pkDelegate = PKDelegate()
 
 func routes(_ app: Application) throws {
-    let passes = Passes(app: app, delegate: delegate)
+    let passes = Passes(app: app, delegate: pkDelegate)
     passes.registerRoutes(authorizationCode: PassJSONData.token)
 }
 ```
@@ -196,7 +203,7 @@ func routes(_ app: Application) throws {
 If you wish to include routes specifically for sending push notifications to updated passes you can also include this line in your `routes(_:)` method. You'll need to pass in whatever `Middleware` you want Vapor to use to authenticate the two routes. If you don't include this line, you have to configure an APNS container yourself
 
 ```swift
-try passes.registerPushRoutes(middleware: SecretMiddleware())
+try passes.registerPushRoutes(middleware: SecretMiddleware(secret: "foo"))
 ```
 
 That will add two routes:
@@ -207,6 +214,10 @@ That will add two routes:
 Whether you include the routes or not, you'll want to add a middleware that sends push notifications when your pass data updates. You can implement it like so:
 
 ```swift
+import Vapor
+import Fluent
+import Passes
+
 struct PassDataMiddleware: AsyncModelMiddleware {
     private unowned let app: Application
 
@@ -295,6 +306,7 @@ Register the default models before the migration of your pass data model.
 To generate and distribute the `.pkpass` bundle, pass the `Passes` object to your `RouteCollection`:
 
 ```swift
+import Fluent
 import Vapor
 import Passes
 
