@@ -29,7 +29,7 @@
 import Vapor
 import Fluent
 
-public protocol PassKitDelegate: AnyObject, Sendable {
+public protocol PassesDelegate: AnyObject, Sendable {
     /// Should return a `URL` which points to the template data for the pass.
     ///
     /// The URL should point to a directory containing all the images and localizations for the generated `.pkpass` archive but should *not* contain any of these items:
@@ -109,7 +109,7 @@ public protocol PassKitDelegate: AnyObject, Sendable {
     var pemPrivateKeyPassword: String? { get }
 }
 
-public extension PassKitDelegate {
+public extension PassesDelegate {
     var wwdrCertificate: String {
         get { return "WWDR.pem" }
     }

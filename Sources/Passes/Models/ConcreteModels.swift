@@ -29,7 +29,7 @@
 import Vapor
 import Fluent
 
-final public class PKDevice: PassKitDevice {
+final public class PKDevice: PassKitDevice, @unchecked Sendable {
     public static let schema = "devices"
 
     @ID(custom: .id)
@@ -64,7 +64,7 @@ extension PKDevice: AsyncMigration {
     }
 }
 
-open class PKPass: PassKitPass {
+open class PKPass: PassKitPass, @unchecked Sendable {
     public static let schema = "passes"
 
     @ID
@@ -95,7 +95,7 @@ extension PKPass: AsyncMigration {
     }
 }
 
-final public class PKErrorLog: PassKitErrorLog {
+final public class PKErrorLog: PassKitErrorLog, @unchecked Sendable {
     public static let schema = "errors"
 
     @ID(custom: .id)
@@ -129,7 +129,7 @@ extension PKErrorLog: AsyncMigration {
     }
 }
 
-final public class PKRegistration: PassKitRegistration {
+final public class PKRegistration: PassKitRegistration, @unchecked Sendable {
     public typealias PassType = PKPass
     public typealias DeviceType = PKDevice
 

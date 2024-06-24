@@ -28,7 +28,7 @@
 
 import Vapor
 
-struct PassesForDeviceDto: Content {
+struct PassesForDeviceDTO: Content {
     let lastUpdated: String
     let serialNumbers: [String]
     
@@ -36,5 +36,4 @@ struct PassesForDeviceDto: Content {
         lastUpdated = String(maxDate.timeIntervalSince1970)
         self.serialNumbers = serialNumbers
     }
-
 }

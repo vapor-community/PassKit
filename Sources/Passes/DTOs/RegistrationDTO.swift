@@ -28,6 +28,6 @@
 
 import Vapor
 
-struct ErrorLogDto: Content {
-    let logs: [String]
+struct RegistrationDTO: Content {
+    let pushToken: String
 }

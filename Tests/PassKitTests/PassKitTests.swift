@@ -1,5 +1,5 @@
 import XCTest
-@testable import PassKit
+@testable import Passes
 
 final class PassKitTests: XCTestCase {
     func testExample() {

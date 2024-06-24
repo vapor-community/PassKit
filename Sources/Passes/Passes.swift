@@ -33,10 +33,10 @@ import VaporAPNS
 import Fluent
 import NIOSSL
 
-public final class PassKit: Sendable {
-    private let kit: PassKitCustom<PKPass, PKDevice, PKRegistration, PKErrorLog>
+public final class Passes: Sendable {
+    private let kit: PassesCustom<PKPass, PKDevice, PKRegistration, PKErrorLog>
     
-    public init(app: Application, delegate: any PassKitDelegate, logger: Logger? = nil) {
+    public init(app: Application, delegate: any PassesDelegate, logger: Logger? = nil) {
         kit = .init(app: app, delegate: delegate, logger: logger)
     }
     
@@ -63,34 +63,34 @@ public final class PassKit: Sendable {
     }
     
     public static func sendPushNotificationsForPass(id: UUID, of type: String, on db: any Database, app: Application) async throws {
-        try await PassKitCustom<PKPass, PKDevice, PKRegistration, PKErrorLog>.sendPushNotificationsForPass(id: id, of: type, on: db, app: app)
+        try await PassesCustom<PKPass, PKDevice, PKRegistration, PKErrorLog>.sendPushNotificationsForPass(id: id, of: type, on: db, app: app)
     }
     
     public static func sendPushNotifications(for pass: PKPass, on db: any Database, app: Application) async throws {
-        try await PassKitCustom<PKPass, PKDevice, PKRegistration, PKErrorLog>.sendPushNotifications(for: pass, on: db, app: app)
+        try await PassesCustom<PKPass, PKDevice, PKRegistration, PKErrorLog>.sendPushNotifications(for: pass, on: db, app: app)
     }
     
     public static func sendPushNotifications(for pass: ParentProperty<PKRegistration, PKPass>, on db: any Database, app: Application) async throws {
-        try await PassKitCustom<PKPass, PKDevice, PKRegistration, PKErrorLog>.sendPushNotifications(for: pass, on: db, app: app)
+        try await PassesCustom<PKPass, PKDevice, PKRegistration, PKErrorLog>.sendPushNotifications(for: pass, on: db, app: app)
     }
 }
 
-/// Class to handle PassKit.
+/// Class to handle Passes.
 ///
 /// The generics should be passed in this order:
 /// - Pass Type
 /// - Device Type
 /// - Registration Type
 /// - Error Log Type
-public final class PassKitCustom<P, D, R: PassKitRegistration, E: PassKitErrorLog>: Sendable where P == R.PassType, D == R.DeviceType {
-    public unowned let delegate: any PassKitDelegate
+public final class PassesCustom<P, D, R: PassKitRegistration, E: PassKitErrorLog>: Sendable where P == R.PassType, D == R.DeviceType {
+    public unowned let delegate: any PassesDelegate
     private unowned let app: Application
     
     private let processQueue = DispatchQueue(label: "com.vapor-community.PassKit", qos: .utility, attributes: .concurrent)
     private let v1: FakeSendable<any RoutesBuilder>
     private let logger: Logger?
     
-    public init(app: Application, delegate: any PassKitDelegate, logger: Logger? = nil) {
+    public init(app: Application, delegate: any PassesDelegate, logger: Logger? = nil) {
         self.delegate = delegate
         self.logger = logger
         self.app = app
@@ -186,7 +186,7 @@ public final class PassKitCustom<P, D, R: PassKitRegistration, E: PassKitErrorLo
         
         let pushToken: String
         do {
-            let content = try req.content.decode(RegistrationDto.self)
+            let content = try req.content.decode(RegistrationDTO.self)
             pushToken = content.pushToken
         } catch {
             throw Abort(.badRequest)
@@ -217,7 +217,7 @@ public final class PassKitCustom<P, D, R: PassKitRegistration, E: PassKitErrorLo
         }
     }
     
-    func passesForDevice(req: Request) async throws -> PassesForDeviceDto {
+    func passesForDevice(req: Request) async throws -> PassesForDeviceDTO {
         logger?.debug("Called passesForDevice")
         
         let type = req.parameters.get("type")!
@@ -247,7 +247,7 @@ public final class PassKitCustom<P, D, R: PassKitRegistration, E: PassKitErrorLo
             }
         }
         
-        return PassesForDeviceDto(with: serialNumbers, maxDate: maxDate)
+        return PassesForDeviceDTO(with: serialNumbers, maxDate: maxDate)
     }
     
     func latestVersionOfPass(req: Request) async throws -> Response {
@@ -315,10 +315,10 @@ public final class PassKitCustom<P, D, R: PassKitRegistration, E: PassKitErrorLo
     func logError(req: Request) async throws -> HTTPStatus {
         logger?.debug("Called logError")
         
-        let body: ErrorLogDto
+        let body: ErrorLogDTO
         
         do {
-            body = try req.content.decode(ErrorLogDto.self)
+            body = try req.content.decode(ErrorLogDTO.self)
         } catch {
             throw Abort(.badRequest)
         }
