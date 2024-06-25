@@ -27,7 +27,23 @@
 /// THE SOFTWARE.
 
 import Vapor
+import Fluent
 
-struct RegistrationDto: Content {
-    let pushToken: String
+/// Represents the `Model` that stores custom app data associated to PassKit passes.
+public protocol PassKitPassData: Model {
+    associatedtype PassType: PassKitPass
+
+    /// The foreign key to the pass table
+    var pass: PassType { get set }
+}
+
+internal extension PassKitPassData {
+    var _$pass: Parent<PassType> {
+        guard let mirror = Mirror(reflecting: self).descendant("_pass"),
+            let pass = mirror as? Parent<PassType> else {
+                fatalError("pass property must be declared using @Parent")
+        }
+
+        return pass
+    }
 }

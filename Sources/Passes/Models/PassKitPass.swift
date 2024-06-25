@@ -29,20 +29,40 @@
 import Vapor
 import Fluent
 
-public protocol PassKitPassData: Model {
-    associatedtype PassType: PassKitPass
-
-    /// The foreign key to the pass table
-    var pass: PassType { get set }
+/// Represents the `Model` that stores PassKit passes. Uses a UUID so people can't easily guess pass IDs
+public protocol PassKitPass: Model where IDValue == UUID {
+    /// The pass type identifier.
+    var passTypeIdentifier: String { get set }
+    
+    /// The last time the pass was modified.
+    var updatedAt: Date? { get set }
 }
 
-internal extension PassKitPassData {
-    var _$pass: Parent<PassType> {
-        guard let mirror = Mirror(reflecting: self).descendant("_pass"),
-            let pass = mirror as? Parent<PassType> else {
-                fatalError("pass property must be declared using @Parent")
+internal extension PassKitPass {
+    var _$id: ID<UUID> {
+        guard let mirror = Mirror(reflecting: self).descendant("_id"),
+            let id = mirror as? ID<UUID> else {
+                fatalError("id property must be declared using @ID")
         }
-
-        return pass
+        
+        return id
+    }
+    
+    var _$passTypeIdentifier: Field<String> {
+        guard let mirror = Mirror(reflecting: self).descendant("_passTypeIdentifier"),
+            let passTypeIdentifier = mirror as? Field<String> else {
+                fatalError("passTypeIdentifier property must be declared using @Field")
+        }
+        
+        return passTypeIdentifier
+    }
+    
+    var _$updatedAt: Timestamp<DefaultTimestampFormat> {
+        guard let mirror = Mirror(reflecting: self).descendant("_updatedAt"),
+            let updatedAt = mirror as? Timestamp<DefaultTimestampFormat> else {
+                fatalError("updatedAt property must be declared using @Timestamp(on: .update)")
+        }
+        
+        return updatedAt
     }
 }

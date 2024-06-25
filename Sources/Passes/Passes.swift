@@ -33,10 +33,11 @@ import VaporAPNS
 import Fluent
 import NIOSSL
 
-public final class PassKit: Sendable {
-    private let kit: PassKitCustom<PKPass, PKDevice, PKRegistration, PKErrorLog>
+/// The main class that handles PassKit passes.
+public final class Passes: Sendable {
+    private let kit: PassesCustom<PKPass, PKDevice, PKRegistration, PKErrorLog>
     
-    public init(app: Application, delegate: any PassKitDelegate, logger: Logger? = nil) {
+    public init(app: Application, delegate: any PassesDelegate, logger: Logger? = nil) {
         kit = .init(app: app, delegate: delegate, logger: logger)
     }
     
@@ -47,14 +48,26 @@ public final class PassKit: Sendable {
         kit.registerRoutes(authorizationCode: authorizationCode)
     }
     
+    /// Registers routes to send push notifications to updated passes.
+    ///
+    /// - Parameter middleware: The `Middleware` which will control authentication for the routes.
     public func registerPushRoutes(middleware: any Middleware) throws {
         try kit.registerPushRoutes(middleware: middleware)
     }
 
+    /// Generates the pass content bundle for a given pass.
+    ///
+    /// - Parameters:
+    ///   - pass: The pass to generate the content for.
+    ///   - db: The `Database` to use.
+    /// - Returns: The generated pass content.
     public func generatePassContent(for pass: PKPass, on db: any Database) async throws -> Data {
         try await kit.generatePassContent(for: pass, on: db)
     }
     
+    /// Adds the migrations for PassKit passes models.
+    ///
+    /// - Parameter migrations: The `Migrations` object to add the migrations to.
     public static func register(migrations: Migrations) {
         migrations.add(PKPass())
         migrations.add(PKDevice())
@@ -62,35 +75,54 @@ public final class PassKit: Sendable {
         migrations.add(PKErrorLog())
     }
     
-    public static func sendPushNotificationsForPass(id: UUID, of type: String, on db: any Database, app: Application) async throws {
-        try await PassKitCustom<PKPass, PKDevice, PKRegistration, PKErrorLog>.sendPushNotificationsForPass(id: id, of: type, on: db, app: app)
+    /// Sends push notifications for a given pass.
+    ///
+    /// - Parameters:
+    ///   - id: The `UUID` of the pass to send the notifications for.
+    ///   - passTypeIdentifier: The type identifier of the pass.
+    ///   - db: The `Database` to use.
+    ///   - app: The `Application` to use.
+    public static func sendPushNotificationsForPass(id: UUID, of passTypeIdentifier: String, on db: any Database, app: Application) async throws {
+        try await PassesCustom<PKPass, PKDevice, PKRegistration, PKErrorLog>.sendPushNotificationsForPass(id: id, of: passTypeIdentifier, on: db, app: app)
     }
     
+    /// Sends push notifications for a given pass.
+    /// 
+    /// - Parameters:
+    ///   - pass: The pass to send the notifications for.
+    ///   - db: The `Database` to use.
+    ///   - app: The `Application` to use.
     public static func sendPushNotifications(for pass: PKPass, on db: any Database, app: Application) async throws {
-        try await PassKitCustom<PKPass, PKDevice, PKRegistration, PKErrorLog>.sendPushNotifications(for: pass, on: db, app: app)
+        try await PassesCustom<PKPass, PKDevice, PKRegistration, PKErrorLog>.sendPushNotifications(for: pass, on: db, app: app)
     }
     
+    /// Sends push notifications for a given pass.
+    /// 
+    /// - Parameters:
+    ///   - pass: The pass (as the `ParentProperty`) to send the notifications for.
+    ///   - db: The `Database` to use.
+    ///   - app: The `Application` to use.
     public static func sendPushNotifications(for pass: ParentProperty<PKRegistration, PKPass>, on db: any Database, app: Application) async throws {
-        try await PassKitCustom<PKPass, PKDevice, PKRegistration, PKErrorLog>.sendPushNotifications(for: pass, on: db, app: app)
+        try await PassesCustom<PKPass, PKDevice, PKRegistration, PKErrorLog>.sendPushNotifications(for: pass, on: db, app: app)
     }
 }
 
-/// Class to handle PassKit.
+/// Class to handle `Passes`.
 ///
 /// The generics should be passed in this order:
 /// - Pass Type
 /// - Device Type
 /// - Registration Type
 /// - Error Log Type
-public final class PassKitCustom<P, D, R: PassKitRegistration, E: PassKitErrorLog>: Sendable where P == R.PassType, D == R.DeviceType {
-    public unowned let delegate: any PassKitDelegate
+public final class PassesCustom<P, D, R: PassKitRegistration, E: PassKitErrorLog>: Sendable where P == R.PassType, D == R.DeviceType {
+    public unowned let delegate: any PassesDelegate
     private unowned let app: Application
     
     private let processQueue = DispatchQueue(label: "com.vapor-community.PassKit", qos: .utility, attributes: .concurrent)
     private let v1: FakeSendable<any RoutesBuilder>
     private let logger: Logger?
     
-    public init(app: Application, delegate: any PassKitDelegate, logger: Logger? = nil) {
+    public init(app: Application, delegate: any PassesDelegate, logger: Logger? = nil) {
         self.delegate = delegate
         self.logger = logger
         self.app = app
@@ -102,7 +134,7 @@ public final class PassKitCustom<P, D, R: PassKitRegistration, E: PassKitErrorLo
     ///
     /// - Parameter authorizationCode: The `authenticationToken` which you are going to use in the `pass.json` file.
     public func registerRoutes(authorizationCode: String? = nil) {
-        v1.value.get("devices", ":deviceLibraryIdentifier", "registrations", ":type", use: { try await self.passesForDevice(req: $0) })
+        v1.value.get("devices", ":deviceLibraryIdentifier", "registrations", ":passTypeIdentifier", use: { try await self.passesForDevice(req: $0) })
         v1.value.post("log", use: { try await self.logError(req: $0) })
         
         guard let code = authorizationCode ?? Environment.get("PASS_KIT_AUTHORIZATION") else {
@@ -111,9 +143,9 @@ public final class PassKitCustom<P, D, R: PassKitRegistration, E: PassKitErrorLo
         
         let v1auth = v1.value.grouped(ApplePassMiddleware(authorizationCode: code))
         
-        v1auth.post("devices", ":deviceLibraryIdentifier", "registrations", ":type", ":passSerial", use: { try await self.registerDevice(req: $0) })
-        v1auth.get("passes", ":type", ":passSerial", use: { try await self.latestVersionOfPass(req: $0) })
-        v1auth.delete("devices", ":deviceLibraryIdentifier", "registrations", ":type", ":passSerial", use: { try await self.unregisterDevice(req: $0) })
+        v1auth.post("devices", ":deviceLibraryIdentifier", "registrations", ":passTypeIdentifier", ":passSerial", use: { try await self.registerDevice(req: $0) })
+        v1auth.get("passes", ":passTypeIdentifier", ":passSerial", use: { try await self.latestVersionOfPass(req: $0) })
+        v1auth.delete("devices", ":deviceLibraryIdentifier", "registrations", ":passTypeIdentifier", ":passSerial", use: { try await self.unregisterDevice(req: $0) })
     }
     
     /// Registers routes to send push notifications for updated passes
@@ -166,14 +198,14 @@ public final class PassKitCustom<P, D, R: PassKitRegistration, E: PassKitErrorLo
             eventLoopGroupProvider: .shared(app.eventLoopGroup),
             responseDecoder: JSONDecoder(),
             requestEncoder: JSONEncoder(),
-            as: .init(string: "passkit"),
+            as: .init(string: "passes"),
             isDefault: false
         )
         
         let pushAuth = v1.value.grouped(middleware)
         
-        pushAuth.post("push", ":type", ":passSerial", use: { try await self.pushUpdatesForPass(req: $0) })
-        pushAuth.get("push", ":type", ":passSerial", use: { try await self.tokensForPassUpdate(req: $0) })
+        pushAuth.post("push", ":passTypeIdentifier", ":passSerial", use: { try await self.pushUpdatesForPass(req: $0) })
+        pushAuth.get("push", ":passTypeIdentifier", ":passSerial", use: { try await self.tokensForPassUpdate(req: $0) })
     }
     
     // MARK: - API Routes
@@ -186,17 +218,17 @@ public final class PassKitCustom<P, D, R: PassKitRegistration, E: PassKitErrorLo
         
         let pushToken: String
         do {
-            let content = try req.content.decode(RegistrationDto.self)
+            let content = try req.content.decode(RegistrationDTO.self)
             pushToken = content.pushToken
         } catch {
             throw Abort(.badRequest)
         }
         
-        let type = req.parameters.get("type")!
+        let passTypeIdentifier = req.parameters.get("passTypeIdentifier")!
         let deviceLibraryIdentifier = req.parameters.get("deviceLibraryIdentifier")!
         
         guard let pass = try await P.query(on: req.db)
-            .filter(\._$type == type)
+            .filter(\._$passTypeIdentifier == passTypeIdentifier)
             .filter(\._$id == serial)
             .first()
         else {
@@ -217,17 +249,17 @@ public final class PassKitCustom<P, D, R: PassKitRegistration, E: PassKitErrorLo
         }
     }
     
-    func passesForDevice(req: Request) async throws -> PassesForDeviceDto {
+    func passesForDevice(req: Request) async throws -> PassesForDeviceDTO {
         logger?.debug("Called passesForDevice")
         
-        let type = req.parameters.get("type")!
+        let passTypeIdentifier = req.parameters.get("passTypeIdentifier")!
         let deviceLibraryIdentifier = req.parameters.get("deviceLibraryIdentifier")!
         
-        var query = R.for(deviceLibraryIdentifier: deviceLibraryIdentifier, passTypeIdentifier: type, on: req.db)
+        var query = R.for(deviceLibraryIdentifier: deviceLibraryIdentifier, passTypeIdentifier: passTypeIdentifier, on: req.db)
         
         if let since: TimeInterval = req.query["passesUpdatedSince"] {
             let when = Date(timeIntervalSince1970: since)
-            query = query.filter(P.self, \._$modified > when)
+            query = query.filter(P.self, \._$updatedAt > when)
         }
         
         let registrations = try await query.all()
@@ -242,12 +274,12 @@ public final class PassKitCustom<P, D, R: PassKitRegistration, E: PassKitErrorLo
             let pass = r.pass
             
             serialNumbers.append(pass.id!.uuidString)
-            if pass.modified > maxDate {
-                maxDate = pass.modified
+            if let updatedAt = pass.updatedAt, updatedAt > maxDate {
+                maxDate = updatedAt
             }
         }
         
-        return PassesForDeviceDto(with: serialNumbers, maxDate: maxDate)
+        return PassesForDeviceDTO(with: serialNumbers, maxDate: maxDate)
     }
     
     func latestVersionOfPass(req: Request) async throws -> Response {
@@ -263,20 +295,20 @@ public final class PassKitCustom<P, D, R: PassKitRegistration, E: PassKitErrorLo
             ifModifiedSince = ims
         }
         
-        guard let type = req.parameters.get("type"),
+        guard let passTypeIdentifier = req.parameters.get("passTypeIdentifier"),
             let id = req.parameters.get("passSerial", as: UUID.self) else {
                 throw Abort(.badRequest)
         }
         
         guard let pass = try await P.query(on: req.db)
             .filter(\._$id == id)
-            .filter(\._$type == type)
+            .filter(\._$passTypeIdentifier == passTypeIdentifier)
             .first()
         else {
             throw Abort(.notFound)
         }
         
-        guard ifModifiedSince < pass.modified.timeIntervalSince1970 else {
+        guard ifModifiedSince < pass.updatedAt?.timeIntervalSince1970 ?? 0 else {
             throw Abort(.notModified)
         }
         
@@ -285,7 +317,7 @@ public final class PassKitCustom<P, D, R: PassKitRegistration, E: PassKitErrorLo
         
         var headers = HTTPHeaders()
         headers.add(name: .contentType, value: "application/vnd.apple.pkpass")
-        headers.add(name: .lastModified, value: String(pass.modified.timeIntervalSince1970))
+        headers.add(name: .lastModified, value: String(pass.updatedAt?.timeIntervalSince1970 ?? 0))
         headers.add(name: .contentTransferEncoding, value: "binary")
         
         return Response(status: .ok, headers: headers, body: body)
@@ -294,7 +326,7 @@ public final class PassKitCustom<P, D, R: PassKitRegistration, E: PassKitErrorLo
     func unregisterDevice(req: Request) async throws -> HTTPStatus {
         logger?.debug("Called unregisterDevice")
         
-        let type = req.parameters.get("type")!
+        let passTypeIdentifier = req.parameters.get("passTypeIdentifier")!
         
         guard let passId = req.parameters.get("passSerial", as: UUID.self) else {
             throw Abort(.badRequest)
@@ -302,7 +334,7 @@ public final class PassKitCustom<P, D, R: PassKitRegistration, E: PassKitErrorLo
         
         let deviceLibraryIdentifier = req.parameters.get("deviceLibraryIdentifier")!
         
-        guard let r = try await R.for(deviceLibraryIdentifier: deviceLibraryIdentifier, passTypeIdentifier: type, on: req.db)
+        guard let r = try await R.for(deviceLibraryIdentifier: deviceLibraryIdentifier, passTypeIdentifier: passTypeIdentifier, on: req.db)
             .filter(P.self, \._$id == passId)
             .first()
         else {
@@ -315,10 +347,10 @@ public final class PassKitCustom<P, D, R: PassKitRegistration, E: PassKitErrorLo
     func logError(req: Request) async throws -> HTTPStatus {
         logger?.debug("Called logError")
         
-        let body: ErrorLogDto
+        let body: ErrorLogDTO
         
         do {
-            body = try req.content.decode(ErrorLogDto.self)
+            body = try req.content.decode(ErrorLogDTO.self)
         } catch {
             throw Abort(.badRequest)
         }
@@ -339,9 +371,9 @@ public final class PassKitCustom<P, D, R: PassKitRegistration, E: PassKitErrorLo
             throw Abort(.badRequest)
         }
         
-        let type = req.parameters.get("type")!
+        let passTypeIdentifier = req.parameters.get("passTypeIdentifier")!
         
-        try await Self.sendPushNotificationsForPass(id: id, of: type, on: req.db, app: req.application)
+        try await Self.sendPushNotificationsForPass(id: id, of: passTypeIdentifier, on: req.db, app: req.application)
         return .noContent
     }
     
@@ -352,14 +384,14 @@ public final class PassKitCustom<P, D, R: PassKitRegistration, E: PassKitErrorLo
             throw Abort(.badRequest)
         }
         
-        let type = req.parameters.get("type")!
+        let passTypeIdentifier = req.parameters.get("passTypeIdentifier")!
         
-        let registrations = try await Self.registrationsForPass(id: id, of: type, on: req.db)
+        let registrations = try await Self.registrationsForPass(id: id, of: passTypeIdentifier, on: req.db)
         return registrations.map { $0.device.pushToken }
     }
     
     private static func createRegistration(device: D, pass: P, req: Request) async throws -> HTTPStatus {
-        let r = try await R.for(deviceLibraryIdentifier: device.deviceLibraryIdentifier, passTypeIdentifier: pass.type, on: req.db)
+        let r = try await R.for(deviceLibraryIdentifier: device.deviceLibraryIdentifier, passTypeIdentifier: pass.passTypeIdentifier, on: req.db)
             .filter(P.self, \._$id == pass.id!)
             .first()
         if r != nil {
@@ -376,12 +408,12 @@ public final class PassKitCustom<P, D, R: PassKitRegistration, E: PassKitErrorLo
     }
     
     // MARK: - Push Notifications
-    public static func sendPushNotificationsForPass(id: UUID, of type: String, on db: any Database, app: Application) async throws {
-        let registrations = try await Self.registrationsForPass(id: id, of: type, on: db)
+    public static func sendPushNotificationsForPass(id: UUID, of passTypeIdentifier: String, on db: any Database, app: Application) async throws {
+        let registrations = try await Self.registrationsForPass(id: id, of: passTypeIdentifier, on: db)
         for reg in registrations {
-            let backgroundNotification = APNSBackgroundNotification(expiration: .immediately, topic: reg.pass.type, payload: EmptyPayload())
+            let backgroundNotification = APNSBackgroundNotification(expiration: .immediately, topic: reg.pass.passTypeIdentifier, payload: EmptyPayload())
             do {
-                try await app.apns.client(.init(string: "passkit")).sendBackgroundNotification(
+                try await app.apns.client(.init(string: "passes")).sendBackgroundNotification(
                     backgroundNotification,
                     deviceToken: reg.device.pushToken
                 )
@@ -397,7 +429,7 @@ public final class PassKitCustom<P, D, R: PassKitRegistration, E: PassKitErrorLo
             throw FluentError.idRequired
         }
         
-        try await Self.sendPushNotificationsForPass(id: id, of: pass.type, on: db, app: app)
+        try await Self.sendPushNotificationsForPass(id: id, of: pass.passTypeIdentifier, on: db, app: app)
     }
     
     public static func sendPushNotifications(for pass: ParentProperty<R, P>, on db: any Database, app: Application) async throws {
@@ -412,7 +444,7 @@ public final class PassKitCustom<P, D, R: PassKitRegistration, E: PassKitErrorLo
        try await sendPushNotifications(for: value, on: db, app: app)
     }
     
-    private static func registrationsForPass(id: UUID, of type: String, on db: any Database) async throws -> [R] {
+    private static func registrationsForPass(id: UUID, of passTypeIdentifier: String, on db: any Database) async throws -> [R] {
         // This could be done by enforcing the caller to have a Siblings property
         // wrapper, but there's not really any value to forcing that on them when
         // we can just do the query ourselves like this.
@@ -421,7 +453,7 @@ public final class PassKitCustom<P, D, R: PassKitRegistration, E: PassKitErrorLo
             .join(parent: \._$device)
             .with(\._$pass)
             .with(\._$device)
-            .filter(P.self, \._$type == type)
+            .filter(P.self, \._$passTypeIdentifier == passTypeIdentifier)
             .filter(P.self, \._$id == id)
             .all()
     }

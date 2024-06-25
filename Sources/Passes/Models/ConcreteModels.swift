@@ -29,7 +29,8 @@
 import Vapor
 import Fluent
 
-final public class PKDevice: PassKitDevice {
+/// The `Model` that stores PassKit devices.
+final public class PKDevice: PassKitDevice, @unchecked Sendable {
     public static let schema = "devices"
 
     @ID(custom: .id)
@@ -64,20 +65,23 @@ extension PKDevice: AsyncMigration {
     }
 }
 
-open class PKPass: PassKitPass {
+/// The `Model` that stores PassKit passes.
+open class PKPass: PassKitPass, @unchecked Sendable {
     public static let schema = "passes"
 
     @ID
     public var id: UUID?
 
-    @Field(key: "modified")
-    public var modified: Date
+    @Timestamp(key: "updated_at", on: .update)
+    public var updatedAt: Date?
 
-    @Field(key: "type_identifier")
-    public var type: String
+    @Field(key: "pass_type_identifier")
+    public var passTypeIdentifier: String
+    
+    public required init() { }
 
-    public required init() {
-        self.modified = Date()
+    public required init(passTypeIdentifier: String) {
+        self.passTypeIdentifier = passTypeIdentifier
     }
 }
 
@@ -85,8 +89,8 @@ extension PKPass: AsyncMigration {
     public func prepare(on database: any Database) async throws {
         try await database.schema(Self.schema)
             .id()
-            .field("modified", .datetime, .required)
-            .field("type_identifier", .string, .required)
+            .field("updated_at", .datetime, .required)
+            .field("pass_type_identifier", .string, .required)
             .create()
     }
 
@@ -95,20 +99,20 @@ extension PKPass: AsyncMigration {
     }
 }
 
-final public class PKErrorLog: PassKitErrorLog {
+/// The `Model` that stores PassKit error logs.
+final public class PKErrorLog: PassKitErrorLog, @unchecked Sendable {
     public static let schema = "errors"
 
     @ID(custom: .id)
     public var id: Int?
 
-    @Field(key: "created")
-    public var date: Date
+    @Timestamp(key: "created_at", on: .create)
+    public var createdAt: Date?
 
     @Field(key: "message")
     public var message: String
 
     public init(message: String) {
-        date = Date()
         self.message = message
     }
 
@@ -129,7 +133,8 @@ extension PKErrorLog: AsyncMigration {
     }
 }
 
-final public class PKRegistration: PassKitRegistration {
+/// The `Model` that stores PassKit registrations.
+final public class PKRegistration: PassKitRegistration, @unchecked Sendable {
     public typealias PassType = PKPass
     public typealias DeviceType = PKDevice
 
@@ -153,8 +158,8 @@ extension PKRegistration: AsyncMigration {
             .field(.id, .int, .identifier(auto: true))
             .field("device_id", .int, .required)
             .field("pass_id", .uuid, .required)
-            .foreignKey("device_id", references: PKDevice.schema, .id, onDelete: .cascade)
-            .foreignKey("pass_id", references: PKPass.schema, .id, onDelete: .cascade)
+            .foreignKey("device_id", references: DeviceType.schema, .id, onDelete: .cascade)
+            .foreignKey("pass_id", references: PassType.schema, .id, onDelete: .cascade)
             .create()
     }
 

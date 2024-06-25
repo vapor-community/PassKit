@@ -27,47 +27,13 @@
 /// THE SOFTWARE.
 
 import Vapor
-import Fluent
 
-/// Represents the `Model` that stores PassKit registrations.
-public protocol PassKitRegistration: Model where IDValue == Int {
-    associatedtype PassType: PassKitPass
-    associatedtype DeviceType: PassKitDevice
-
-    /// The device for this registration.
-    var device: DeviceType { get set }
+struct PassesForDeviceDTO: Content {
+    let lastUpdated: String
+    let serialNumbers: [String]
     
-    /// /The pass for this registration.
-    var pass: PassType { get set }
-}
-
-internal extension PassKitRegistration {
-    var _$device: Parent<DeviceType> {
-        guard let mirror = Mirror(reflecting: self).descendant("_device"),
-            let device = mirror as? Parent<DeviceType> else {
-                fatalError("device property must be declared using @Parent")
-        }
-        
-        return device
-    }
-    
-    var _$pass: Parent<PassType> {
-        guard let mirror = Mirror(reflecting: self).descendant("_pass"),
-            let pass = mirror as? Parent<PassType> else {
-                fatalError("pass property must be declared using @Parent")
-        }
-        
-        return pass
-    }
-    
-    static func `for`(deviceLibraryIdentifier: String, passTypeIdentifier: String, on db: any Database) -> QueryBuilder<Self> {
-        Self.query(on: db)
-            .join(parent: \._$pass)
-            .join(parent: \._$device)
-            .with(\._$pass)
-            .with(\._$device)
-            .filter(PassType.self, \._$type == passTypeIdentifier)
-            .filter(DeviceType.self, \._$deviceLibraryIdentifier == deviceLibraryIdentifier)
+    init(with serialNumbers: [String], maxDate: Date) {
+        lastUpdated = String(maxDate.timeIntervalSince1970)
+        self.serialNumbers = serialNumbers
     }
 }
-

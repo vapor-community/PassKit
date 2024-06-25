@@ -27,42 +27,7 @@
 /// THE SOFTWARE.
 
 import Vapor
-import Fluent
 
-/// Represents the `Model` that stores PassKit passes..  Uses a UUID so people can't easily guess your pass IDs
-public protocol PassKitPass: Model where IDValue == UUID {
-    /// The pass type
-    var type: String { get set }
-    
-    /// The last time the pass was modified.
-    var modified: Date { get set }
-}
-
-internal extension PassKitPass {
-    var _$id: ID<UUID> {
-        guard let mirror = Mirror(reflecting: self).descendant("_id"),
-            let id = mirror as? ID<UUID> else {
-                fatalError("id property must be declared using @ID")
-        }
-        
-        return id
-    }
-    
-    var _$type: Field<String> {
-        guard let mirror = Mirror(reflecting: self).descendant("_type"),
-            let type = mirror as? Field<String> else {
-                fatalError("type property must be declared using @Field")
-        }
-        
-        return type
-    }
-    
-    var _$modified: Field<Date> {
-        guard let mirror = Mirror(reflecting: self).descendant("_modified"),
-            let modified = mirror as? Field<Date> else {
-                fatalError("modified property must be declared using @Field")
-        }
-        
-        return modified
-    }
+struct ErrorLogDTO: Content {
+    let logs: [String]
 }

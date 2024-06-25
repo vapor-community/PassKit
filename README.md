@@ -1,13 +1,32 @@
 # PassKit
 
 [![Swift Package Manager compatible](https://img.shields.io/badge/SPM-compatible-brightgreen.svg)](https://github.com/apple/swift-package-manager)
-[![Platform](https://img.shields.io/badge/Platforms-macOS%20|%20Linux-lightgrey.svg)](https://github.com/gargoylesoft/PassKit)
 
-A Vapor package which handles all the server side elements required to implement passes for Apple Wallet.
+🎟️ A Vapor package which handles all the server side elements required to implement passes for Apple Wallet.
 
-## NOTE
+### Major Releases
 
-This package requires Vapor 4.
+The table below shows a list of PassKit major releases alongside their compatible Swift versions. 
+
+|Version|Swift|SPM|
+|---|---|---|
+|0.3.0|5.10+|`from: "0.3.0"`|
+|0.2.0|5.9+|`from: "0.2.0"`|
+|0.1.0|5.9+|`from: "0.1.0"`|
+
+Use the SPM string to easily include the dependendency in your `Package.swift` file
+
+```swift
+.package(url: "https://github.com/vapor-community/PassKit.git", from: "0.3.0")
+```
+
+and add it to your target's dependencies:
+
+```swift
+.product(name: "Passes", package: "PassKit")
+```
+
+> Note: This package requires Vapor 4.
 
 ## Usage
 
@@ -16,7 +35,11 @@ This package requires Vapor 4.
 Your data model should contain all the fields that you store for your pass, as well as a foreign key for the pass itself.
 
 ```swift
-final class PassData: PassKitPassData {
+import Fluent
+import struct Foundation.UUID
+import Passes
+
+final class PassData: PassKitPassData, @unchecked Sendable {
     static let schema = "pass_data"
 
     @ID
@@ -29,7 +52,7 @@ final class PassData: PassKitPassData {
     @Field(key: "punches")
     var punches: Int
 
-    init() {}
+    init() { }
 }
 
 struct CreatePassData: AsyncMigration {
@@ -41,7 +64,7 @@ struct CreatePassData: AsyncMigration {
             .create()
     }
     
-    public func revert(on database: Database) -> EventLoopFuture<Void> {
+    public func revert(on database: Database) async throws {
         try await database.schema(Self.schema).delete()
     }
 }
@@ -91,7 +114,7 @@ For information on the various keys available see the [documentation](https://de
 See also [this guide](https://developer.apple.com/library/archive/documentation/UserExperience/Conceptual/PassKit_PG/index.html#//apple_ref/doc/uid/TP40012195-CH1-SW1) for some help.
 
 ```swift
-struct PassJsonData: Encodable {
+struct PassJSONData: Encodable {
     public static let token = "EB80D9C6-AD37-41A0-875E-3802E88CA478"
     
     private let formatVersion = 1
@@ -99,7 +122,7 @@ struct PassJsonData: Encodable {
     private let authenticationToken = token
     let serialNumber: String
     let relevantDate: String
-    let barcodes: [PassJsonData.Barcode]
+    let barcodes: [PassJSONData.Barcode]
     ...
 
     struct Barcode: Encodable {
@@ -117,7 +140,7 @@ struct PassJsonData: Encodable {
 
 ### Implement the delegate.
 
-Create a delegate file that implements `PassKitDelegate`.
+Create a delegate file that implements `PassesDelegate`.
 In the `sslSigningFilesDirectory` you specify there must be the `WWDR.pem`, `passcertificate.pem` and `passkey.pem` files. If they are named like that you're good to go, otherwise you have to specify the custom name.
 Obtaining the three certificates files could be a bit tricky, you could get some guidance from [this guide](https://github.com/alexandercerutti/passkit-generator/wiki/Generating-Certificates) and [this video](https://www.youtube.com/watch?v=rJZdPoXHtzI).
 There are other fields available which have reasonable default values. See the delegate's documentation.
@@ -126,10 +149,10 @@ Because the files for your pass' template and the method of encoding might vary 
 ```swift
 import Vapor
 import Fluent
-import PassKit
+import Passes
 
-final class PKDelegate: PassKitDelegate {
-    let sslSigningFilesDirectory = URL(fileURLWithPath: "/www/myapp/sign", isDirectory: true)
+final class PKDelegate: PassesDelegate {
+    let sslSigningFilesDirectory = URL(fileURLWithPath: "Certificates/", isDirectory: true)
 
     let pemPrivateKeyPassword: String? = Environment.get("PEM_PRIVATE_KEY_PASSWORD")!
 
@@ -142,7 +165,7 @@ final class PKDelegate: PassKitDelegate {
         else {
             throw Abort(.internalServerError)
         }
-        guard let data = try? encoder.encode(PassJsonData(data: passData, pass: pass)) else {
+        guard let data = try? encoder.encode(PassJSONData(data: passData, pass: pass)) else {
             throw Abort(.internalServerError)
         }
         return data
@@ -150,7 +173,7 @@ final class PKDelegate: PassKitDelegate {
 
     func template<P: PassKitPass>(for: P, db: Database) async throws -> URL {
         // The location might vary depending on the type of pass.
-        return URL(fileURLWithPath: "/www/myapp/pass", isDirectory: true)
+        return URL(fileURLWithPath: "PassKitTemplate/", isDirectory: true)
     }
 }
 ```
@@ -164,11 +187,14 @@ a global variable. You need to ensure that the delegate doesn't go out of scope 
 This will implement all of the routes that PassKit expects to exist on your server for you.
 
 ```swift
-let delegate = PKDelegate()
+import Vapor
+import Passes
+
+let pkDelegate = PKDelegate()
 
 func routes(_ app: Application) throws {
-    let pk = PassKit(app: app, delegate: delegate)
-    pk.registerRoutes(authorizationCode: PassData.token)
+    let passes = Passes(app: app, delegate: pkDelegate)
+    passes.registerRoutes(authorizationCode: PassJSONData.token)
 }
 ```
 
@@ -177,7 +203,7 @@ func routes(_ app: Application) throws {
 If you wish to include routes specifically for sending push notifications to updated passes you can also include this line in your `routes(_:)` method. You'll need to pass in whatever `Middleware` you want Vapor to use to authenticate the two routes. If you don't include this line, you have to configure an APNS container yourself
 
 ```swift
-try pk.registerPushRoutes(middleware: SecretMiddleware())
+try passes.registerPushRoutes(middleware: SecretMiddleware(secret: "foo"))
 ```
 
 That will add two routes:
@@ -185,9 +211,13 @@ That will add two routes:
 - POST .../api/v1/push/*passTypeIdentifier*/*passBarcode* (Sends notifications)
 - GET .../api/v1/push/*passTypeIdentifier*/*passBarcode* (Retrieves a list of push tokens which would be sent a notification)
 
-Whether you include the routes or not, you'll want to add a middleware that sends push notifications and updates the `modified` field when your pass data updates. You can implement it like so:
+Whether you include the routes or not, you'll want to add a model middleware that sends push notifications and updates the `updatedAt` field when your pass data updates. The model middleware could also create and link the `PKPass` during the creation of the pass data, depending on your requirements. You can implement it like so:
 
 ```swift
+import Vapor
+import Fluent
+import Passes
+
 struct PassDataMiddleware: AsyncModelMiddleware {
     private unowned let app: Application
 
@@ -195,12 +225,20 @@ struct PassDataMiddleware: AsyncModelMiddleware {
         self.app = app
     }
 
+    // Create the PKPass and add it to the PassData automatically at creation
+    func create(model: PassData, on db: Database, next: AnyAsyncModelResponder) async throws {
+        let pkPass = PKPass(passTypeIdentifier: "pass.com.yoursite.passType")
+        try await pkPass.save(on: db)
+        model.$pass.id = try pkPass.requireID()
+        try await next.create(model, on: db)
+    }
+
     func update(model: PassData, on db: Database, next: AnyAsyncModelResponder) async throws {
         let pkPass = try await model.$pass.get(on: db)
-        pkPass.modified = Date()
-        try await pkPass.update(on: db)
+        pkPass.updatedAt = Date()
+        try await pkPass.save(on: db)
         try await next.update(model, on: db)
-        try await PassKit.sendPushNotifications(for: model.$pass.get(on: db), on: db, app: self.app)
+        try await Passes.sendPushNotifications(for: pkPass, on: db, app: self.app)
     }
 }
 ```
@@ -211,7 +249,8 @@ and register it in *configure.swift*:
 app.databases.middleware.use(PassDataMiddleware(app: app), on: .psql)
 ```
 
-**IMPORTANT**: Whenever your pass data changes, you must update the *modified* time of the linked pass so that Apple knows to send you a new pass.
+> [!IMPORTANT]
+> Whenever your pass data changes, you must update the *updatedAt* time of the linked pass so that Apple knows to send you a new pass.
 
 If you did not include the routes remember to configure APNSwift yourself like this:
 
@@ -242,17 +281,17 @@ app.apns.containers.use(
     eventLoopGroupProvider: .shared(app.eventLoopGroup),
     responseDecoder: JSONDecoder(),
     requestEncoder: JSONEncoder(),
-    as: .init(string: "passkit"),
+    as: .init(string: "passes"),
     isDefault: false
 )
 ```
 
 #### Custom Implementation
 
-If you don't like the schema names that are used by default, you can instead instantiate the generic `PassKitCustom` and provide your model types.
+If you don't like the schema names that are used by default, you can instead instantiate the generic `PassesCustom` and provide your model types.
 
 ```swift
-let pk = PassKitCustom<MyPassType, MyDeviceType, MyRegistrationType, MyErrorType>(app: app, delegate: delegate)
+let passes = PassesCustom<MyPassType, MyDeviceType, MyRegistrationType, MyErrorType>(app: app, delegate: delegate)
 ```
 
 ### Register Migrations
@@ -260,21 +299,22 @@ let pk = PassKitCustom<MyPassType, MyDeviceType, MyRegistrationType, MyErrorType
 If you're using the default schemas provided by this package you can register the default models in your `configure(_:)` method:
 
 ```swift
-PassKit.register(migrations: app.migrations)
+Passes.register(migrations: app.migrations)
 ```
 
 Register the default models before the migration of your pass data model.
 
 ### Generate Pass Content
 
-To generate and distribute the `.pkpass` bundle, pass a `PassKit` object to your `RouteCollection`:
+To generate and distribute the `.pkpass` bundle, pass the `Passes` object to your `RouteCollection`:
 
 ```swift
+import Fluent
 import Vapor
-import PassKit
+import Passes
 
 struct PassesController: RouteCollection {
-    let passKit: PassKit
+    let passes: Passes
 
     func boot(routes: RoutesBuilder) throws {
         ...
@@ -295,12 +335,12 @@ fileprivate func passHandler(_ req: Request) async throws -> Response {
         throw Abort(.notFound)
     }
 
-    let bundle = try await passKit.generatePassContent(for: passData.pass, on: req.db)
+    let bundle = try await passes.generatePassContent(for: passData.pass, on: req.db)
     let body = Response.Body(data: bundle)
     var headers = HTTPHeaders()
     headers.add(name: .contentType, value: "application/vnd.apple.pkpass")
     headers.add(name: .contentDisposition, value: "attachment; filename=pass.pkpass") // Add this header only if you are serving the pass in a web page
-    headers.add(name: .lastModified, value: String(passData.pass.modified.timeIntervalSince1970))
+    headers.add(name: .lastModified, value: String(passData.pass.updatedAt?.timeIntervalSince1970 ?? 0))
     headers.add(name: .contentTransferEncoding, value: "binary")
     return Response(status: .ok, headers: headers, body: body)
 }
