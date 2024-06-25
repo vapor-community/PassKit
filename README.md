@@ -10,13 +10,14 @@ The table below shows a list of PassKit major releases alongside their compatibl
 
 |Version|Swift|SPM|
 |---|---|---|
+|0.3.0|5.10+|`from: "0.3.0"`|
 |0.2.0|5.9+|`from: "0.2.0"`|
 |0.1.0|5.9+|`from: "0.1.0"`|
 
 Use the SPM string to easily include the dependendency in your `Package.swift` file
 
 ```swift
-.package(url: "https://github.com/vapor-community/PassKit.git", from: "0.2.0")
+.package(url: "https://github.com/vapor-community/PassKit.git", from: "0.3.0")
 ```
 
 and add it to your target's dependencies:
