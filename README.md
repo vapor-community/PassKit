@@ -210,7 +210,7 @@ That will add two routes:
 - POST .../api/v1/push/*passTypeIdentifier*/*passBarcode* (Sends notifications)
 - GET .../api/v1/push/*passTypeIdentifier*/*passBarcode* (Retrieves a list of push tokens which would be sent a notification)
 
-Whether you include the routes or not, you'll want to add a middleware that sends push notifications when your pass data updates. You can implement it like so:
+Whether you include the routes or not, you'll want to add a model middleware that sends push notifications and updates the `updatedAt` field when your pass data updates. The model middleware could also create and link the `PKPass` during the creation of the pass data, depending on your requirements. You can implement it like so:
 
 ```swift
 import Vapor
@@ -233,8 +233,11 @@ struct PassDataMiddleware: AsyncModelMiddleware {
     }
 
     func update(model: PassData, on db: Database, next: AnyAsyncModelResponder) async throws {
+        let pkPass = try await model.$pass.get(on: db)
+        pkPass.updatedAt = Date()
+        try await pkPass.save(on: db)
         try await next.update(model, on: db)
-        try await Passes.sendPushNotifications(for: model.$pass.get(on: db), on: db, app: self.app)
+        try await Passes.sendPushNotifications(for: pkPass, on: db, app: self.app)
     }
 }
 ```
