@@ -26,7 +26,10 @@
 /// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 /// THE SOFTWARE.
 
-// This is a temporary fix until RoutesBuilder and EmptyPayload are not Sendable
-struct FakeSendable<T>: @unchecked Sendable {
-    let value: T
+import Foundation
+
+extension URL {
+    package func unixPath() -> String {
+        absoluteString.replacingOccurrences(of: "file://", with: "")
+    }
 }

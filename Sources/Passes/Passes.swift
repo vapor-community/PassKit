@@ -32,6 +32,7 @@ import VaporAPNS
 @preconcurrency import APNSCore
 import Fluent
 import NIOSSL
+import PassKit
 
 /// The main class that handles PassKit passes.
 public final class Passes: Sendable {
@@ -156,19 +157,19 @@ public final class PassesCustom<P, D, R: PassKitRegistration, E: PassKitErrorLog
     /// ```
     ///
     /// - Parameter middleware: The `Middleware` which will control authentication for the routes.
-    /// - Throws: An error of type `PassKitError`
+    /// - Throws: An error of type `PassesError`
     public func registerPushRoutes(middleware: any Middleware) throws {
         let privateKeyPath = URL(fileURLWithPath: delegate.pemPrivateKey, relativeTo:
             delegate.sslSigningFilesDirectory).unixPath()
 
         guard FileManager.default.fileExists(atPath: privateKeyPath) else {
-            throw PassKitError.pemPrivateKeyMissing
+            throw PassesError.pemPrivateKeyMissing
         }
 
         let pemPath = URL(fileURLWithPath: delegate.pemCertificate, relativeTo: delegate.sslSigningFilesDirectory).unixPath()
 
         guard FileManager.default.fileExists(atPath: privateKeyPath) else {
-            throw PassKitError.pemCertificateMissing
+            throw PassesError.pemCertificateMissing
         }
 
         // PassKit *only* works with the production APNs. You can't pass in .sandbox here.
@@ -487,7 +488,7 @@ public final class PassesCustom<P, D, R: PassKitRegistration, E: PassKitErrorLog
         let sslBinary = delegate.sslBinary
 
         guard FileManager.default.fileExists(atPath: sslBinary.unixPath()) else {
-            throw PassKitError.opensslBinaryMissing
+            throw PassesError.opensslBinaryMissing
         }
 
         let proc = Process()
@@ -516,7 +517,7 @@ public final class PassesCustom<P, D, R: PassKitRegistration, E: PassKitErrorLog
     private func zip(directory: URL, to: URL) throws {
         let zipBinary = delegate.zipBinary
         guard FileManager.default.fileExists(atPath: zipBinary.unixPath()) else {
-            throw PassKitError.zipBinaryMissing
+            throw PassesError.zipBinaryMissing
         }
         
         let proc = Process()
@@ -537,7 +538,7 @@ public final class PassesCustom<P, D, R: PassKitRegistration, E: PassKitErrorLog
         
         let src = try await delegate.template(for: pass, db: db)
         guard (try? src.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? false else {
-            throw PassKitError.templateNotDirectory
+            throw PassesError.templateNotDirectory
         }
         
         let encoded = try await self.delegate.encode(pass: pass, db: db, encoder: encoder)

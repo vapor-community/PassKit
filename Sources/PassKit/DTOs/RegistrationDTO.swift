@@ -26,10 +26,8 @@
 /// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 /// THE SOFTWARE.
 
-import Foundation
+import Vapor
 
-extension URL {
-    func unixPath() -> String {
-        absoluteString.replacingOccurrences(of: "file://", with: "")
-    }
+package struct RegistrationDTO: Content {
+    package let pushToken: String
 }

@@ -1,5 +1,5 @@
 //
-//  File.swift
+//  PassesError.swift
 //  
 //
 //  Created by Scott Grosch on 1/22/20.
@@ -7,7 +7,7 @@
 
 import Foundation
 
-public enum PassKitError: Error {
+public enum PassesError: Error {
     /// The template path is not a directory
     case templateNotDirectory
 

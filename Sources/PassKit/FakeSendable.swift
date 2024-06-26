@@ -26,8 +26,11 @@
 /// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 /// THE SOFTWARE.
 
-import Vapor
+// This is a temporary fix until RoutesBuilder and EmptyPayload are not Sendable
+package struct FakeSendable<T>: @unchecked Sendable {
+    package let value: T
 
-struct RegistrationDTO: Content {
-    let pushToken: String
+    package init(value: T) {
+        self.value = value
+    }
 }

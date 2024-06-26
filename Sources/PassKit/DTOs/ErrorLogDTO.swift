@@ -28,6 +28,6 @@
 
 import Vapor
 
-struct ErrorLogDTO: Content {
-    let logs: [String]
+package struct ErrorLogDTO: Content {
+    package let logs: [String]
 }
