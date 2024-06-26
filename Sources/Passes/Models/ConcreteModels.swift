@@ -31,15 +31,15 @@ import Fluent
 
 /// The `Model` that stores PassKit devices.
 final public class PKDevice: PassKitDevice, @unchecked Sendable {
-    public static let schema = "devices"
+    public static let schema = PKDevice.FieldKeys.schemaName
 
     @ID(custom: .id)
     public var id: Int?
 
-    @Field(key: "push_token")
+    @Field(key: PKDevice.FieldKeys.pushToken)
     public var pushToken: String
 
-    @Field(key: "device_library_identifier")
+    @Field(key: PKDevice.FieldKeys.deviceLibraryIdentifier)
     public var deviceLibraryIdentifier: String
 
     public init(deviceLibraryIdentifier: String, pushToken: String) {
@@ -54,9 +54,9 @@ extension PKDevice: AsyncMigration {
     public func prepare(on database: any Database) async throws {
         try await database.schema(Self.schema)
             .field(.id, .int, .identifier(auto: true))
-            .field("push_token", .string, .required)
-            .field("device_library_identifier", .string, .required)
-            .unique(on: "push_token", "device_library_identifier")
+            .field(PKDevice.FieldKeys.pushToken, .string, .required)
+            .field(PKDevice.FieldKeys.deviceLibraryIdentifier, .string, .required)
+            .unique(on: PKDevice.FieldKeys.pushToken, PKDevice.FieldKeys.deviceLibraryIdentifier)
             .create()
     }
 
@@ -65,17 +65,25 @@ extension PKDevice: AsyncMigration {
     }
 }
 
+extension PKDevice {
+    enum FieldKeys {
+        static let schemaName = "devices"
+        static let pushToken = FieldKey(stringLiteral: "push_token")
+        static let deviceLibraryIdentifier = FieldKey(stringLiteral: "device_library_identifier")
+    }
+}
+
 /// The `Model` that stores PassKit passes.
 open class PKPass: PassKitPass, @unchecked Sendable {
-    public static let schema = "passes"
+    public static let schema = PKPass.FieldKeys.schemaName
 
     @ID
     public var id: UUID?
 
-    @Timestamp(key: "updated_at", on: .update)
+    @Timestamp(key: PKPass.FieldKeys.updatedAt, on: .update)
     public var updatedAt: Date?
 
-    @Field(key: "pass_type_identifier")
+    @Field(key: PKPass.FieldKeys.passTypeIdentifier)
     public var passTypeIdentifier: String
     
     public required init() { }
@@ -89,8 +97,8 @@ extension PKPass: AsyncMigration {
     public func prepare(on database: any Database) async throws {
         try await database.schema(Self.schema)
             .id()
-            .field("updated_at", .datetime, .required)
-            .field("pass_type_identifier", .string, .required)
+            .field(PKPass.FieldKeys.updatedAt, .datetime, .required)
+            .field(PKPass.FieldKeys.passTypeIdentifier, .string, .required)
             .create()
     }
 
@@ -99,17 +107,25 @@ extension PKPass: AsyncMigration {
     }
 }
 
+extension PKPass {
+    enum FieldKeys {
+        static let schemaName = "passes"
+        static let updatedAt = FieldKey(stringLiteral: "updated_at")
+        static let passTypeIdentifier = FieldKey(stringLiteral: "pass_type_identifier")
+    }
+}
+
 /// The `Model` that stores PassKit error logs.
 final public class PKErrorLog: PassKitErrorLog, @unchecked Sendable {
-    public static let schema = "errors"
+    public static let schema = PKErrorLog.FieldKeys.schemaName
 
     @ID(custom: .id)
     public var id: Int?
 
-    @Timestamp(key: "created_at", on: .create)
+    @Timestamp(key: PKErrorLog.FieldKeys.createdAt, on: .create)
     public var createdAt: Date?
 
-    @Field(key: "message")
+    @Field(key: PKErrorLog.FieldKeys.message)
     public var message: String
 
     public init(message: String) {
@@ -123,13 +139,21 @@ extension PKErrorLog: AsyncMigration {
     public func prepare(on database: any Database) async throws {
         try await database.schema(Self.schema)
             .field(.id, .int, .identifier(auto: true))
-            .field("created", .datetime, .required)
-            .field("message", .string, .required)
+            .field(PKErrorLog.FieldKeys.createdAt, .datetime, .required)
+            .field(PKErrorLog.FieldKeys.message, .string, .required)
             .create()
     }
 
     public func revert(on database: any Database) async throws {
-        try await database.schema(PKErrorLog.schema).delete()
+        try await database.schema(Self.schema).delete()
+    }
+}
+
+extension PKErrorLog {
+    enum FieldKeys {
+        static let schemaName = "errors"
+        static let createdAt = FieldKey(stringLiteral: "created_at")
+        static let message = FieldKey(stringLiteral: "message")
     }
 }
 
@@ -138,15 +162,15 @@ final public class PKRegistration: PassKitRegistration, @unchecked Sendable {
     public typealias PassType = PKPass
     public typealias DeviceType = PKDevice
 
-    public static let schema = "registrations"
+    public static let schema = PKRegistration.FieldKeys.schemaName
 
     @ID(custom: .id)
     public var id: Int?
 
-    @Parent(key: "device_id")
+    @Parent(key: PKRegistration.FieldKeys.deviceID)
     public var device: DeviceType
 
-    @Parent(key: "pass_id")
+    @Parent(key: PKRegistration.FieldKeys.passID)
     public var pass: PassType
 
     public init() {}
@@ -156,14 +180,20 @@ extension PKRegistration: AsyncMigration {
     public func prepare(on database: any Database) async throws {
         try await database.schema(Self.schema)
             .field(.id, .int, .identifier(auto: true))
-            .field("device_id", .int, .required)
-            .field("pass_id", .uuid, .required)
-            .foreignKey("device_id", references: DeviceType.schema, .id, onDelete: .cascade)
-            .foreignKey("pass_id", references: PassType.schema, .id, onDelete: .cascade)
+            .field(PKRegistration.FieldKeys.deviceID, .int, .required, .references(DeviceType.schema, .id, onDelete: .cascade))
+            .field(PKRegistration.FieldKeys.passID, .uuid, .required, .references(PassType.schema, .id, onDelete: .cascade))
             .create()
     }
 
     public func revert(on database: any Database) async throws {
         try await database.schema(Self.schema).delete()
+    }
+}
+
+extension PKRegistration {
+    enum FieldKeys {
+        static let schemaName = "registrations"
+        static let deviceID = FieldKey(stringLiteral: "device_id")
+        static let passID = FieldKey(stringLiteral: "pass_id")
     }
 }
