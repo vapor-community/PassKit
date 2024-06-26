@@ -12,11 +12,8 @@
     <a href="https://codecov.io/github/vapor-community/PassKit">
         <img src="https://img.shields.io/codecov/c/github/vapor-community/PassKit?style=plastic&logo=codecov&label=codecov">
     </a>
-    <a href="https://swiftpackageindex.com/vapor-community/PassKit">
-        <img src="https://img.shields.io/endpoint?url=https%3A%2F%2Fswiftpackageindex.com%2Fapi%2Fpackages%2Fvapor-community%2FPassKit%2Fbadge%3Ftype%3Dswift-versions" alt="versions" />
-    </a>
-    <a href="https://swiftpackageindex.com/vapor-community/PassKit">
-        <img src="https://img.shields.io/endpoint?url=https%3A%2F%2Fswiftpackageindex.com%2Fapi%2Fpackages%2Fvapor-community%2FPassKit%2Fbadge%3Ftype%3Dplatforms" alt="platforms" />
+    <a href="https://swift.org">
+        <img src="https://design.vapor.codes/images/swift510up.svg" alt="Swift 5.10+">
     </a>
 </div>
 <br>
