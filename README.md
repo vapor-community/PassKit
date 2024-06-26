@@ -1,6 +1,25 @@
-# PassKit
-
-[![Swift Package Manager compatible](https://img.shields.io/badge/SPM-compatible-brightgreen.svg)](https://github.com/apple/swift-package-manager)
+<div align="center">
+    <img src="https://avatars.githubusercontent.com/u/26165732?s=200&v=4" width="100" height="100" alt="avatar" />
+    <h1/>PassKit</h1>
+    <a href="https://swiftpackageindex.com/vapor-community/PassKit/0.3.0/documentation/passes">
+        <img src="https://design.vapor.codes/images/readthedocs.svg" alt="Documentation">
+    </a>
+    <a href="https://discord.gg/vapor"><img src="https://design.vapor.codes/images/discordchat.svg" alt="Team Chat"></a>
+    <a href="LICENSE"><img src="https://design.vapor.codes/images/mitlicense.svg" alt="MIT License"></a>
+    <a href="https://github.com/vapor-community/PassKit/actions/workflows/test.yml">
+        <img src="https://img.shields.io/github/actions/workflow/status/vapor-community/PassKit/test.yml?event=push&style=plastic&logo=github&label=tests&logoColor=%23ccc" alt="Continuous Integration">
+    </a>
+    <a href="https://codecov.io/github/vapor-community/PassKit">
+        <img src="https://img.shields.io/codecov/c/github/vapor-community/PassKit?style=plastic&logo=codecov&label=codecov">
+    </a>
+    <a href="https://swiftpackageindex.com/vapor-community/PassKit">
+        <img src="https://img.shields.io/endpoint?url=https%3A%2F%2Fswiftpackageindex.com%2Fapi%2Fpackages%2Fvapor-community%2FPassKit%2Fbadge%3Ftype%3Dswift-versions" alt="versions" />
+    </a>
+    <a href="https://swiftpackageindex.com/vapor-community/PassKit">
+        <img src="https://img.shields.io/endpoint?url=https%3A%2F%2Fswiftpackageindex.com%2Fapi%2Fpackages%2Fvapor-community%2FPassKit%2Fbadge%3Ftype%3Dplatforms" alt="platforms" />
+    </a>
+</div>
+<br>
 
 🎟️ A Vapor package which handles all the server side elements required to implement passes for Apple Wallet.
 
