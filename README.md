@@ -26,14 +26,14 @@ The table below shows a list of PassKit major releases alongside their compatibl
 
 |Version|Swift|SPM|
 |---|---|---|
-|0.3.1|5.10+|`from: "0.3.1"`|
+|0.4.0|5.10+|`from: "0.4.0"`|
 |0.2.0|5.9+|`from: "0.2.0"`|
 |0.1.0|5.9+|`from: "0.1.0"`|
 
 Use the SPM string to easily include the dependendency in your `Package.swift` file
 
 ```swift
-.package(url: "https://github.com/vapor-community/PassKit.git", from: "0.3.1")
+.package(url: "https://github.com/vapor-community/PassKit.git", from: "0.4.0")
 ```
 
 and add it to your target's dependencies:
@@ -42,7 +42,7 @@ and add it to your target's dependencies:
 .product(name: "Passes", package: "PassKit")
 ```
 
-> Note: This package requires Vapor 4.
+> Note: This package is made for Vapor 4.
 
 ## Usage
 
@@ -99,7 +99,7 @@ CREATE OR REPLACE FUNCTION public."RemoveUnregisteredItems"() RETURNS trigger
        DELETE FROM devices d
        WHERE NOT EXISTS (
            SELECT 1
-           FROM registrations r
+           FROM passes_registrations r
            WHERE d."id" = r.device_id
            LIMIT 1
        );
@@ -107,7 +107,7 @@ CREATE OR REPLACE FUNCTION public."RemoveUnregisteredItems"() RETURNS trigger
        DELETE FROM passes p
        WHERE NOT EXISTS (
            SELECT 1
-           FROM registrations r
+           FROM passes_registrations r
            WHERE p."id" = r.pass_id
            LIMIT 1
        );
@@ -117,7 +117,7 @@ END
 $$;
 
 CREATE TRIGGER "OnRegistrationDelete" 
-AFTER DELETE ON "public"."registrations"
+AFTER DELETE ON "public"."passes_registrations"
 FOR EACH ROW
 EXECUTE PROCEDURE "public"."RemoveUnregisteredItems"();
 ```

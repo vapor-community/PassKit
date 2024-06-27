@@ -158,30 +158,30 @@ extension PKErrorLog {
 }
 
 /// The `Model` that stores PassKit registrations.
-final public class PKRegistration: PassesRegistrationModel, @unchecked Sendable {
+final public class PassesRegistration: PassesRegistrationModel, @unchecked Sendable {
     public typealias PassType = PKPass
     public typealias DeviceType = PKDevice
 
-    public static let schema = PKRegistration.FieldKeys.schemaName
+    public static let schema = PassesRegistration.FieldKeys.schemaName
 
     @ID(custom: .id)
     public var id: Int?
 
-    @Parent(key: PKRegistration.FieldKeys.deviceID)
+    @Parent(key: PassesRegistration.FieldKeys.deviceID)
     public var device: DeviceType
 
-    @Parent(key: PKRegistration.FieldKeys.passID)
+    @Parent(key: PassesRegistration.FieldKeys.passID)
     public var pass: PassType
 
     public init() {}
 }
 
-extension PKRegistration: AsyncMigration {
+extension PassesRegistration: AsyncMigration {
     public func prepare(on database: any Database) async throws {
         try await database.schema(Self.schema)
             .field(.id, .int, .identifier(auto: true))
-            .field(PKRegistration.FieldKeys.deviceID, .int, .required, .references(DeviceType.schema, .id, onDelete: .cascade))
-            .field(PKRegistration.FieldKeys.passID, .uuid, .required, .references(PassType.schema, .id, onDelete: .cascade))
+            .field(PassesRegistration.FieldKeys.deviceID, .int, .required, .references(DeviceType.schema, .id, onDelete: .cascade))
+            .field(PassesRegistration.FieldKeys.passID, .uuid, .required, .references(PassType.schema, .id, onDelete: .cascade))
             .create()
     }
 
@@ -190,9 +190,9 @@ extension PKRegistration: AsyncMigration {
     }
 }
 
-extension PKRegistration {
+extension PassesRegistration {
     enum FieldKeys {
-        static let schemaName = "registrations"
+        static let schemaName = "passes_registrations"
         static let deviceID = FieldKey(stringLiteral: "device_id")
         static let passID = FieldKey(stringLiteral: "pass_id")
     }
