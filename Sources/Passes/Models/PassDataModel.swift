@@ -30,14 +30,14 @@ import Vapor
 import Fluent
 
 /// Represents the `Model` that stores custom app data associated to PassKit passes.
-public protocol PassKitPassData: Model {
-    associatedtype PassType: PassKitPass
+public protocol PassDataModel: Model {
+    associatedtype PassType: PassModel
 
     /// The foreign key to the pass table
     var pass: PassType { get set }
 }
 
-internal extension PassKitPassData {
+internal extension PassDataModel {
     var _$pass: Parent<PassType> {
         guard let mirror = Mirror(reflecting: self).descendant("_pass"),
             let pass = mirror as? Parent<PassType> else {

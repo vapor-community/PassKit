@@ -74,7 +74,7 @@ extension PKDevice {
 }
 
 /// The `Model` that stores PassKit passes.
-open class PKPass: PassKitPass, @unchecked Sendable {
+open class PKPass: PassModel, @unchecked Sendable {
     public static let schema = PKPass.FieldKeys.schemaName
 
     @ID

@@ -30,7 +30,7 @@ import Vapor
 import Fluent
 
 /// Represents the `Model` that stores PassKit passes. Uses a UUID so people can't easily guess pass IDs
-public protocol PassKitPass: Model where IDValue == UUID {
+public protocol PassModel: Model where IDValue == UUID {
     /// The pass type identifier.
     var passTypeIdentifier: String { get set }
     
@@ -38,7 +38,7 @@ public protocol PassKitPass: Model where IDValue == UUID {
     var updatedAt: Date? { get set }
 }
 
-internal extension PassKitPass {
+internal extension PassModel {
     var _$id: ID<UUID> {
         guard let mirror = Mirror(reflecting: self).descendant("_id"),
             let id = mirror as? ID<UUID> else {

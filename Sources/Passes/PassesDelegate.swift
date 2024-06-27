@@ -45,7 +45,7 @@ public protocol PassesDelegate: AnyObject, Sendable {
     /// - Returns: A `URL` which points to the template data for the pass.
     ///
     /// > Important: Be sure to use the `URL(fileURLWithPath:isDirectory:)` constructor.
-    func template<P: PassKitPass>(for: P, db: any Database) async throws -> URL
+    func template<P: PassModel>(for: P, db: any Database) async throws -> URL
 
     /// Generates the SSL `signature` file.
     ///
@@ -69,7 +69,7 @@ public protocol PassesDelegate: AnyObject, Sendable {
     /// - Returns: The encoded pass JSON data.
     ///
     /// > Tip: See the [Pass](https://developer.apple.com/documentation/walletpasses/pass) object to understand the keys.
-    func encode<P: PassKitPass>(pass: P, db: any Database, encoder: JSONEncoder) async throws -> Data
+    func encode<P: PassModel>(pass: P, db: any Database, encoder: JSONEncoder) async throws -> Data
 
     /// Should return a `URL` which points to the template data for the pass.
     ///

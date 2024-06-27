@@ -31,7 +31,7 @@ import Fluent
 
 /// Represents the `Model` that stores PassKit registrations.
 public protocol PassesRegistrationModel: Model where IDValue == Int {
-    associatedtype PassType: PassKitPass
+    associatedtype PassType: PassModel
     associatedtype DeviceType: PassKitDevice
 
     /// The device for this registration.

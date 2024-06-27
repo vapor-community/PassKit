@@ -26,7 +26,7 @@ The table below shows a list of PassKit major releases alongside their compatibl
 
 |Version|Swift|SPM|
 |---|---|---|
-|0.3.0|5.10+|`from: "0.3.1"`|
+|0.3.1|5.10+|`from: "0.3.1"`|
 |0.2.0|5.9+|`from: "0.2.0"`|
 |0.1.0|5.9+|`from: "0.1.0"`|
 
@@ -55,7 +55,7 @@ import Fluent
 import struct Foundation.UUID
 import Passes
 
-final class PassData: PassKitPassData, @unchecked Sendable {
+final class PassData: PassDataModel, @unchecked Sendable {
     static let schema = "pass_data"
 
     @ID
@@ -172,7 +172,7 @@ final class PKDelegate: PassesDelegate {
 
     let pemPrivateKeyPassword: String? = Environment.get("PEM_PRIVATE_KEY_PASSWORD")!
 
-    func encode<P: PassKitPass>(pass: P, db: Database, encoder: JSONEncoder) async throws -> Data {
+    func encode<P: PassModel>(pass: P, db: Database, encoder: JSONEncoder) async throws -> Data {
         // The specific PassData class you use here may vary based on the pass.type if you have multiple
         // different types of passes, and thus multiple types of pass data.
         guard let passData = try await PassData.query(on: db)
@@ -187,7 +187,7 @@ final class PKDelegate: PassesDelegate {
         return data
     }
 
-    func template<P: PassKitPass>(for: P, db: Database) async throws -> URL {
+    func template<P: PassModel>(for: P, db: Database) async throws -> URL {
         // The location might vary depending on the type of pass.
         return URL(fileURLWithPath: "PassKitTemplate/", isDirectory: true)
     }
