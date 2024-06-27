@@ -35,8 +35,8 @@ import NIOSSL
 import PassKit
 
 /// The main class that handles PassKit passes.
-public final class Passes: Sendable {
-    private let kit: PassesCustom<PKPass, PKDevice, PKRegistration, PKErrorLog>
+public final class PassesService: Sendable {
+    private let kit: PassesServiceCustom<PKPass, PKDevice, PKRegistration, PKErrorLog>
     
     public init(app: Application, delegate: any PassesDelegate, logger: Logger? = nil) {
         kit = .init(app: app, delegate: delegate, logger: logger)
@@ -84,7 +84,7 @@ public final class Passes: Sendable {
     ///   - db: The `Database` to use.
     ///   - app: The `Application` to use.
     public static func sendPushNotificationsForPass(id: UUID, of passTypeIdentifier: String, on db: any Database, app: Application) async throws {
-        try await PassesCustom<PKPass, PKDevice, PKRegistration, PKErrorLog>.sendPushNotificationsForPass(id: id, of: passTypeIdentifier, on: db, app: app)
+        try await PassesServiceCustom<PKPass, PKDevice, PKRegistration, PKErrorLog>.sendPushNotificationsForPass(id: id, of: passTypeIdentifier, on: db, app: app)
     }
     
     /// Sends push notifications for a given pass.
@@ -94,7 +94,7 @@ public final class Passes: Sendable {
     ///   - db: The `Database` to use.
     ///   - app: The `Application` to use.
     public static func sendPushNotifications(for pass: PKPass, on db: any Database, app: Application) async throws {
-        try await PassesCustom<PKPass, PKDevice, PKRegistration, PKErrorLog>.sendPushNotifications(for: pass, on: db, app: app)
+        try await PassesServiceCustom<PKPass, PKDevice, PKRegistration, PKErrorLog>.sendPushNotifications(for: pass, on: db, app: app)
     }
     
     /// Sends push notifications for a given pass.
@@ -104,18 +104,18 @@ public final class Passes: Sendable {
     ///   - db: The `Database` to use.
     ///   - app: The `Application` to use.
     public static func sendPushNotifications(for pass: ParentProperty<PKRegistration, PKPass>, on db: any Database, app: Application) async throws {
-        try await PassesCustom<PKPass, PKDevice, PKRegistration, PKErrorLog>.sendPushNotifications(for: pass, on: db, app: app)
+        try await PassesServiceCustom<PKPass, PKDevice, PKRegistration, PKErrorLog>.sendPushNotifications(for: pass, on: db, app: app)
     }
 }
 
-/// Class to handle `Passes`.
+/// Class to handle `PassesService`.
 ///
 /// The generics should be passed in this order:
 /// - Pass Type
 /// - Device Type
 /// - Registration Type
 /// - Error Log Type
-public final class PassesCustom<P, D, R: PassKitRegistration, E: PassKitErrorLog>: Sendable where P == R.PassType, D == R.DeviceType {
+public final class PassesServiceCustom<P, D, R: PassesRegistrationModel, E: PassKitErrorLog>: Sendable where P == R.PassType, D == R.DeviceType {
     public unowned let delegate: any PassesDelegate
     private unowned let app: Application
     

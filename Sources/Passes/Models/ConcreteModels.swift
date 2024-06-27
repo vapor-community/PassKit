@@ -158,7 +158,7 @@ extension PKErrorLog {
 }
 
 /// The `Model` that stores PassKit registrations.
-final public class PKRegistration: PassKitRegistration, @unchecked Sendable {
+final public class PKRegistration: PassesRegistrationModel, @unchecked Sendable {
     public typealias PassType = PKPass
     public typealias DeviceType = PKDevice
 

@@ -30,7 +30,7 @@ import Vapor
 import Fluent
 
 /// Represents the `Model` that stores PassKit registrations.
-public protocol PassKitRegistration: Model where IDValue == Int {
+public protocol PassesRegistrationModel: Model where IDValue == Int {
     associatedtype PassType: PassKitPass
     associatedtype DeviceType: PassKitDevice
 
@@ -41,7 +41,7 @@ public protocol PassKitRegistration: Model where IDValue == Int {
     var pass: PassType { get set }
 }
 
-internal extension PassKitRegistration {
+internal extension PassesRegistrationModel {
     var _$device: Parent<DeviceType> {
         guard let mirror = Mirror(reflecting: self).descendant("_device"),
             let device = mirror as? Parent<DeviceType> else {

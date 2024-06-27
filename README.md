@@ -209,8 +209,8 @@ import Passes
 let pkDelegate = PKDelegate()
 
 func routes(_ app: Application) throws {
-    let passes = Passes(app: app, delegate: pkDelegate)
-    passes.registerRoutes(authorizationCode: PassJSONData.token)
+    let passesService = PassesService(app: app, delegate: pkDelegate)
+    passesService.registerRoutes(authorizationCode: PassJSONData.token)
 }
 ```
 
@@ -219,7 +219,7 @@ func routes(_ app: Application) throws {
 If you wish to include routes specifically for sending push notifications to updated passes you can also include this line in your `routes(_:)` method. You'll need to pass in whatever `Middleware` you want Vapor to use to authenticate the two routes. If you don't include this line, you have to configure an APNS container yourself
 
 ```swift
-try passes.registerPushRoutes(middleware: SecretMiddleware(secret: "foo"))
+try passesService.registerPushRoutes(middleware: SecretMiddleware(secret: "foo"))
 ```
 
 That will add two routes:
@@ -254,7 +254,7 @@ struct PassDataMiddleware: AsyncModelMiddleware {
         pkPass.updatedAt = Date()
         try await pkPass.save(on: db)
         try await next.update(model, on: db)
-        try await Passes.sendPushNotifications(for: pkPass, on: db, app: self.app)
+        try await PassesService.sendPushNotifications(for: pkPass, on: db, app: self.app)
     }
 }
 ```
@@ -304,10 +304,10 @@ app.apns.containers.use(
 
 #### Custom Implementation
 
-If you don't like the schema names that are used by default, you can instead instantiate the generic `PassesCustom` and provide your model types.
+If you don't like the schema names that are used by default, you can instead instantiate the generic `PassesServiceCustom` and provide your model types.
 
 ```swift
-let passes = PassesCustom<MyPassType, MyDeviceType, MyRegistrationType, MyErrorType>(app: app, delegate: delegate)
+let passesService = PassesServiceCustom<MyPassType, MyDeviceType, MyPassesRegistrationType, MyErrorLogType>(app: app, delegate: delegate)
 ```
 
 ### Register Migrations
@@ -315,14 +315,14 @@ let passes = PassesCustom<MyPassType, MyDeviceType, MyRegistrationType, MyErrorT
 If you're using the default schemas provided by this package you can register the default models in your `configure(_:)` method:
 
 ```swift
-Passes.register(migrations: app.migrations)
+PassesService.register(migrations: app.migrations)
 ```
 
 Register the default models before the migration of your pass data model.
 
 ### Generate Pass Content
 
-To generate and distribute the `.pkpass` bundle, pass the `Passes` object to your `RouteCollection`:
+To generate and distribute the `.pkpass` bundle, pass the `PassesService` object to your `RouteCollection`:
 
 ```swift
 import Fluent
@@ -330,7 +330,7 @@ import Vapor
 import Passes
 
 struct PassesController: RouteCollection {
-    let passes: Passes
+    let passesService: PassesService
 
     func boot(routes: RoutesBuilder) throws {
         ...
@@ -351,7 +351,7 @@ fileprivate func passHandler(_ req: Request) async throws -> Response {
         throw Abort(.notFound)
     }
 
-    let bundle = try await passes.generatePassContent(for: passData.pass, on: req.db)
+    let bundle = try await passesService.generatePassContent(for: passData.pass, on: req.db)
     let body = Response.Body(data: bundle)
     var headers = HTTPHeaders()
     headers.add(name: .contentType, value: "application/vnd.apple.pkpass")
