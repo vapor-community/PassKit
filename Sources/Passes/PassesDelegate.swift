@@ -68,7 +68,7 @@ public protocol PassesDelegate: AnyObject, Sendable {
     ///   - encoder: The `JSONEncoder` which you should use.
     /// - Returns: The encoded pass JSON data.
     ///
-    /// > Tip: See the [Pass](https://developer.apple.com/documentation/walletpasses/pass) object to understand the keys.
+    /// > Tip: See the [`Pass`](https://developer.apple.com/documentation/walletpasses/pass) object to understand the keys.
     func encode<P: PassModel>(pass: P, db: any Database, encoder: JSONEncoder) async throws -> Data
 
     /// Should return a `URL` which points to the template data for the pass.

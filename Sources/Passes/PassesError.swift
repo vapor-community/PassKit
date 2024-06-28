@@ -1,6 +1,6 @@
 //
 //  PassesError.swift
-//  
+//  PassKit
 //
 //  Created by Scott Grosch on 1/22/20.
 //
