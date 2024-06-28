@@ -10,26 +10,26 @@
 /// > Tip: See the [`Pass`](https://developer.apple.com/documentation/walletpasses/pass) object to understand the keys.
 public protocol PassJSON: Encodable {
     /// A short description that iOS accessibility technologies use for a pass.
-    var description: String { get set }
+    var description: String { get }
 
     /// The version of the file format. The value must be 1.
     var formatVersion: Int { get }
 
     /// The name of the organization.
-    var organizationName: String { get set }
+    var organizationName: String { get }
 
     /// The pass type identifier that’s registered with Apple.
     /// 
     /// The value must be the same as the distribution certificate used to sign the pass.
-    var passTypeIdentifier: String { get set }
+    var passTypeIdentifier: String { get }
 
     /// An alphanumeric serial number.
     /// 
     /// The combination of the serial number and pass type identifier must be unique for each pass.
-    var serialNumber: String { get set }
+    var serialNumber: String { get }
 
     /// The Team ID for the Apple Developer Program account that registered the pass type identifier.
-    var teamIdentifier: String { get set }
+    var teamIdentifier: String { get }
 }
 
 public extension PassJSON {
@@ -43,12 +43,12 @@ public extension PassJSON {
 /// > Tip: See the [`PassFieldContent`](https://developer.apple.com/documentation/walletpasses/passfieldcontent) object to understand the keys.
 public protocol PassFieldContent: Encodable {
     /// A unique key that identifies a field in the pass; for example, `departure-gate`.
-    var key: String { get set }
+    var key: String { get }
 
     /// The value to use for the field; for example, 42. 
     /// 
     /// A date or time value must include a time zone.
-    var value: String { get set }
+    var value: String { get }
 }
 
 /// A protocol that represents the groups of fields that display the information for a boarding pass.
@@ -61,7 +61,7 @@ public protocol BoardingPass: Encodable {
     /// 
     /// The system may use the value to display more information,
     /// such as showing an airplane icon for the pass on watchOS when the value is set to `PKTransitTypeAir`.
-    var transitType: TransitType { get set }
+    var transitType: TransitType.RawValue { get }
 }
 
 /// The type of transit for a boarding pass.
@@ -80,14 +80,20 @@ public protocol Barcodes: Encodable {
     /// The format of the barcode.
     /// 
     /// The barcode format `PKBarcodeFormatCode128` isn’t supported for watchOS.
-    var format: BarcodeFormat { get set }
+    var format: BarcodeFormat.RawValue { get }
 
     /// The message or payload to display as a barcode.
-    var message: String { get set }
+    var message: String { get }
 
     /// The IANA character set name of the text encoding to use to convert message
     /// from a string representation to a data representation that the system renders as a barcode, such as `iso-8859-1`.
-    var messageEncoding: String { get set }
+    var messageEncoding: String { get }
+}
+
+public extension Barcodes {
+    var messageEncoding: String {
+        return "iso-8859-1"
+    }
 }
 
 /// The format of the barcode.
