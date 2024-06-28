@@ -61,11 +61,11 @@ public protocol BoardingPass: Encodable {
     /// 
     /// The system may use the value to display more information,
     /// such as showing an airplane icon for the pass on watchOS when the value is set to `PKTransitTypeAir`.
-    var transitType: TransitType.RawValue { get }
+    var transitType: TransitType { get }
 }
 
 /// The type of transit for a boarding pass.
-public enum TransitType: String {
+public enum TransitType: String, Encodable {
     case air = "PKTransitTypeAir"
     case boat = "PKTransitTypeBoat"
     case bus = "PKTransitTypeBus"
@@ -80,7 +80,7 @@ public protocol Barcodes: Encodable {
     /// The format of the barcode.
     /// 
     /// The barcode format `PKBarcodeFormatCode128` isn’t supported for watchOS.
-    var format: BarcodeFormat.RawValue { get }
+    var format: BarcodeFormat { get }
 
     /// The message or payload to display as a barcode.
     var message: String { get }
@@ -97,7 +97,7 @@ public extension Barcodes {
 }
 
 /// The format of the barcode.
-public enum BarcodeFormat: String {
+public enum BarcodeFormat: String, Encodable {
     case pdf417 = "PKBarcodeFormatPDF417"
     case qr = "PKBarcodeFormatQR"
     case aztec = "PKBarcodeFormatAztec"
