@@ -29,13 +29,18 @@
 import Vapor
 import Fluent
 
-/// Represents the `Model` that stores PassKit passes. Uses a UUID so people can't easily guess pass IDs
+/// Represents the `Model` that stores PassKit passes.
+/// 
+/// Uses a UUID so people can't easily guess pass IDs
 public protocol PassModel: Model where IDValue == UUID {
     /// The pass type identifier.
     var passTypeIdentifier: String { get set }
     
     /// The last time the pass was modified.
     var updatedAt: Date? { get set }
+
+    /// The authentication token for the pass.
+    var authenticationToken: String { get set }
 }
 
 internal extension PassModel {
@@ -64,5 +69,14 @@ internal extension PassModel {
         }
         
         return updatedAt
+    }
+
+    var _$authenticationToken: Field<String> {
+        guard let mirror = Mirror(reflecting: self).descendant("_authenticationToken"),
+            let authenticationToken = mirror as? Field<String> else {
+                fatalError("authenticationToken property must be declared using @Field")
+        }
+        
+        return authenticationToken
     }
 }

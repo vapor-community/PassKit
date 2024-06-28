@@ -139,8 +139,6 @@ See also [this guide](https://developer.apple.com/library/archive/documentation/
 import Passes
 
 struct PassJSONData: PassJSON {
-    public static let token = "EB80D9C6-AD37-41A0-875E-3802E88CA478"
-    
     let description: String
     let formatVersion = 1
     let organizationName = "vapor-community"
@@ -149,7 +147,7 @@ struct PassJSONData: PassJSON {
     let teamIdentifier = Environment.get("APPLE_TEAM_IDENTIFIER")!
 
     private let webServiceURL = "\(Environment.get("WEBSITE_URL")!)api/"
-    private let authenticationToken = token
+    private let authenticationToken: String
     private let logoText = "Vapor"
     private let sharingProhibited = true
     let backgroundColor = "rgb(207, 77, 243)"
@@ -190,6 +188,7 @@ struct PassJSONData: PassJSON {
     init(data: PassData, pass: PKPass) {
         self.description = data.title
         self.serialNumber = pass.id!.uuidString
+        self.authenticationToken = pass.authenticationToken
     }
 }
 ```
@@ -250,7 +249,7 @@ let pkDelegate = PKDelegate()
 
 func routes(_ app: Application) throws {
     let passesService = PassesService(app: app, delegate: pkDelegate)
-    passesService.registerRoutes(authorizationCode: PassJSONData.token)
+    passesService.registerRoutes()
 }
 ```
 
@@ -283,7 +282,9 @@ struct PassDataMiddleware: AsyncModelMiddleware {
 
     // Create the PKPass and add it to the PassData automatically at creation
     func create(model: PassData, on db: Database, next: AnyAsyncModelResponder) async throws {
-        let pkPass = PKPass(passTypeIdentifier: "pass.com.yoursite.passType")
+        let pkPass = PKPass(
+            passTypeIdentifier: "pass.com.yoursite.passType",
+            authenticationToken: Data([UInt8].random(count: 12)).base64EncodedString())
         try await pkPass.save(on: db)
         model.$pass.id = try pkPass.requireID()
         try await next.create(model, on: db)

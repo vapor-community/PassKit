@@ -29,7 +29,7 @@
 import Vapor
 import Fluent
 
-/// Represents the `Model` that stores PassKit registrations.
+/// Represents the `Model` that stores passes registrations.
 public protocol PassesRegistrationModel: Model where IDValue == Int {
     associatedtype PassType: PassModel
     associatedtype DeviceType: PassKitDevice

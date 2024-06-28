@@ -9,9 +9,6 @@
 /// 
 /// > Tip: See the [`Pass`](https://developer.apple.com/documentation/walletpasses/pass) object to understand the keys.
 public protocol PassJSON: Encodable {
-    /// The authentication token to use with the web service.
-    static var token: String { get }
-
     /// A short description that iOS accessibility technologies use for a pass.
     var description: String { get }
 

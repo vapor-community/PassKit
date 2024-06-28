@@ -85,11 +85,15 @@ open class PKPass: PassModel, @unchecked Sendable {
 
     @Field(key: PKPass.FieldKeys.passTypeIdentifier)
     public var passTypeIdentifier: String
+
+    @Field(key: PKPass.FieldKeys.authenticationToken)
+    public var authenticationToken: String
     
     public required init() { }
 
-    public required init(passTypeIdentifier: String) {
+    public required init(passTypeIdentifier: String, authenticationToken: String) {
         self.passTypeIdentifier = passTypeIdentifier
+        self.authenticationToken = authenticationToken
     }
 }
 
@@ -99,6 +103,7 @@ extension PKPass: AsyncMigration {
             .id()
             .field(PKPass.FieldKeys.updatedAt, .datetime, .required)
             .field(PKPass.FieldKeys.passTypeIdentifier, .string, .required)
+            .field(PKPass.FieldKeys.authenticationToken, .string, .required)
             .create()
     }
 
@@ -112,6 +117,7 @@ extension PKPass {
         static let schemaName = "passes"
         static let updatedAt = FieldKey(stringLiteral: "updated_at")
         static let passTypeIdentifier = FieldKey(stringLiteral: "pass_type_identifier")
+        static let authenticationToken = FieldKey(stringLiteral: "authentication_token")
     }
 }
 
@@ -157,7 +163,7 @@ extension PKErrorLog {
     }
 }
 
-/// The `Model` that stores PassKit registrations.
+/// The `Model` that stores passes registrations.
 final public class PassesRegistration: PassesRegistrationModel, @unchecked Sendable {
     public typealias PassType = PKPass
     public typealias DeviceType = PKDevice

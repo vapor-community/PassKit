@@ -36,24 +36,22 @@ import PassKit
 
 /// The main class that handles PassKit passes.
 public final class PassesService: Sendable {
-    private let kit: PassesServiceCustom<PKPass, PKDevice, PassesRegistration, PKErrorLog>
+    private let service: PassesServiceCustom<PKPass, PKDevice, PassesRegistration, PKErrorLog>
     
     public init(app: Application, delegate: any PassesDelegate, logger: Logger? = nil) {
-        kit = .init(app: app, delegate: delegate, logger: logger)
+        service = .init(app: app, delegate: delegate, logger: logger)
     }
     
     /// Registers all the routes required for PassKit to work.
-    ///
-    /// - Parameter authorizationCode: The `authenticationToken` which you are going to use in the `pass.json` file.
-    public func registerRoutes(authorizationCode: String? = nil) {
-        kit.registerRoutes(authorizationCode: authorizationCode)
+    public func registerRoutes() {
+        service.registerRoutes()
     }
     
     /// Registers routes to send push notifications to updated passes.
     ///
     /// - Parameter middleware: The `Middleware` which will control authentication for the routes.
     public func registerPushRoutes(middleware: any Middleware) throws {
-        try kit.registerPushRoutes(middleware: middleware)
+        try service.registerPushRoutes(middleware: middleware)
     }
 
     /// Generates the pass content bundle for a given pass.
@@ -63,7 +61,7 @@ public final class PassesService: Sendable {
     ///   - db: The `Database` to use.
     /// - Returns: The generated pass content.
     public func generatePassContent(for pass: PKPass, on db: any Database) async throws -> Data {
-        try await kit.generatePassContent(for: pass, on: db)
+        try await service.generatePassContent(for: pass, on: db)
     }
     
     /// Adds the migrations for PassKit passes models.
@@ -132,17 +130,11 @@ public final class PassesServiceCustom<P, D, R: PassesRegistrationModel, E: Pass
     }
     
     /// Registers all the routes required for PassKit to work.
-    ///
-    /// - Parameter authorizationCode: The `authenticationToken` which you are going to use in the `pass.json` file.
-    public func registerRoutes(authorizationCode: String? = nil) {
+    public func registerRoutes() {
         v1.value.get("devices", ":deviceLibraryIdentifier", "registrations", ":passTypeIdentifier", use: { try await self.passesForDevice(req: $0) })
         v1.value.post("log", use: { try await self.logError(req: $0) })
         
-        guard let code = authorizationCode ?? Environment.get("PASS_KIT_AUTHORIZATION") else {
-            fatalError("Must pass in an authorization code")
-        }
-        
-        let v1auth = v1.value.grouped(ApplePassMiddleware(authorizationCode: code))
+        let v1auth = v1.value.grouped(ApplePassMiddleware<P>())
         
         v1auth.post("devices", ":deviceLibraryIdentifier", "registrations", ":passTypeIdentifier", ":passSerial", use: { try await self.registerDevice(req: $0) })
         v1auth.get("passes", ":passTypeIdentifier", ":passSerial", use: { try await self.latestVersionOfPass(req: $0) })

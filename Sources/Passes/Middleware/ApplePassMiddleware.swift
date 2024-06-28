@@ -27,13 +27,15 @@
 /// THE SOFTWARE.
 
 import Vapor
+import FluentKit
 
-struct ApplePassMiddleware: AsyncMiddleware {
-    let authorizationCode: String
-
+struct ApplePassMiddleware<P: PassModel>: AsyncMiddleware {
     func respond(to request: Request, chainingTo next: any AsyncResponder) async throws -> Response {
-        let auth = request.headers["Authorization"]
-        guard auth.first == "ApplePass \(authorizationCode)" else {
+        guard let auth = request.headers["Authorization"].first?.replacingOccurrences(of: "ApplePass ", with: ""),
+            let _ = try await P.query(on: request.db)
+                .filter(\._$authenticationToken == auth)
+                .first()
+        else {
             throw Abort(.unauthorized)
         }
         return try await next.respond(to: request)
