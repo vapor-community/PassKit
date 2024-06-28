@@ -28,11 +28,12 @@
 
 import Vapor
 import Fluent
+import PassKit
 
 /// Represents the `Model` that stores passes registrations.
 public protocol PassesRegistrationModel: Model where IDValue == Int {
     associatedtype PassType: PassModel
-    associatedtype DeviceType: PassKitDevice
+    associatedtype DeviceType: DeviceModel
 
     /// The device for this registration.
     var device: DeviceType { get set }

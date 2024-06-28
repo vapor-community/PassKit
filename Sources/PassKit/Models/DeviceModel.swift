@@ -30,7 +30,7 @@ import Vapor
 import Fluent
 
 /// Represents the `Model` that stores PassKit devices.
-public protocol PassKitDevice: Model where IDValue == Int {
+public protocol DeviceModel: Model where IDValue == Int {
     /// The push token used for sending updates to the device.
     var pushToken: String { get set }
     
@@ -44,7 +44,7 @@ public protocol PassKitDevice: Model where IDValue == Int {
     init(deviceLibraryIdentifier: String, pushToken: String)
 }
 
-internal extension PassKitDevice {
+package extension DeviceModel {
     var _$id: ID<Int> {
         guard let mirror = Mirror(reflecting: self).descendant("_id"),
             let id = mirror as? ID<Int> else {

@@ -28,18 +28,19 @@
 
 import Vapor
 import Fluent
+import PassKit
 
 /// The `Model` that stores PassKit devices.
-final public class PKDevice: PassKitDevice, @unchecked Sendable {
-    public static let schema = PKDevice.FieldKeys.schemaName
+final public class PassesDevice: DeviceModel, @unchecked Sendable {
+    public static let schema = PassesDevice.FieldKeys.schemaName
 
     @ID(custom: .id)
     public var id: Int?
 
-    @Field(key: PKDevice.FieldKeys.pushToken)
+    @Field(key: PassesDevice.FieldKeys.pushToken)
     public var pushToken: String
 
-    @Field(key: PKDevice.FieldKeys.deviceLibraryIdentifier)
+    @Field(key: PassesDevice.FieldKeys.deviceLibraryIdentifier)
     public var deviceLibraryIdentifier: String
 
     public init(deviceLibraryIdentifier: String, pushToken: String) {
@@ -50,13 +51,13 @@ final public class PKDevice: PassKitDevice, @unchecked Sendable {
     public init() {}
 }
 
-extension PKDevice: AsyncMigration {
+extension PassesDevice: AsyncMigration {
     public func prepare(on database: any Database) async throws {
         try await database.schema(Self.schema)
             .field(.id, .int, .identifier(auto: true))
-            .field(PKDevice.FieldKeys.pushToken, .string, .required)
-            .field(PKDevice.FieldKeys.deviceLibraryIdentifier, .string, .required)
-            .unique(on: PKDevice.FieldKeys.pushToken, PKDevice.FieldKeys.deviceLibraryIdentifier)
+            .field(PassesDevice.FieldKeys.pushToken, .string, .required)
+            .field(PassesDevice.FieldKeys.deviceLibraryIdentifier, .string, .required)
+            .unique(on: PassesDevice.FieldKeys.pushToken, PassesDevice.FieldKeys.deviceLibraryIdentifier)
             .create()
     }
 
@@ -65,9 +66,9 @@ extension PKDevice: AsyncMigration {
     }
 }
 
-extension PKDevice {
+extension PassesDevice {
     enum FieldKeys {
-        static let schemaName = "devices"
+        static let schemaName = "passes_devices"
         static let pushToken = FieldKey(stringLiteral: "push_token")
         static let deviceLibraryIdentifier = FieldKey(stringLiteral: "device_library_identifier")
     }
@@ -122,16 +123,16 @@ extension PKPass {
 }
 
 /// The `Model` that stores PassKit error logs.
-final public class PKErrorLog: PassKitErrorLog, @unchecked Sendable {
-    public static let schema = PKErrorLog.FieldKeys.schemaName
+final public class PassesErrorLog: ErrorLogModel, @unchecked Sendable {
+    public static let schema = PassesErrorLog.FieldKeys.schemaName
 
     @ID(custom: .id)
     public var id: Int?
 
-    @Timestamp(key: PKErrorLog.FieldKeys.createdAt, on: .create)
+    @Timestamp(key: PassesErrorLog.FieldKeys.createdAt, on: .create)
     public var createdAt: Date?
 
-    @Field(key: PKErrorLog.FieldKeys.message)
+    @Field(key: PassesErrorLog.FieldKeys.message)
     public var message: String
 
     public init(message: String) {
@@ -141,12 +142,12 @@ final public class PKErrorLog: PassKitErrorLog, @unchecked Sendable {
     public init() {}
 }
 
-extension PKErrorLog: AsyncMigration {
+extension PassesErrorLog: AsyncMigration {
     public func prepare(on database: any Database) async throws {
         try await database.schema(Self.schema)
             .field(.id, .int, .identifier(auto: true))
-            .field(PKErrorLog.FieldKeys.createdAt, .datetime, .required)
-            .field(PKErrorLog.FieldKeys.message, .string, .required)
+            .field(PassesErrorLog.FieldKeys.createdAt, .datetime, .required)
+            .field(PassesErrorLog.FieldKeys.message, .string, .required)
             .create()
     }
 
@@ -155,9 +156,9 @@ extension PKErrorLog: AsyncMigration {
     }
 }
 
-extension PKErrorLog {
+extension PassesErrorLog {
     enum FieldKeys {
-        static let schemaName = "errors"
+        static let schemaName = "passes_errors"
         static let createdAt = FieldKey(stringLiteral: "created_at")
         static let message = FieldKey(stringLiteral: "message")
     }
@@ -166,7 +167,7 @@ extension PKErrorLog {
 /// The `Model` that stores passes registrations.
 final public class PassesRegistration: PassesRegistrationModel, @unchecked Sendable {
     public typealias PassType = PKPass
-    public typealias DeviceType = PKDevice
+    public typealias DeviceType = PassesDevice
 
     public static let schema = PassesRegistration.FieldKeys.schemaName
 

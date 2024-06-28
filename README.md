@@ -206,7 +206,7 @@ import Vapor
 import Fluent
 import Passes
 
-final class PKDelegate: PassesDelegate {
+final class PassDelegate: PassesDelegate {
     let sslSigningFilesDirectory = URL(fileURLWithPath: "Certificates/", isDirectory: true)
 
     let pemPrivateKeyPassword: String? = Environment.get("PEM_PRIVATE_KEY_PASSWORD")!
@@ -245,10 +245,10 @@ This will implement all of the routes that PassKit expects to exist on your serv
 import Vapor
 import Passes
 
-let pkDelegate = PKDelegate()
+let passDelegate = PassDelegate()
 
 func routes(_ app: Application) throws {
-    let passesService = PassesService(app: app, delegate: pkDelegate)
+    let passesService = PassesService(app: app, delegate: passDelegate)
     passesService.registerRoutes()
 }
 ```
@@ -348,6 +348,9 @@ app.apns.containers.use(
 If you don't like the schema names that are used by default, you can instead instantiate the generic `PassesServiceCustom` and provide your model types.
 
 ```swift
+import PassKit
+import Passes
+
 let passesService = PassesServiceCustom<MyPassType, MyDeviceType, MyPassesRegistrationType, MyErrorLogType>(app: app, delegate: delegate)
 ```
 

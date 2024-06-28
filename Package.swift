@@ -7,6 +7,7 @@ let package = Package(
         .macOS(.v13), .iOS(.v16)
     ],
     products: [
+        .library(name: "PassKit", targets: ["PassKit"]),
         .library(name: "Passes", targets: ["PassKit", "Passes"]),
     ],
     dependencies: [
