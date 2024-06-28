@@ -9,6 +9,9 @@
 /// 
 /// > Tip: See the [`Pass`](https://developer.apple.com/documentation/walletpasses/pass) object to understand the keys.
 public protocol PassJSON: Encodable {
+    /// The authentication token to use with the web service.
+    static var token: String { get }
+
     /// A short description that iOS accessibility technologies use for a pass.
     var description: String { get }
 
@@ -30,12 +33,6 @@ public protocol PassJSON: Encodable {
 
     /// The Team ID for the Apple Developer Program account that registered the pass type identifier.
     var teamIdentifier: String { get }
-}
-
-public extension PassJSON {
-    var formatVersion: Int {
-        return 1
-    }
 }
 
 /// A protocol that represents the information to display in a field on a pass.
@@ -88,12 +85,6 @@ public protocol Barcodes: Encodable {
     /// The IANA character set name of the text encoding to use to convert message
     /// from a string representation to a data representation that the system renders as a barcode, such as `iso-8859-1`.
     var messageEncoding: String { get }
-}
-
-public extension Barcodes {
-    var messageEncoding: String {
-        return "iso-8859-1"
-    }
 }
 
 /// The format of the barcode.

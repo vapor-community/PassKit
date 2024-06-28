@@ -64,9 +64,14 @@ final class PassData: PassDataModel, @unchecked Sendable {
     @Parent(key: "pass_id")
     var pass: PKPass
 
-    // Add any other field relative to your app, such as a location, a date, etc.
+    // Examples of other extra fields:
     @Field(key: "punches")
     var punches: Int
+
+    @Field(key: "title")
+    var title: String
+
+    // Add any other field relative to your app, such as a location, a date, etc.
 
     init() { }
 }
@@ -75,8 +80,9 @@ struct CreatePassData: AsyncMigration {
     public func prepare(on database: Database) async throws {
         try await database.schema(Self.schema)
             .id()
-            .field("punches", .int, .required)
             .field("pass_id", .uuid, .required, .references(PKPass.schema, .id, onDelete: .cascade))
+            .field("punches", .int, .required)
+            .field("title", .string, .required)
             .create()
     }
     
@@ -124,32 +130,66 @@ EXECUTE PROCEDURE "public"."RemoveUnregisteredItems"();
 
 ### Model the `pass.json` contents
 
-Create a `struct` that implements `Encodable` which will contain all the fields for the generated `pass.json` file.
+Create a `struct` that implements `PassJSON` which will contain all the fields for the generated `pass.json` file.
 Create an initializer that takes your custom pass data, the `PKPass` and everything else you may need.
 For information on the various keys available see the [documentation](https://developer.apple.com/documentation/walletpasses/pass).
-See also [this guide](https://developer.apple.com/library/archive/documentation/UserExperience/Conceptual/PassKit_PG/index.html#//apple_ref/doc/uid/TP40012195-CH1-SW1) for some help.
+See also [this guide](https://developer.apple.com/library/archive/documentation/UserExperience/Conceptual/PassKit_PG/index.html#//apple_ref/doc/uid/TP40012195-CH1-SW1) for some help. Here's an example of a `struct` that implements `PassJSON`.
 
 ```swift
-struct PassJSONData: Encodable {
+import Passes
+
+struct PassJSONData: PassJSON {
     public static let token = "EB80D9C6-AD37-41A0-875E-3802E88CA478"
     
-    private let formatVersion = 1
-    private let passTypeIdentifier = "pass.com.yoursite.passType"
-    private let authenticationToken = token
+    let description: String
+    let formatVersion = 1
+    let organizationName = "vapor-community"
+    let passTypeIdentifier = Environment.get("PASSKIT_PASS_TYPE_IDENTIFIER")!
     let serialNumber: String
-    let relevantDate: String
-    let barcodes: [PassJSONData.Barcode]
-    ...
+    let teamIdentifier = Environment.get("APPLE_TEAM_IDENTIFIER")!
 
-    struct Barcode: Encodable {
-        let altText: String
-        let format = "PKBarcodeFormatQR"
+    private let webServiceURL = "\(Environment.get("WEBSITE_URL")!)api/"
+    private let authenticationToken = token
+    private let logoText = "Vapor"
+    private let sharingProhibited = true
+    let backgroundColor = "rgb(207, 77, 243)"
+    let foregroundColor = "rgb(255, 255, 255)"
+
+    let barcodes = Barcode(message: "test")
+    struct Barcode: Barcodes {
+        let format = BarcodeFormat.qr
         let message: String
         let messageEncoding = "iso-8859-1"
     }
 
+    let boardingPass = Boarding(transitType: .air)
+    struct Boarding: BoardingPass {
+        let transitType: TransitType
+        let headerFields: [PassField]
+        let primaryFields: [PassField]
+        let secondaryFields: [PassField]
+        let auxiliaryFields: [PassField]
+        let backFields: [PassField]
+
+        struct PassField: PassFieldContent {
+            let key: String
+            let label: String
+            let value: String
+        }
+
+        init(transitType: TransitType) {
+            self.headerFields = [.init(key: "header", label: "Header", value: "Header")]
+            self.primaryFields = [.init(key: "primary", label: "Primary", value: "Primary")]
+            self.secondaryFields = [.init(key: "secondary", label: "Secondary", value: "Secondary")]
+            self.auxiliaryFields = [.init(key: "auxiliary", label: "Auxiliary", value: "Auxiliary")]
+            self.backFields = [.init(key: "back", label: "Back", value: "Back")]
+            self.transitType = transitType
+        }
+    }
+
     init(data: PassData, pass: PKPass) {
-        ...
+        self.description = data.title
+        self.serialNumber = pass.id!.uuidString
     }
 }
 ```
