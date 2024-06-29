@@ -27,7 +27,7 @@
 /// THE SOFTWARE.
 
 import Vapor
-import Fluent
+import FluentKit
 
 /// Represents the `Model` that stores custom app data associated to PassKit passes.
 public protocol PassDataModel: Model {

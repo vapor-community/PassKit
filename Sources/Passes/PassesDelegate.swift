@@ -27,7 +27,7 @@
 /// THE SOFTWARE.
 
 import Vapor
-import Fluent
+import FluentKit
 
 /// The delegate which is responsible for generating the pass files.
 public protocol PassesDelegate: AnyObject, Sendable {

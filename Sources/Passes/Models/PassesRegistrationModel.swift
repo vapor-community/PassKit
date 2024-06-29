@@ -27,7 +27,7 @@
 /// THE SOFTWARE.
 
 import Vapor
-import Fluent
+import FluentKit
 import PassKit
 
 /// Represents the `Model` that stores passes registrations.
