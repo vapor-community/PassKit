@@ -24,7 +24,6 @@ public final class PassesServiceCustom<P, D, R: PassesRegistrationModel, E: Erro
     public unowned let delegate: any PassesDelegate
     private unowned let app: Application
     
-    private let processQueue = DispatchQueue(label: "com.vapor-community.PassKit", qos: .utility, attributes: .concurrent)
     private let v1: FakeSendable<any RoutesBuilder>
     private let logger: Logger?
     
