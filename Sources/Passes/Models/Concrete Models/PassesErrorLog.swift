@@ -5,7 +5,7 @@
 //  Created by Francesco Paolo Severino on 29/06/24.
 //
 
-import Foundation
+import struct Foundation.Date
 import FluentKit
 import PassKit
 

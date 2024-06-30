@@ -5,7 +5,6 @@
 //  Created by Francesco Paolo Severino on 29/06/24.
 //
 
-import Foundation
 import FluentKit
 
 /// The `Model` that stores passes registrations.

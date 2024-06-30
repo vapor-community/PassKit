@@ -51,7 +51,7 @@ public final class PassesServiceCustom<P, D, R: PassesRegistrationModel, E: Erro
     ///
     /// ### Example ###
     /// ```swift
-    /// try pk.registerPushRoutes(environment: .sandbox, middleware: PushAuthMiddleware())
+    /// try passesService.registerPushRoutes(middleware: SecretMiddleware(secret: "foo"))
     /// ```
     ///
     /// - Parameter middleware: The `Middleware` which will control authentication for the routes.
@@ -106,8 +106,10 @@ public final class PassesServiceCustom<P, D, R: PassesRegistrationModel, E: Erro
         pushAuth.post("push", ":passTypeIdentifier", ":passSerial", use: { try await self.pushUpdatesForPass(req: $0) })
         pushAuth.get("push", ":passTypeIdentifier", ":passSerial", use: { try await self.tokensForPassUpdate(req: $0) })
     }
+}
     
-    // MARK: - API Routes
+// MARK: - API Routes
+extension PassesServiceCustom {
     func registerDevice(req: Request) async throws -> HTTPStatus {
         logger?.debug("Called register device")
         
@@ -305,8 +307,10 @@ public final class PassesServiceCustom<P, D, R: PassesRegistrationModel, E: Erro
         try await registration.create(on: req.db)
         return .created
     }
+}
     
-    // MARK: - Push Notifications
+// MARK: - Push Notifications
+extension PassesServiceCustom {
     public static func sendPushNotificationsForPass(id: UUID, of passTypeIdentifier: String, on db: any Database, app: Application) async throws {
         let registrations = try await Self.registrationsForPass(id: id, of: passTypeIdentifier, on: db)
         for reg in registrations {
@@ -356,8 +360,10 @@ public final class PassesServiceCustom<P, D, R: PassesRegistrationModel, E: Erro
             .filter(P.self, \._$id == id)
             .all()
     }
+}
     
-    // MARK: - pkpass file generation
+// MARK: - pkpass file generation
+extension PassesServiceCustom {
     private static func generateManifestFile(using encoder: JSONEncoder, in root: URL) throws {
         var manifest: [String: String] = [:]
         

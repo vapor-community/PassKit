@@ -26,7 +26,6 @@
 /// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 /// THE SOFTWARE.
 
-import Vapor
 import FluentKit
 
 /// Represents the `Model` that stores custom app data associated to PassKit passes.
