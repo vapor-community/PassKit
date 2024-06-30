@@ -32,11 +32,19 @@ let package = Package(
             ],
             swiftSettings: swiftSettings
         ),
+        .target(
+            name: "Orders",
+            dependencies: [
+                .target(name: "PassKit"),
+            ],
+            swiftSettings: swiftSettings
+        ),
         .testTarget(
             name: "PassKitTests",
             dependencies: [
                 .target(name: "PassKit"),
                 .target(name: "Passes"),
+                .target(name: "Orders"),
                 .product(name: "XCTVapor", package: "vapor"),
             ],
             swiftSettings: swiftSettings
