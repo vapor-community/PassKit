@@ -39,7 +39,7 @@ public protocol PassesDelegate: AnyObject, Sendable {
     ///  - `signature`
     ///
     /// - Parameters:
-    ///   - pass: The pass data from the SQL server.
+    ///   - for: The pass data from the SQL server.
     ///   - db: The SQL database to query against.
     ///
     /// - Returns: A `URL` which points to the template data for the pass.
