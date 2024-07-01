@@ -22,7 +22,7 @@ public final class OrdersService: Sendable {
     ///   - order: The order to generate the content for.
     ///   - db: The `Database` to use.
     /// - Returns: The generated order content.
-    public func generatePassContent(for order: Order, on db: any Database) async throws -> Data {
+    public func generateOrderContent(for order: Order, on db: any Database) async throws -> Data {
         try await service.generateOrderContent(for: order, on: db)
     }
 
