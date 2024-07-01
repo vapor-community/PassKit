@@ -5,7 +5,7 @@
 //  Created by Francesco Paolo Severino on 01/07/24.
 //
 
-import Vapor
+@preconcurrency import Vapor
 import APNS
 import VaporAPNS
 @preconcurrency import APNSCore
@@ -24,7 +24,7 @@ public final class OrdersServiceCustom<O, D, R: OrdersRegistrationModel, E: Erro
     public unowned let delegate: any OrdersDelegate
     private unowned let app: Application
     
-    private let v1: FakeSendable<any RoutesBuilder>
+    private let v1: any RoutesBuilder
     private let logger: Logger?
     
     public init(app: Application, delegate: any OrdersDelegate, logger: Logger? = nil) {
@@ -32,7 +32,7 @@ public final class OrdersServiceCustom<O, D, R: OrdersRegistrationModel, E: Erro
         self.logger = logger
         self.app = app
         
-        v1 = FakeSendable(value: app.grouped("api", "orders", "v1"))
+        v1 = app.grouped("api", "orders", "v1")
     }
 }
 
