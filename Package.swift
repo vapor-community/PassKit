@@ -9,6 +9,7 @@ let package = Package(
     products: [
         .library(name: "PassKit", targets: ["PassKit"]),
         .library(name: "Passes", targets: ["PassKit", "Passes"]),
+        .library(name: "Orders", targets: ["PassKit", "Orders"]),
     ],
     dependencies: [
         .package(url: "https://github.com/vapor/vapor.git", from: "4.102.0"),
