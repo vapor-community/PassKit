@@ -32,7 +32,7 @@ public final class PassesServiceCustom<P, D, R: PassesRegistrationModel, E: Erro
         self.logger = logger
         self.app = app
         
-        v1 = FakeSendable(value: app.grouped("api", "v1"))
+        v1 = FakeSendable(value: app.grouped("api", "passes", "v1"))
     }
     
     /// Registers all the routes required for PassKit to work.

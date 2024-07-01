@@ -149,7 +149,7 @@ struct PassJSONData: PassJSON {
     let serialNumber: String
     let teamIdentifier = Environment.get("APPLE_TEAM_IDENTIFIER")!
 
-    private let webServiceURL = "\(Environment.get("WEBSITE_URL")!)api/"
+    private let webServiceURL = "https://example.com/api/passes/"
     private let authenticationToken: String
     private let logoText = "Vapor"
     private let sharingProhibited = true
@@ -196,6 +196,9 @@ struct PassJSONData: PassJSON {
 }
 ```
 
+> [!IMPORTANT]
+> You **must** add `api/passes/` to your `webServiceURL`, as shown in the example above.
+
 ### Implement the delegate.
 
 Create a delegate file that implements `PassesDelegate`.
@@ -214,7 +217,7 @@ import Fluent
 import Passes
 
 final class PassDelegate: PassesDelegate {
-    let sslSigningFilesDirectory = URL(fileURLWithPath: "Certificates/", isDirectory: true)
+    let sslSigningFilesDirectory = URL(fileURLWithPath: "Certificates/Passes/", isDirectory: true)
 
     let pemPrivateKeyPassword: String? = Environment.get("PEM_PRIVATE_KEY_PASSWORD")!
 
@@ -235,7 +238,7 @@ final class PassDelegate: PassesDelegate {
 
     func template<P: PassModel>(for: P, db: Database) async throws -> URL {
         // The location might vary depending on the type of pass.
-        return URL(fileURLWithPath: "PassKitTemplate/", isDirectory: true)
+        return URL(fileURLWithPath: "Templates/Passes/", isDirectory: true)
     }
 }
 ```
@@ -276,8 +279,8 @@ try passesService.registerPushRoutes(middleware: SecretMiddleware(secret: "foo")
 
 That will add two routes:
 
-- POST .../api/v1/push/*passTypeIdentifier*/*passBarcode* (Sends notifications)
-- GET .../api/v1/push/*passTypeIdentifier*/*passBarcode* (Retrieves a list of push tokens which would be sent a notification)
+- POST .../api/passes/v1/push/*:passTypeIdentifier*/*:passSerial* (Sends notifications)
+- GET .../api/passes/v1/push/*:passTypeIdentifier*/*:passSerial* (Retrieves a list of push tokens which would be sent a notification)
 
 #### Pass data model middleware
 
