@@ -18,7 +18,7 @@
 </div>
 <br>
 
-🎟️ A Vapor package which handles all the server side elements required to implement passes for Apple Wallet.
+🎟️ 📦 A Vapor package which handles all the server side elements required to implement Apple Wallet passes and orders.
 
 ### Major Releases
 
@@ -36,15 +36,15 @@ Use the SPM string to easily include the dependendency in your `Package.swift` f
 .package(url: "https://github.com/vapor-community/PassKit.git", from: "0.4.0")
 ```
 
-and add it to your target's dependencies:
+> Note: This package is made for Vapor 4.
+
+## 🎟️ Wallet Passes
+
+Add the `Passes` product to your target's dependencies:
 
 ```swift
 .product(name: "Passes", package: "PassKit")
 ```
-
-> Note: This package is made for Vapor 4.
-
-## Usage
 
 ### Implement your pass data model
 
@@ -127,6 +127,9 @@ AFTER DELETE ON "public"."passes_registrations"
 FOR EACH ROW
 EXECUTE PROCEDURE "public"."RemoveUnregisteredItems"();
 ```
+
+> [!CAUTION]
+> Be careful with SQL triggers, as they can have unintended consequences if not properly implemented.
 
 ### Model the `pass.json` contents
 
@@ -434,3 +437,15 @@ fileprivate func passHandler(_ req: Request) async throws -> Response {
     return Response(status: .ok, headers: headers, body: body)
 }
 ```
+
+## 📦 Wallet Orders
+
+Add the `Orders` product to your target's dependencies:
+
+```swift
+.product(name: "Orders", package: "PassKit")
+```
+
+> [!WARNING]
+> The `Orders` is WIP, right now you can only set up the models and generate `.order` bundles.
+APNS support and order updates will be added soon. See the `Orders` target's documentation.
