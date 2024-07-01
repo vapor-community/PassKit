@@ -26,11 +26,10 @@
 /// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 /// THE SOFTWARE.
 
-import Vapor
-import Fluent
+import FluentKit
 
 /// Represents the `Model` that stores PassKit error logs.
-public protocol PassKitErrorLog: Model {
+public protocol ErrorLogModel: Model {
     /// The error message provided by PassKit
     var message: String { get set }
     
@@ -39,7 +38,7 @@ public protocol PassKitErrorLog: Model {
     init(message: String)
 }
 
-internal extension PassKitErrorLog {
+package extension ErrorLogModel {
     var _$message: Field<String> {
         guard let mirror = Mirror(reflecting: self).descendant("_message"),
             let message = mirror as? Field<String> else {

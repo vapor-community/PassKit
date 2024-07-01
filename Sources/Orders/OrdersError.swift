@@ -1,13 +1,11 @@
 //
-//  File.swift
-//  
+//  OrdersError.swift
+//  PassKit
 //
-//  Created by Scott Grosch on 1/22/20.
+//  Created by Francesco Paolo Severino on 30/06/24.
 //
 
-import Foundation
-
-public enum PassKitError: Error {
+public enum OrdersError: Error {
     /// The template path is not a directory
     case templateNotDirectory
 

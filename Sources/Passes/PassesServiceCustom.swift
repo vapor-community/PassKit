@@ -1,125 +1,30 @@
-/// Copyright 2020 Gargoyle Software, LLC
-///
-/// Permission is hereby granted, free of charge, to any person obtaining a copy
-/// of this software and associated documentation files (the "Software"), to deal
-/// in the Software without restriction, including without limitation the rights
-/// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-/// copies of the Software, and to permit persons to whom the Software is
-/// furnished to do so, subject to the following conditions:
-///
-/// The above copyright notice and this permission notice shall be included in
-/// all copies or substantial portions of the Software.
-///
-/// Notwithstanding the foregoing, you may not use, copy, modify, merge, publish,
-/// distribute, sublicense, create a derivative work, and/or sell copies of the
-/// Software in any work that is designed, intended, or marketed for pedagogical or
-/// instructional purposes related to programming, coding, application development,
-/// or information technology.  Permission for such use, copying, modification,
-/// merger, publication, distribution, sublicensing, creation of derivative works,
-/// or sale is expressly withheld.
-///
-/// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-/// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-/// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-/// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-/// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-/// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-/// THE SOFTWARE.
+//
+//  PassesServiceCustom.swift
+//  PassKit
+//
+//  Created by Francesco Paolo Severino on 29/06/24.
+//
 
-import Vapor
+@preconcurrency import Vapor
 import APNS
 import VaporAPNS
 @preconcurrency import APNSCore
 import Fluent
 import NIOSSL
+import PassKit
 
-/// The main class that handles PassKit passes.
-public final class Passes: Sendable {
-    private let kit: PassesCustom<PKPass, PKDevice, PKRegistration, PKErrorLog>
-    
-    public init(app: Application, delegate: any PassesDelegate, logger: Logger? = nil) {
-        kit = .init(app: app, delegate: delegate, logger: logger)
-    }
-    
-    /// Registers all the routes required for PassKit to work.
-    ///
-    /// - Parameter authorizationCode: The `authenticationToken` which you are going to use in the `pass.json` file.
-    public func registerRoutes(authorizationCode: String? = nil) {
-        kit.registerRoutes(authorizationCode: authorizationCode)
-    }
-    
-    /// Registers routes to send push notifications to updated passes.
-    ///
-    /// - Parameter middleware: The `Middleware` which will control authentication for the routes.
-    public func registerPushRoutes(middleware: any Middleware) throws {
-        try kit.registerPushRoutes(middleware: middleware)
-    }
-
-    /// Generates the pass content bundle for a given pass.
-    ///
-    /// - Parameters:
-    ///   - pass: The pass to generate the content for.
-    ///   - db: The `Database` to use.
-    /// - Returns: The generated pass content.
-    public func generatePassContent(for pass: PKPass, on db: any Database) async throws -> Data {
-        try await kit.generatePassContent(for: pass, on: db)
-    }
-    
-    /// Adds the migrations for PassKit passes models.
-    ///
-    /// - Parameter migrations: The `Migrations` object to add the migrations to.
-    public static func register(migrations: Migrations) {
-        migrations.add(PKPass())
-        migrations.add(PKDevice())
-        migrations.add(PKRegistration())
-        migrations.add(PKErrorLog())
-    }
-    
-    /// Sends push notifications for a given pass.
-    ///
-    /// - Parameters:
-    ///   - id: The `UUID` of the pass to send the notifications for.
-    ///   - passTypeIdentifier: The type identifier of the pass.
-    ///   - db: The `Database` to use.
-    ///   - app: The `Application` to use.
-    public static func sendPushNotificationsForPass(id: UUID, of passTypeIdentifier: String, on db: any Database, app: Application) async throws {
-        try await PassesCustom<PKPass, PKDevice, PKRegistration, PKErrorLog>.sendPushNotificationsForPass(id: id, of: passTypeIdentifier, on: db, app: app)
-    }
-    
-    /// Sends push notifications for a given pass.
-    /// 
-    /// - Parameters:
-    ///   - pass: The pass to send the notifications for.
-    ///   - db: The `Database` to use.
-    ///   - app: The `Application` to use.
-    public static func sendPushNotifications(for pass: PKPass, on db: any Database, app: Application) async throws {
-        try await PassesCustom<PKPass, PKDevice, PKRegistration, PKErrorLog>.sendPushNotifications(for: pass, on: db, app: app)
-    }
-    
-    /// Sends push notifications for a given pass.
-    /// 
-    /// - Parameters:
-    ///   - pass: The pass (as the `ParentProperty`) to send the notifications for.
-    ///   - db: The `Database` to use.
-    ///   - app: The `Application` to use.
-    public static func sendPushNotifications(for pass: ParentProperty<PKRegistration, PKPass>, on db: any Database, app: Application) async throws {
-        try await PassesCustom<PKPass, PKDevice, PKRegistration, PKErrorLog>.sendPushNotifications(for: pass, on: db, app: app)
-    }
-}
-
-/// Class to handle `Passes`.
+/// Class to handle `PassesService`.
 ///
 /// The generics should be passed in this order:
 /// - Pass Type
 /// - Device Type
 /// - Registration Type
 /// - Error Log Type
-public final class PassesCustom<P, D, R: PassKitRegistration, E: PassKitErrorLog>: Sendable where P == R.PassType, D == R.DeviceType {
+public final class PassesServiceCustom<P, D, R: PassesRegistrationModel, E: ErrorLogModel>: Sendable where P == R.PassType, D == R.DeviceType {
     public unowned let delegate: any PassesDelegate
     private unowned let app: Application
     
-    private let processQueue = DispatchQueue(label: "com.vapor-community.PassKit", qos: .utility, attributes: .concurrent)
-    private let v1: FakeSendable<any RoutesBuilder>
+    private let v1: any RoutesBuilder
     private let logger: Logger?
     
     public init(app: Application, delegate: any PassesDelegate, logger: Logger? = nil) {
@@ -127,21 +32,15 @@ public final class PassesCustom<P, D, R: PassKitRegistration, E: PassKitErrorLog
         self.logger = logger
         self.app = app
         
-        v1 = FakeSendable(value: app.grouped("api", "v1"))
+        v1 = app.grouped("api", "passes", "v1")
     }
     
     /// Registers all the routes required for PassKit to work.
-    ///
-    /// - Parameter authorizationCode: The `authenticationToken` which you are going to use in the `pass.json` file.
-    public func registerRoutes(authorizationCode: String? = nil) {
-        v1.value.get("devices", ":deviceLibraryIdentifier", "registrations", ":passTypeIdentifier", use: { try await self.passesForDevice(req: $0) })
-        v1.value.post("log", use: { try await self.logError(req: $0) })
+    public func registerRoutes() {
+        v1.get("devices", ":deviceLibraryIdentifier", "registrations", ":passTypeIdentifier", use: { try await self.passesForDevice(req: $0) })
+        v1.post("log", use: { try await self.logError(req: $0) })
         
-        guard let code = authorizationCode ?? Environment.get("PASS_KIT_AUTHORIZATION") else {
-            fatalError("Must pass in an authorization code")
-        }
-        
-        let v1auth = v1.value.grouped(ApplePassMiddleware(authorizationCode: code))
+        let v1auth = v1.grouped(ApplePassMiddleware<P>())
         
         v1auth.post("devices", ":deviceLibraryIdentifier", "registrations", ":passTypeIdentifier", ":passSerial", use: { try await self.registerDevice(req: $0) })
         v1auth.get("passes", ":passTypeIdentifier", ":passSerial", use: { try await self.latestVersionOfPass(req: $0) })
@@ -152,23 +51,23 @@ public final class PassesCustom<P, D, R: PassKitRegistration, E: PassKitErrorLog
     ///
     /// ### Example ###
     /// ```swift
-    /// try pk.registerPushRoutes(environment: .sandbox, middleware: PushAuthMiddleware())
+    /// try passesService.registerPushRoutes(middleware: SecretMiddleware(secret: "foo"))
     /// ```
     ///
     /// - Parameter middleware: The `Middleware` which will control authentication for the routes.
-    /// - Throws: An error of type `PassKitError`
+    /// - Throws: An error of type `PassesError`
     public func registerPushRoutes(middleware: any Middleware) throws {
         let privateKeyPath = URL(fileURLWithPath: delegate.pemPrivateKey, relativeTo:
             delegate.sslSigningFilesDirectory).unixPath()
 
         guard FileManager.default.fileExists(atPath: privateKeyPath) else {
-            throw PassKitError.pemPrivateKeyMissing
+            throw PassesError.pemPrivateKeyMissing
         }
 
         let pemPath = URL(fileURLWithPath: delegate.pemCertificate, relativeTo: delegate.sslSigningFilesDirectory).unixPath()
 
         guard FileManager.default.fileExists(atPath: privateKeyPath) else {
-            throw PassKitError.pemCertificateMissing
+            throw PassesError.pemCertificateMissing
         }
 
         // PassKit *only* works with the production APNs. You can't pass in .sandbox here.
@@ -202,13 +101,15 @@ public final class PassesCustom<P, D, R: PassKitRegistration, E: PassKitErrorLog
             isDefault: false
         )
         
-        let pushAuth = v1.value.grouped(middleware)
+        let pushAuth = v1.grouped(middleware)
         
         pushAuth.post("push", ":passTypeIdentifier", ":passSerial", use: { try await self.pushUpdatesForPass(req: $0) })
         pushAuth.get("push", ":passTypeIdentifier", ":passSerial", use: { try await self.tokensForPassUpdate(req: $0) })
     }
+}
     
-    // MARK: - API Routes
+// MARK: - API Routes
+extension PassesServiceCustom {
     func registerDevice(req: Request) async throws -> HTTPStatus {
         logger?.debug("Called register device")
         
@@ -406,8 +307,10 @@ public final class PassesCustom<P, D, R: PassKitRegistration, E: PassKitErrorLog
         try await registration.create(on: req.db)
         return .created
     }
+}
     
-    // MARK: - Push Notifications
+// MARK: - Push Notifications
+extension PassesServiceCustom {
     public static func sendPushNotificationsForPass(id: UUID, of passTypeIdentifier: String, on db: any Database, app: Application) async throws {
         let registrations = try await Self.registrationsForPass(id: id, of: passTypeIdentifier, on: db)
         for reg in registrations {
@@ -457,8 +360,10 @@ public final class PassesCustom<P, D, R: PassKitRegistration, E: PassKitErrorLog
             .filter(P.self, \._$id == id)
             .all()
     }
+}
     
-    // MARK: - pkpass file generation
+// MARK: - pkpass file generation
+extension PassesServiceCustom {
     private static func generateManifestFile(using encoder: JSONEncoder, in root: URL) throws {
         var manifest: [String: String] = [:]
         
@@ -487,7 +392,7 @@ public final class PassesCustom<P, D, R: PassKitRegistration, E: PassKitErrorLog
         let sslBinary = delegate.sslBinary
 
         guard FileManager.default.fileExists(atPath: sslBinary.unixPath()) else {
-            throw PassKitError.opensslBinaryMissing
+            throw PassesError.opensslBinaryMissing
         }
 
         let proc = Process()
@@ -516,7 +421,7 @@ public final class PassesCustom<P, D, R: PassKitRegistration, E: PassKitErrorLog
     private func zip(directory: URL, to: URL) throws {
         let zipBinary = delegate.zipBinary
         guard FileManager.default.fileExists(atPath: zipBinary.unixPath()) else {
-            throw PassKitError.zipBinaryMissing
+            throw PassesError.zipBinaryMissing
         }
         
         let proc = Process()
@@ -537,7 +442,7 @@ public final class PassesCustom<P, D, R: PassKitRegistration, E: PassKitErrorLog
         
         let src = try await delegate.template(for: pass, db: db)
         guard (try? src.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? false else {
-            throw PassKitError.templateNotDirectory
+            throw PassesError.templateNotDirectory
         }
         
         let encoded = try await self.delegate.encode(pass: pass, db: db, encoder: encoder)
