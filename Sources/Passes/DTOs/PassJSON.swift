@@ -12,8 +12,10 @@ public protocol PassJSON: Encodable {
     /// A short description that iOS accessibility technologies use for a pass.
     var description: String { get }
 
-    /// The version of the file format. The value must be 1.
-    var formatVersion: Int { get }
+    /// The version of the file format.
+    /// 
+    /// The value must be `1`.
+    var formatVersion: PassJSONType.FormatVersion { get }
 
     /// The name of the organization.
     var organizationName: String { get }
@@ -55,16 +57,7 @@ public protocol BoardingPass: Encodable {
     /// 
     /// The system may use the value to display more information,
     /// such as showing an airplane icon for the pass on watchOS when the value is set to `PKTransitTypeAir`.
-    var transitType: TransitType { get }
-}
-
-/// The type of transit for a boarding pass.
-public enum TransitType: String, Encodable {
-    case air = "PKTransitTypeAir"
-    case boat = "PKTransitTypeBoat"
-    case bus = "PKTransitTypeBus"
-    case generic = "PKTransitTypeGeneric"
-    case train = "PKTransitTypeTrain"
+    var transitType: PassJSONType.TransitType { get }
 }
 
 /// A protocol that represents a barcode on a pass.
@@ -74,7 +67,7 @@ public protocol Barcodes: Encodable {
     /// The format of the barcode.
     /// 
     /// The barcode format `PKBarcodeFormatCode128` isn’t supported for watchOS.
-    var format: BarcodeFormat { get }
+    var format: PassJSONType.BarcodeFormat { get }
 
     /// The message or payload to display as a barcode.
     var message: String { get }
@@ -84,10 +77,25 @@ public protocol Barcodes: Encodable {
     var messageEncoding: String { get }
 }
 
-/// The format of the barcode.
-public enum BarcodeFormat: String, Encodable {
-    case pdf417 = "PKBarcodeFormatPDF417"
-    case qr = "PKBarcodeFormatQR"
-    case aztec = "PKBarcodeFormatAztec"
-    case code128 = "PKBarcodeFormatCode128"
+public struct PassJSONType {
+    public enum FormatVersion: Int, Encodable {
+        case v1 = 1
+    }
+    
+    /// The type of transit for a boarding pass.
+    public enum TransitType: String, Encodable {
+        case air = "PKTransitTypeAir"
+        case boat = "PKTransitTypeBoat"
+        case bus = "PKTransitTypeBus"
+        case generic = "PKTransitTypeGeneric"
+        case train = "PKTransitTypeTrain"
+    }
+    
+    /// The format of the barcode.
+    public enum BarcodeFormat: String, Encodable {
+        case pdf417 = "PKBarcodeFormatPDF417"
+        case qr = "PKBarcodeFormatQR"
+        case aztec = "PKBarcodeFormatAztec"
+        case code128 = "PKBarcodeFormatCode128"
+    }
 }
