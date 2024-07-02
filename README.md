@@ -379,12 +379,6 @@ import Passes
 let passesService = PassesServiceCustom<MyPassType, MyDeviceType, MyPassesRegistrationType, MyErrorLogType>(app: app, delegate: delegate)
 ```
 
-The `DeviceModel` and `ErrorLogModel` protocols are found inside the the `PassKit` product. If you want to customize the devices and error logs models you have to add it to the package manifest:
-
-```swift
-.product(name: "PassKit", package: "PassKit")
-```
-
 ### Register Migrations
 
 If you're using the default schemas provided by this package you can register the default models in your `configure(_:)` method:
@@ -447,5 +441,5 @@ Add the `Orders` product to your target's dependencies:
 ```
 
 > [!WARNING]
-> The `Orders` is WIP, right now you can only set up the models and generate `.order` bundles.
+> The `Orders` module is WIP, right now you can only set up the models and generate `.order` bundles.
 APNS support and order updates will be added soon. See the `Orders` target's documentation.

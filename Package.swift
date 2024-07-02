@@ -4,12 +4,11 @@ import PackageDescription
 let package = Package(
     name: "PassKit",
     platforms: [
-        .macOS(.v13), .iOS(.v16)
+        .macOS(.v13)
     ],
     products: [
-        .library(name: "PassKit", targets: ["PassKit"]),
-        .library(name: "Passes", targets: ["PassKit", "Passes"]),
-        .library(name: "Orders", targets: ["PassKit", "Orders"]),
+        .library(name: "Passes", targets: ["Passes"]),
+        .library(name: "Orders", targets: ["Orders"]),
     ],
     dependencies: [
         .package(url: "https://github.com/vapor/vapor.git", from: "4.102.0"),
@@ -41,10 +40,16 @@ let package = Package(
             swiftSettings: swiftSettings
         ),
         .testTarget(
-            name: "PassKitTests",
+            name: "PassesTests",
             dependencies: [
-                .target(name: "PassKit"),
                 .target(name: "Passes"),
+                .product(name: "XCTVapor", package: "vapor"),
+            ],
+            swiftSettings: swiftSettings
+        ),
+        .testTarget(
+            name: "OrdersTests",
+            dependencies: [
                 .target(name: "Orders"),
                 .product(name: "XCTVapor", package: "vapor"),
             ],
