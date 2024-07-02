@@ -15,6 +15,9 @@ open class Order: OrderModel, @unchecked Sendable {
     @ID
     public var id: UUID?
 
+    @Timestamp(key: Order.FieldKeys.createdAt, on: .create)
+    public var createdAt: Date?
+
     @Timestamp(key: Order.FieldKeys.updatedAt, on: .update)
     public var updatedAt: Date?
 
@@ -36,6 +39,7 @@ extension Order: AsyncMigration {
     public func prepare(on database: any Database) async throws {
         try await database.schema(Self.schema)
             .id()
+            .field(Order.FieldKeys.createdAt, .datetime, .required)
             .field(Order.FieldKeys.updatedAt, .datetime, .required)
             .field(Order.FieldKeys.orderTypeIdentifier, .string, .required)
             .field(Order.FieldKeys.authenticationToken, .string, .required)
@@ -50,6 +54,7 @@ extension Order: AsyncMigration {
 extension Order {
     enum FieldKeys {
         static let schemaName = "orders"
+        static let createdAt = FieldKey(stringLiteral: "created_at")
         static let updatedAt = FieldKey(stringLiteral: "updated_at")
         static let orderTypeIdentifier = FieldKey(stringLiteral: "order_type_identifier")
         static let authenticationToken = FieldKey(stringLiteral: "authentication_token")

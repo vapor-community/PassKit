@@ -119,10 +119,13 @@ extension OrdersServiceCustom {
         guard FileManager.default.fileExists(atPath: delegate.zipBinary.unixPath()) else {
             throw Abort(.internalServerError, suggestedFixes: ["Provide full path to zip command"])
         }
+        
+        let dateFormatter = ISO8601DateFormatter()
+        dateFormatter.formatOptions = .withInternetDateTime
 
-        var ifModifiedSince: TimeInterval = 0
-
-        if let header = req.headers[.ifModifiedSince].first, let ims = TimeInterval(header) {
+        var ifModifiedSince = Date.now
+        
+        if let header = req.headers[.ifModifiedSince].first, let ims = dateFormatter.date(from: header){
             ifModifiedSince = ims
         }
 
@@ -139,7 +142,7 @@ extension OrdersServiceCustom {
             throw Abort(.notFound)
         }
 
-        guard ifModifiedSince < order.updatedAt?.timeIntervalSince1970 ?? 0 else {
+        guard ifModifiedSince < order.updatedAt ?? Date.distantPast else {
             throw Abort(.notModified)
         }
 
@@ -148,7 +151,7 @@ extension OrdersServiceCustom {
 
         var headers = HTTPHeaders()
         headers.add(name: .contentType, value: "application/vnd.apple.order")
-        headers.add(name: .lastModified, value: String(order.updatedAt?.timeIntervalSince1970 ?? 0))
+        headers.add(name: .lastModified, value: dateFormatter.string(from: order.updatedAt ?? Date.distantPast))
         headers.add(name: .contentTransferEncoding, value: "binary")
         
         return Response(status: .ok, headers: headers, body: body)
@@ -225,8 +228,10 @@ extension OrdersServiceCustom {
             orderTypeIdentifier: orderTypeIdentifier,
             on: req.db)
         
-        if let since: TimeInterval = req.query["ordersModifiedSince"] {
-            let when = Date(timeIntervalSince1970: since)
+        if let since: String = req.query["ordersModifiedSince"] {
+            let dateFormatter = ISO8601DateFormatter()
+            dateFormatter.formatOptions = .withInternetDateTime
+            let when = dateFormatter.date(from: since) ?? Date.distantPast
             query = query.filter(O.self, \._$updatedAt > when)
         }
 

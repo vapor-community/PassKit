@@ -14,6 +14,9 @@ import FluentKit
 public protocol OrderModel: Model where IDValue == UUID {
     /// The order type identifier.
     var orderTypeIdentifier: String { get set }
+
+    /// The date the order was created.
+    var createdAt: Date? { get set }
     
     /// The last time the order was modified.
     var updatedAt: Date? { get set }
@@ -39,6 +42,15 @@ internal extension OrderModel {
         }
         
         return orderTypeIdentifier
+    }
+
+    var _$createdAt: Timestamp<DefaultTimestampFormat> {
+        guard let mirror = Mirror(reflecting: self).descendant("_createdAt"),
+            let createdAt = mirror as? Timestamp<DefaultTimestampFormat> else {
+                fatalError("createdAt property must be declared using @Timestamp(on: .create)")
+        }
+        
+        return createdAt
     }
     
     var _$updatedAt: Timestamp<DefaultTimestampFormat> {
