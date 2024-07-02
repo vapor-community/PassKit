@@ -123,9 +123,9 @@ extension OrdersServiceCustom {
         let dateFormatter = ISO8601DateFormatter()
         dateFormatter.formatOptions = .withInternetDateTime
 
-        var ifModifiedSince = Date.now
+        var ifModifiedSince = Date.distantPast
         
-        if let header = req.headers[.ifModifiedSince].first, let ims = dateFormatter.date(from: header){
+        if let header = req.headers[.ifModifiedSince].first, let ims = dateFormatter.date(from: header) {
             ifModifiedSince = ims
         }
 
