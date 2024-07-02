@@ -66,7 +66,7 @@ public final class PassesServiceCustom<P, D, R: PassesRegistrationModel, E: Erro
 
         let pemPath = URL(fileURLWithPath: delegate.pemCertificate, relativeTo: delegate.sslSigningFilesDirectory).unixPath()
 
-        guard FileManager.default.fileExists(atPath: privateKeyPath) else {
+        guard FileManager.default.fileExists(atPath: pemPath) else {
             throw PassesError.pemCertificateMissing
         }
 
@@ -265,6 +265,7 @@ extension PassesServiceCustom {
         return .ok
     }
     
+    // MARK: - Push Routes
     func pushUpdatesForPass(req: Request) async throws -> HTTPStatus {
         logger?.debug("Called pushUpdatesForPass")
         

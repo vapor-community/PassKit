@@ -34,6 +34,351 @@ public final class OrdersServiceCustom<O, D, R: OrdersRegistrationModel, E: Erro
         
         v1 = app.grouped("api", "orders", "v1")
     }
+
+    /// Registers all the routes required for Apple Wallet to work.
+    public func registerRoutes() {
+        v1.get("devices", ":deviceIdentifier", "registrations", ":orderTypeIdentifier", use: { try await self.ordersForDevice(req: $0) })
+        v1.post("log", use: { try await self.logError(req: $0) })
+        
+        let v1auth = v1.grouped(AppleOrderMiddleware<O>())
+        
+        v1auth.post("devices", ":deviceIdentifier", "registrations", ":orderTypeIdentifier", ":orderIdentifier", use: { try await self.registerDevice(req: $0) })
+        v1auth.get("orders", ":orderTypeIdentifier", ":orderIdentifier", use: { try await self.latestVersionOfOrder(req: $0) })
+        v1auth.delete("devices", ":deviceIdentifier", "registrations", ":orderTypeIdentifier", ":orderIdentifier", use: { try await self.unregisterDevice(req: $0) })
+    }
+
+    /// Registers routes to send push notifications for updated orders.
+    ///
+    /// ### Example ###
+    /// ```swift
+    /// try ordersService.registerPushRoutes(middleware: SecretMiddleware(secret: "foo"))
+    /// ```
+    ///
+    /// - Parameter middleware: The `Middleware` which will control authentication for the routes.
+    /// - Throws: An error of type `OrdersError`
+    public func registerPushRoutes(middleware: any Middleware) throws {
+        let privateKeyPath = URL(
+            fileURLWithPath: delegate.pemPrivateKey,
+            relativeTo: delegate.sslSigningFilesDirectory).unixPath()
+        
+        guard FileManager.default.fileExists(atPath: privateKeyPath) else {
+            throw OrdersError.pemPrivateKeyMissing
+        }
+
+        let pemPath = URL(
+            fileURLWithPath: delegate.pemCertificate,
+            relativeTo: delegate.sslSigningFilesDirectory).unixPath()
+        
+        guard FileManager.default.fileExists(atPath: pemPath) else {
+            throw OrdersError.pemCertificateMissing
+        }
+
+        // Apple Wallet *only* works with the production APNs. You can't pass in `.sandbox` here.
+        let apnsConfig: APNSClientConfiguration
+        if let pwd = delegate.pemPrivateKeyPassword {
+            apnsConfig = APNSClientConfiguration(
+                authenticationMethod: try .tls(
+                    privateKey: .privateKey(
+                        NIOSSLPrivateKey(file: privateKeyPath, format: .pem) { closure in
+                            closure(pwd.utf8)
+                        }),
+                    certificateChain: NIOSSLCertificate.fromPEMFile(pemPath).map { .certificate($0) }
+                ),
+                environment: .production
+            )
+        } else {
+            apnsConfig = APNSClientConfiguration(
+                authenticationMethod: try .tls(
+                    privateKey: .file(privateKeyPath),
+                    certificateChain: NIOSSLCertificate.fromPEMFile(pemPath).map { .certificate($0) }
+                ),
+                environment: .production
+            )
+        }
+        app.apns.containers.use(
+            apnsConfig,
+            eventLoopGroupProvider: .shared(app.eventLoopGroup),
+            responseDecoder: JSONDecoder(),
+            requestEncoder: JSONEncoder(),
+            as: .init(string: "orders"),
+            isDefault: false
+        )
+
+        let pushAuth = v1.grouped(middleware)
+        
+        pushAuth.post("push", ":orderTypeIdentifier", ":orderIdentifier", use: { try await self.pushUpdatesForOrder(req: $0) })
+        pushAuth.get("push", ":orderTypeIdentifier", ":orderIdentifier", use: { try await self.tokensForOrderUpdate(req: $0) })
+    }
+}
+
+// MARK: - API Routes
+extension OrdersServiceCustom {
+    func latestVersionOfOrder(req: Request) async throws -> Response {
+        logger?.debug("Called latestVersionOfOrder")
+
+        guard FileManager.default.fileExists(atPath: delegate.zipBinary.unixPath()) else {
+            throw Abort(.internalServerError, suggestedFixes: ["Provide full path to zip command"])
+        }
+
+        var ifModifiedSince: TimeInterval = 0
+
+        if let header = req.headers[.ifModifiedSince].first, let ims = TimeInterval(header) {
+            ifModifiedSince = ims
+        }
+
+        guard let orderTypeIdentifier = req.parameters.get("orderTypeIdentifier"),
+            let id = req.parameters.get("orderIdentifier", as: UUID.self) else {
+                throw Abort(.badRequest)
+        }
+
+        guard let order = try await O.query(on: req.db)
+            .filter(\._$id == id)
+            .filter(\._$orderTypeIdentifier == orderTypeIdentifier)
+            .first()
+        else {
+            throw Abort(.notFound)
+        }
+
+        guard ifModifiedSince < order.updatedAt?.timeIntervalSince1970 ?? 0 else {
+            throw Abort(.notModified)
+        }
+
+        let data = try await self.generateOrderContent(for: order, on: req.db)
+        let body = Response.Body(data: data)
+
+        var headers = HTTPHeaders()
+        headers.add(name: .contentType, value: "application/vnd.apple.order")
+        headers.add(name: .lastModified, value: String(order.updatedAt?.timeIntervalSince1970 ?? 0))
+        headers.add(name: .contentTransferEncoding, value: "binary")
+        
+        return Response(status: .ok, headers: headers, body: body)
+    }
+
+    func registerDevice(req: Request) async throws -> HTTPStatus {
+        logger?.debug("Called register device")
+
+        guard let orderIdentifier = req.parameters.get("orderIdentifier", as: UUID.self) else {
+            throw Abort(.badRequest)
+        }
+
+        let pushToken: String
+        do {
+            let content = try req.content.decode(RegistrationDTO.self)
+            pushToken = content.pushToken
+        } catch {
+            throw Abort(.badRequest)
+        }
+
+        let orderTypeIdentifier = req.parameters.get("orderTypeIdentifier")!
+        let deviceIdentifier = req.parameters.get("deviceIdentifier")!
+
+        guard let order = try await O.query(on: req.db)
+            .filter(\._$id == orderIdentifier)
+            .filter(\._$orderTypeIdentifier == orderTypeIdentifier)
+            .first()
+        else {
+            throw Abort(.notFound)
+        }
+
+        let device = try await D.query(on: req.db)
+            .filter(\._$deviceLibraryIdentifier == deviceIdentifier)
+            .filter(\._$pushToken == pushToken)
+            .first()
+        
+        if let device = device {
+            return try await Self.createRegistration(device: device, order: order, req: req)
+        } else {
+            let newDevice = D(deviceLibraryIdentifier: deviceIdentifier, pushToken: pushToken)
+            try await newDevice.create(on: req.db)
+            return try await Self.createRegistration(device: newDevice, order: order, req: req)
+        }
+    }
+
+    private static func createRegistration(device: D, order: O, req: Request) async throws -> HTTPStatus {
+        let r = try await R.for(
+            deviceLibraryIdentifier: device.deviceLibraryIdentifier,
+            orderTypeIdentifier: order.orderTypeIdentifier,
+            on: req.db
+        ).filter(O.self, \._$id == order.id!).first()
+
+        if r != nil {
+            // If the registration already exists, docs say to return a 200
+            return .ok
+        }
+
+        let registration = R()
+        registration._$order.id = order.id!
+        registration._$device.id = device.id!
+
+        try await registration.create(on: req.db)
+        return .created
+    }
+
+    func ordersForDevice(req: Request) async throws -> OrdersForDeviceDTO {
+        logger?.debug("Called ordersForDevice")
+
+        let orderTypeIdentifier = req.parameters.get("orderTypeIdentifier")!
+        let deviceIdentifier = req.parameters.get("deviceIdentifier")!
+
+        var query = R.for(
+            deviceLibraryIdentifier: deviceIdentifier,
+            orderTypeIdentifier: orderTypeIdentifier,
+            on: req.db)
+        
+        if let since: TimeInterval = req.query["ordersModifiedSince"] {
+            let when = Date(timeIntervalSince1970: since)
+            query = query.filter(O.self, \._$updatedAt > when)
+        }
+
+        let registrations = try await query.all()
+        guard !registrations.isEmpty else {
+            throw Abort(.noContent)
+        }
+
+        var orderIdentifiers: [String] = []
+        var maxDate = Date.distantPast
+
+        registrations.forEach { r in
+            let order = r.order
+            
+            orderIdentifiers.append(order.id!.uuidString)
+            if let updatedAt = order.updatedAt, updatedAt > maxDate {
+                maxDate = updatedAt
+            }
+        }
+
+        return OrdersForDeviceDTO(with: orderIdentifiers, maxDate: maxDate)
+    }
+
+    func logError(req: Request) async throws -> HTTPStatus {
+        logger?.debug("Called logError")
+
+        let body: ErrorLogDTO
+        
+        do {
+            body = try req.content.decode(ErrorLogDTO.self)
+        } catch {
+            throw Abort(.badRequest)
+        }
+        
+        guard body.logs.isEmpty == false else {
+            throw Abort(.badRequest)
+        }
+        
+        try await body.logs.map(E.init(message:)).create(on: req.db)
+            
+        return .ok
+    }
+
+    func unregisterDevice(req: Request) async throws -> HTTPStatus {
+        logger?.debug("Called unregisterDevice")
+
+        let orderTypeIdentifier = req.parameters.get("orderTypeIdentifier")!
+
+        guard let orderIdentifier = req.parameters.get("orderIdentifier", as: UUID.self) else {
+            throw Abort(.badRequest)
+        }
+
+        let deviceIdentifier = req.parameters.get("deviceIdentifier")!
+
+        guard let r = try await R.for(
+            deviceLibraryIdentifier: deviceIdentifier,
+            orderTypeIdentifier: orderTypeIdentifier,
+            on: req.db
+        ).filter(O.self, \._$id == orderIdentifier).first()
+        else {
+            throw Abort(.notFound)
+        }
+
+        try await r.delete(on: req.db)
+        return .ok
+    }
+
+    // MARK: - Push Routes
+    func pushUpdatesForOrder(req: Request) async throws -> HTTPStatus {
+        logger?.debug("Called pushUpdatesForOrder")
+
+        guard let id = req.parameters.get("orderIdentifier", as: UUID.self) else {
+            throw Abort(.badRequest)
+        }
+
+        let orderTypeIdentifier = req.parameters.get("orderTypeIdentifier")!
+
+        try await Self.sendPushNotificationsForOrder(id: id, of: orderTypeIdentifier, on: req.db, app: req.application)
+        return .noContent
+    }
+
+    func tokensForOrderUpdate(req: Request) async throws -> [String] {
+        logger?.debug("Called tokensForOrderUpdate")
+        
+        guard let id = req.parameters.get("orderIdentifier", as: UUID.self) else {
+            throw Abort(.badRequest)
+        }
+        
+        let orderTypeIdentifier = req.parameters.get("orderTypeIdentifier")!
+        
+        let registrations = try await Self.registrationsForOrder(id: id, of: orderTypeIdentifier, on: req.db)
+        return registrations.map { $0.device.pushToken }
+    }
+}
+
+// MARK: - Push Notifications
+extension OrdersServiceCustom {
+    public static func sendPushNotificationsForOrder(id: UUID, of orderTypeIdentifier: String, on db: any Database, app: Application) async throws {
+        let registrations = try await Self.registrationsForOrder(id: id, of: orderTypeIdentifier, on: db)
+        for reg in registrations {
+            let backgroundNotification = APNSBackgroundNotification(
+                expiration: .immediately,
+                topic: reg.order.orderTypeIdentifier,
+                payload: EmptyPayload()
+            )
+
+            do {
+                try await app.apns.client(.init(string: "orders"))
+                    .sendBackgroundNotification(
+                        backgroundNotification,
+                        deviceToken: reg.device.pushToken
+                    )
+            } catch let error as APNSCore.APNSError where error.reason == .badDeviceToken {
+                try await reg.device.delete(on: db)
+                try await reg.delete(on: db)
+            }
+        }
+    }
+
+    public static func sendPushNotifications(for order: O, on db: any Database, app: Application) async throws {
+        guard let id = order.id else {
+            throw FluentError.idRequired
+        }
+        
+        try await Self.sendPushNotificationsForOrder(id: id, of: order.orderTypeIdentifier, on: db, app: app)
+    }
+    
+    public static func sendPushNotifications(for order: ParentProperty<R, O>, on db: any Database, app: Application) async throws {
+        let value: O
+        
+        if let eagerLoaded = order.value {
+            value = eagerLoaded
+        } else {
+            value = try await order.get(on: db)
+        }
+        
+       try await sendPushNotifications(for: value, on: db, app: app)
+    }
+
+    private static func registrationsForOrder(id: UUID, of orderTypeIdentifier: String, on db: any Database) async throws -> [R] {
+        // This could be done by enforcing the caller to have a Siblings property
+        // wrapper, but there's not really any value to forcing that on them when
+        // we can just do the query ourselves like this.
+        try await R.query(on: db)
+            .join(parent: \._$order)
+            .join(parent: \._$device)
+            .with(\._$order)
+            .with(\._$device)
+            .filter(O.self, \._$orderTypeIdentifier == orderTypeIdentifier)
+            .filter(O.self, \._$id == id)
+            .all()
+    }
 }
 
 // MARK: - order file generation

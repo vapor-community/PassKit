@@ -282,8 +282,17 @@ try passesService.registerPushRoutes(middleware: SecretMiddleware(secret: "foo")
 
 That will add two routes:
 
-- POST .../api/passes/v1/push/*:passTypeIdentifier*/*:passSerial* (Sends notifications)
-- GET .../api/passes/v1/push/*:passTypeIdentifier*/*:passSerial* (Retrieves a list of push tokens which would be sent a notification)
+```http
+POST https://example.com/api/passes/v1/push/{passTypeIdentifier}/{passSerial} HTTP/2
+
+# (Sends notifications)
+```
+
+```http
+GET https://example.com/api/passes/v1/push/{passTypeIdentifier}/{passSerial} HTTP/2
+
+# (Retrieves a list of push tokens which would be sent a notification)
+```
 
 #### Pass data model middleware
 
