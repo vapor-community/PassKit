@@ -15,9 +15,6 @@ public enum OrdersError: Error {
     /// The `pemPrivateKey` file is missing.
     case pemPrivateKeyMissing
 
-    /// Swift NIO failed to read the key.
-    case nioPrivateKeyReadFailed(any Error)
-
     /// The path to the zip binary is incorrect.
     case zipBinaryMissing
 
