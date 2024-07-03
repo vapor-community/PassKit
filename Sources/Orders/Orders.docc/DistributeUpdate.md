@@ -5,7 +5,7 @@ Build a distributable order and distribute it to your users or update an existin
 ## Overview
 
 The order you distribute to a user is a signed bundle that contains the JSON description of the order, images, and optional localizations.
-The ``Orders`` framework provides the ``OrdersService`` class that handles the creation of the order JSON file and the signing of the order bundle, using an ``OrdersDelegate`` that you must implement.
+The Orders framework provides the ``OrdersService`` class that handles the creation of the order JSON file and the signing of the order bundle, using an ``OrdersDelegate`` that you must implement.
 The ``OrdersService`` class also provides methods to send push notifications to all devices registered to an order when it's updated and all the routes that Apple Wallet expects to get and update orders.
 
 ### Implement the Delegate
@@ -103,6 +103,8 @@ See <doc:OrderData> for more information.
 ### Apple Push Notification service
 
 If you did not include the push notification routes, remember to configure APNs yourself.
+
+> Important: Apple Wallet *only* works with the APNs production environment. You can't pass in the `.sandbox` environment.
 
 ```swift
 let apnsConfig: APNSClientConfiguration

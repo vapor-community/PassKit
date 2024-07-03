@@ -37,7 +37,7 @@ public protocol PassesRegistrationModel: Model where IDValue == Int {
     /// The device for this registration.
     var device: DeviceType { get set }
     
-    /// /The pass for this registration.
+    /// The pass for this registration.
     var pass: PassType { get set }
 }
 

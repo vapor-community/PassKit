@@ -4,13 +4,13 @@ Implement the pass data model, its model middleware and define the pass file con
 
 ## Overview
 
-The ``Passes`` framework provides models to save all the basic information for passes, user devices and their registration to each pass.
+The Passes framework provides models to save all the basic information for passes, user devices and their registration to each pass.
 For all the other custom data needed to generate the pass (such as the barcodes, locations, etc.), you have to create your own model and its model middleware to handle the creation and update of passes.
 The pass data model will be used to generate the `pass.json` file contents, along side image files for the icon and other visual elements, such as a logo.
 
 ### Implement the Pass Data Model
 
-Your data model should contain all the fields that you store for your pass, as well as a foreign key to ``PKPass``, the pass model offered by ``Passes``.
+Your data model should contain all the fields that you store for your pass, as well as a foreign key to ``PKPass``, the pass model offered by the Passes framework.
 
 ```swift
 import Fluent
@@ -194,3 +194,5 @@ import Passes
 
 let passesService = PassesServiceCustom<MyPassType, MyDeviceType, MyPassesRegistrationType, MyErrorLogType>(app: app, delegate: delegate)
 ```
+
+> Important: `DeviceModel` and `ErrorLogModel` are defined in the PassKit framework.

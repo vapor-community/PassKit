@@ -13,7 +13,7 @@ import Fluent
 import NIOSSL
 import PassKit
 
-/// Class to handle `PassesService`.
+/// Class to handle ``PassesService``.
 ///
 /// The generics should be passed in this order:
 /// - Pass Type
@@ -21,12 +21,19 @@ import PassKit
 /// - Registration Type
 /// - Error Log Type
 public final class PassesServiceCustom<P, D, R: PassesRegistrationModel, E: ErrorLogModel>: Sendable where P == R.PassType, D == R.DeviceType {
+    /// The ``PassesDelegate`` to use for pass generation.
     public unowned let delegate: any PassesDelegate
     private unowned let app: Application
     
     private let v1: any RoutesBuilder
     private let logger: Logger?
     
+    /// Initializes the service.
+    ///
+    /// - Parameters:
+    ///   - app: The `Vapor.Application` to use in route handlers and APNs.
+    ///   - delegate: The ``PassesDelegate`` to use for pass generation.
+    ///   - logger: The `Logger` to use.
     public init(app: Application, delegate: any PassesDelegate, logger: Logger? = nil) {
         self.delegate = delegate
         self.logger = logger
@@ -55,7 +62,7 @@ public final class PassesServiceCustom<P, D, R: PassesRegistrationModel, E: Erro
     /// ```
     ///
     /// - Parameter middleware: The `Middleware` which will control authentication for the routes.
-    /// - Throws: An error of type `PassesError`
+    /// - Throws: An error of type ``PassesError``.
     public func registerPushRoutes(middleware: any Middleware) throws {
         let privateKeyPath = URL(fileURLWithPath: delegate.pemPrivateKey, relativeTo:
             delegate.sslSigningFilesDirectory).unixPath()
@@ -70,7 +77,7 @@ public final class PassesServiceCustom<P, D, R: PassesRegistrationModel, E: Erro
             throw PassesError.pemCertificateMissing
         }
 
-        // PassKit *only* works with the production APNs. You can't pass in .sandbox here.
+        // PassKit *only* works with the production APNs. You can't pass in `.sandbox` here.
         let apnsConfig: APNSClientConfiguration
         if let pwd = delegate.pemPrivateKeyPassword {
             apnsConfig = APNSClientConfiguration(
@@ -312,6 +319,13 @@ extension PassesServiceCustom {
     
 // MARK: - Push Notifications
 extension PassesServiceCustom {
+    /// Sends push notifications for a given pass.
+    ///
+    /// - Parameters:
+    ///   - id: The `UUID` of the pass to send the notifications for.
+    ///   - passTypeIdentifier: The type identifier of the pass.
+    ///   - db: The `Database` to use.
+    ///   - app: The `Application` to use.
     public static func sendPushNotificationsForPass(id: UUID, of passTypeIdentifier: String, on db: any Database, app: Application) async throws {
         let registrations = try await Self.registrationsForPass(id: id, of: passTypeIdentifier, on: db)
         for reg in registrations {
@@ -328,6 +342,12 @@ extension PassesServiceCustom {
         }
     }
 
+    /// Sends push notifications for a given pass.
+    /// 
+    /// - Parameters:
+    ///   - pass: The pass to send the notifications for.
+    ///   - db: The `Database` to use.
+    ///   - app: The `Application` to use.
     public static func sendPushNotifications(for pass: P, on db: any Database, app: Application) async throws {
         guard let id = pass.id else {
             throw FluentError.idRequired
@@ -336,6 +356,12 @@ extension PassesServiceCustom {
         try await Self.sendPushNotificationsForPass(id: id, of: pass.passTypeIdentifier, on: db, app: app)
     }
     
+    /// Sends push notifications for a given pass.
+    /// 
+    /// - Parameters:
+    ///   - pass: The pass (as the `ParentProperty`) to send the notifications for.
+    ///   - db: The `Database` to use.
+    ///   - app: The `Application` to use.
     public static func sendPushNotifications(for pass: ParentProperty<R, P>, on db: any Database, app: Application) async throws {
         let value: P
         
@@ -435,6 +461,12 @@ extension PassesServiceCustom {
         proc.waitUntilExit()
     }
     
+    /// Generates the pass content bundle for a given pass.
+    ///
+    /// - Parameters:
+    ///   - pass: The pass to generate the content for.
+    ///   - db: The `Database` to use.
+    /// - Returns: The generated pass content as `Data`.
     public func generatePassContent(for pass: P, on db: any Database) async throws -> Data {
         let tmp = FileManager.default.temporaryDirectory
         let root = tmp.appendingPathComponent(UUID().uuidString, isDirectory: true)

@@ -33,6 +33,12 @@ import FluentKit
 public final class PassesService: Sendable {
     private let service: PassesServiceCustom<PKPass, PassesDevice, PassesRegistration, PassesErrorLog>
     
+    /// Initializes the service.
+    ///
+    /// - Parameters:
+    ///   - app: The `Vapor.Application` to use in route handlers and APNs.
+    ///   - delegate: The ``PassesDelegate`` to use for pass generation.
+    ///   - logger: The `Logger` to use.
     public init(app: Application, delegate: any PassesDelegate, logger: Logger? = nil) {
         service = .init(app: app, delegate: delegate, logger: logger)
     }

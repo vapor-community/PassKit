@@ -32,7 +32,7 @@ import FluentKit
 public protocol PassDataModel: Model {
     associatedtype PassType: PassModel
 
-    /// The foreign key to the pass table
+    /// The foreign key to the pass table.
     var pass: PassType { get set }
 }
 

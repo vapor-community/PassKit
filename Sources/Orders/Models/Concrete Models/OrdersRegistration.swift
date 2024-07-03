@@ -12,14 +12,17 @@ final public class OrdersRegistration: OrdersRegistrationModel, @unchecked Senda
     public typealias OrderType = Order
     public typealias DeviceType = OrdersDevice
 
+    /// The schema name of the orders registration model.
     public static let schema = OrdersRegistration.FieldKeys.schemaName
 
     @ID(custom: .id)
     public var id: Int?
 
+    /// The device for this registration.
     @Parent(key: OrdersRegistration.FieldKeys.deviceID)
     public var device: DeviceType
 
+    /// The order for this registration.
     @Parent(key: OrdersRegistration.FieldKeys.orderID)
     public var order: OrderType
 

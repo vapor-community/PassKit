@@ -9,19 +9,19 @@ import Foundation
 import FluentKit
 
 /// Represents the `Model` that stores Waller orders.
-/// 
-/// Uses a UUID so people can't easily guess order IDs
+///
+/// Uses a UUID so people can't easily guess order IDs.
 public protocol OrderModel: Model where IDValue == UUID {
-    /// The order type identifier.
+    /// An identifier for the order type associated with the order.
     var orderTypeIdentifier: String { get set }
 
-    /// The date the order was created.
+    /// The date and time when the customer created the order.
     var createdAt: Date? { get set }
     
-    /// The last time the order was modified.
+    /// The date and time when the order was last updated.
     var updatedAt: Date? { get set }
 
-    /// The authentication token for the order.
+    /// The authentication token supplied to your web service.
     var authenticationToken: String { get set }
 }
 

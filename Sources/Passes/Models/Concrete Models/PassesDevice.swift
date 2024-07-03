@@ -10,14 +10,17 @@ import PassKit
 
 /// The `Model` that stores PassKit passes devices.
 final public class PassesDevice: DeviceModel, @unchecked Sendable {
+    /// The schema name of the device model.
     public static let schema = PassesDevice.FieldKeys.schemaName
 
     @ID(custom: .id)
     public var id: Int?
 
+    /// The push token used for sending updates to the device.
     @Field(key: PassesDevice.FieldKeys.pushToken)
     public var pushToken: String
 
+    /// The identifier PassKit provides for the device.
     @Field(key: PassesDevice.FieldKeys.deviceLibraryIdentifier)
     public var deviceLibraryIdentifier: String
 

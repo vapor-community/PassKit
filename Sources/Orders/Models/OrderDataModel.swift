@@ -11,7 +11,7 @@ import FluentKit
 public protocol OrderDataModel: Model {
     associatedtype OrderType: OrderModel
 
-    /// The foreign key to the order table
+    /// The foreign key to the order table.
     var order: OrderType { get set }
 }
 

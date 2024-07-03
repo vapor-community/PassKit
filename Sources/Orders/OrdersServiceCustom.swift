@@ -13,7 +13,7 @@ import Fluent
 import NIOSSL
 import PassKit
 
-/// Class to handle `OrdersService`.
+/// Class to handle ``OrdersService``.
 ///
 /// The generics should be passed in this order:
 /// - Order Type
@@ -21,12 +21,19 @@ import PassKit
 /// - Registration Type
 /// - Error Log Type
 public final class OrdersServiceCustom<O, D, R: OrdersRegistrationModel, E: ErrorLogModel>: Sendable where O == R.OrderType, D == R.DeviceType {
+    /// The ``OrdersDelegate`` to use for order generation.
     public unowned let delegate: any OrdersDelegate
     private unowned let app: Application
     
     private let v1: any RoutesBuilder
     private let logger: Logger?
     
+    /// Initializes the service.
+    ///
+    /// - Parameters:
+    ///   - app: The `Vapor.Application` to use in route handlers and APNs.
+    ///   - delegate: The ``OrdersDelegate`` to use for order generation.
+    ///   - logger: The `Logger` to use.
     public init(app: Application, delegate: any OrdersDelegate, logger: Logger? = nil) {
         self.delegate = delegate
         self.logger = logger
@@ -55,7 +62,7 @@ public final class OrdersServiceCustom<O, D, R: OrdersRegistrationModel, E: Erro
     /// ```
     ///
     /// - Parameter middleware: The `Middleware` which will control authentication for the routes.
-    /// - Throws: An error of type `OrdersError`
+    /// - Throws: An error of type ``OrdersError``.
     public func registerPushRoutes(middleware: any Middleware) throws {
         let privateKeyPath = URL(
             fileURLWithPath: delegate.pemPrivateKey,
@@ -329,6 +336,13 @@ extension OrdersServiceCustom {
 
 // MARK: - Push Notifications
 extension OrdersServiceCustom {
+    /// Sends push notifications for a given order.
+    ///
+    /// - Parameters:
+    ///   - id: The `UUID` of the order to send the notifications for.
+    ///   - orderTypeIdentifier: The type identifier of the order.
+    ///   - db: The `Database` to use.
+    ///   - app: The `Application` to use.
     public static func sendPushNotificationsForOrder(id: UUID, of orderTypeIdentifier: String, on db: any Database, app: Application) async throws {
         let registrations = try await Self.registrationsForOrder(id: id, of: orderTypeIdentifier, on: db)
         for reg in registrations {
@@ -351,6 +365,12 @@ extension OrdersServiceCustom {
         }
     }
 
+    /// Sends push notifications for a given order.
+    /// 
+    /// - Parameters:
+    ///   - order: The order to send the notifications for.
+    ///   - db: The `Database` to use.
+    ///   - app: The `Application` to use.
     public static func sendPushNotifications(for order: O, on db: any Database, app: Application) async throws {
         guard let id = order.id else {
             throw FluentError.idRequired
@@ -359,6 +379,12 @@ extension OrdersServiceCustom {
         try await Self.sendPushNotificationsForOrder(id: id, of: order.orderTypeIdentifier, on: db, app: app)
     }
     
+    /// Sends push notifications for a given order.
+    /// 
+    /// - Parameters:
+    ///   - order: The order (as the `ParentProperty`) to send the notifications for.
+    ///   - db: The `Database` to use.
+    ///   - app: The `Application` to use.
     public static func sendPushNotifications(for order: ParentProperty<R, O>, on db: any Database, app: Application) async throws {
         let value: O
         
@@ -458,6 +484,12 @@ extension OrdersServiceCustom {
         proc.waitUntilExit()
     }
 
+    /// Generates the order content bundle for a given order.
+    ///
+    /// - Parameters:
+    ///   - order: The order to generate the content for.
+    ///   - db: The `Database` to use.
+    /// - Returns: The generated order content as `Data`.
     public func generateOrderContent(for order: O, on db: any Database) async throws -> Data {
         let tmp = FileManager.default.temporaryDirectory
         let root = tmp.appendingPathComponent(UUID().uuidString, isDirectory: true)

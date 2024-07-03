@@ -5,7 +5,7 @@ Build a distributable pass and distribute it to your users or update an existing
 ## Overview
 
 The pass you distribute to a user is a signed bundle that contains the JSON description of the pass, images, and optional localizations.
-The ``Passes`` framework provides the ``PassesService`` class that handles the creation of the pass JSON file and the signing of the pass bundle, using a ``PassesDelegate`` that you must implement.
+The Passes framework provides the ``PassesService`` class that handles the creation of the pass JSON file and the signing of the pass bundle, using a ``PassesDelegate`` that you must implement.
 The ``PassesService`` class also provides methods to send push notifications to all devices registered to a pass when it's updated and all the routes that Apple Wallet expects to get and update passes.
 
 ### Implement the Delegate
@@ -103,6 +103,8 @@ See <doc:PassData> for more information.
 ### Apple Push Notification service
 
 If you did not include the push notification routes, remember to configure APNs yourself.
+
+> Important: PassKit *only* works with the APNs production environment. You can't pass in the `.sandbox` environment.
 
 ```swift
 let apnsConfig: APNSClientConfiguration

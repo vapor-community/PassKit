@@ -10,14 +10,17 @@ import PassKit
 
 /// The `Model` that stores Wallet orders devices.
 final public class OrdersDevice: DeviceModel, @unchecked Sendable {
+    /// The schema name of the orders device model.
     public static let schema = OrdersDevice.FieldKeys.schemaName
 
     @ID(custom: .id)
     public var id: Int?
 
+    /// The push token used for sending updates to the device.
     @Field(key: OrdersDevice.FieldKeys.pushToken)
     public var pushToken: String
 
+    /// The identifier Apple Wallet provides for the device.
     @Field(key: OrdersDevice.FieldKeys.deviceLibraryIdentifier)
     public var deviceLibraryIdentifier: String
 

@@ -30,16 +30,16 @@ import Foundation
 import FluentKit
 
 /// Represents the `Model` that stores PassKit passes.
-/// 
-/// Uses a UUID so people can't easily guess pass IDs
+///
+/// Uses a UUID so people can't easily guess pass serial numbers.
 public protocol PassModel: Model where IDValue == UUID {
-    /// The pass type identifier.
+    /// The pass type identifier that’s registered with Apple.
     var passTypeIdentifier: String { get set }
     
     /// The last time the pass was modified.
     var updatedAt: Date? { get set }
 
-    /// The authentication token for the pass.
+    /// The authentication token to use with the web service in the `webServiceURL` key.
     var authenticationToken: String { get set }
 }
 

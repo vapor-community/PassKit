@@ -11,14 +11,17 @@ import PassKit
 
 /// The `Model` that stores Wallet orders error logs.
 final public class OrdersErrorLog: ErrorLogModel, @unchecked Sendable {
+    /// The schema name of the error log model.
     public static let schema = OrdersErrorLog.FieldKeys.schemaName
 
     @ID(custom: .id)
     public var id: Int?
 
+    /// The date and time the error log was created.
     @Timestamp(key: OrdersErrorLog.FieldKeys.createdAt, on: .create)
     public var createdAt: Date?
 
+    /// The error message provided by Apple Wallet.
     @Field(key: OrdersErrorLog.FieldKeys.message)
     public var message: String
 

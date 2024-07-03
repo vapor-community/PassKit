@@ -4,13 +4,13 @@ Implement the order data model, its model middleware and define the order file c
 
 ## Overview
 
-The ``Orders`` framework provides models to save all the basic information for orders, user devices and their registration to each order.
+The Orders framework provides models to save all the basic information for orders, user devices and their registration to each order.
 For all the other custom data needed to generate the order (such as the barcodes, merchant info, etc.), you have to create your own model and its model middleware to handle the creation and update of order.
 The order data model will be used to generate the `order.json` file contents, along side image files for the icon and other visual elements, such as a logo.
 
 ### Implement the Order Data Model
 
-Your data model should contain all the fields that you store for your order, as well as a foreign key to ``Order``, the order model offered by ``Orders``.
+Your data model should contain all the fields that you store for your order, as well as a foreign key to ``Order``, the order model offered by the Orders framework.
 
 ```swift
 import Fluent
@@ -170,3 +170,5 @@ import Orders
 
 let ordersService = OrdersServiceCustom<MyOrderType, MyDeviceType, MyOrdersRegistrationType, MyErrorLogType>(app: app, delegate: delegate)
 ```
+
+> Important: `DeviceModel` and `ErrorLogModel` are defined in the PassKit framework.

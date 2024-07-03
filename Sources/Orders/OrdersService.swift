@@ -12,6 +12,12 @@ import FluentKit
 public final class OrdersService: Sendable {
     private let service: OrdersServiceCustom<Order, OrdersDevice, OrdersRegistration, OrdersErrorLog>
     
+    /// Initializes the service.
+    ///
+    /// - Parameters:
+    ///   - app: The `Vapor.Application` to use in route handlers and APNs.
+    ///   - delegate: The ``OrdersDelegate`` to use for order generation.
+    ///   - logger: The `Logger` to use.
     public init(app: Application, delegate: any OrdersDelegate, logger: Logger? = nil) {
         service = .init(app: app, delegate: delegate, logger: logger)
     }
