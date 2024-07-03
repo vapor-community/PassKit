@@ -18,7 +18,7 @@
 </div>
 <br>
 
-🎟️ 📦 A Vapor package which handles all the server side elements required to implement Apple Wallet passes and orders.
+🎟️ 📦 A Vapor package for creating, distributing and updating passes and orders for Apple Wallet.
 
 ### Major Releases
 
@@ -202,7 +202,7 @@ struct PassJSONData: PassJSON {
 > [!IMPORTANT]
 > You **must** add `api/passes/` to your `webServiceURL`, as shown in the example above.
 
-### Implement the delegate.
+### Implement the Delegate
 
 Create a delegate file that implements `PassesDelegate`.
 In the `sslSigningFilesDirectory` you specify there must be the `WWDR.pem`, `passcertificate.pem` and `passkey.pem` files. If they are named like that you're good to go, otherwise you have to specify the custom name.
@@ -280,18 +280,14 @@ If you wish to include routes specifically for sending push notifications to upd
 try passesService.registerPushRoutes(middleware: SecretMiddleware(secret: "foo"))
 ```
 
-That will add two routes:
+That will add two routes, the first one sends notifications and the second one retrieves a list of push tokens which would be sent a notification.
 
 ```http
 POST https://example.com/api/passes/v1/push/{passTypeIdentifier}/{passSerial} HTTP/2
-
-# (Sends notifications)
 ```
 
 ```http
 GET https://example.com/api/passes/v1/push/{passTypeIdentifier}/{passSerial} HTTP/2
-
-# (Retrieves a list of push tokens which would be sent a notification)
 ```
 
 #### Pass data model middleware
@@ -341,9 +337,9 @@ app.databases.middleware.use(PassDataMiddleware(app: app), on: .psql)
 > [!IMPORTANT]
 > Whenever your pass data changes, you must update the *updatedAt* time of the linked pass so that Apple knows to send you a new pass.
 
-#### APNSwift
+#### Apple Push Notification service
 
-If you did not include the routes, remember to configure APNSwift yourself like this:
+If you did not include the routes, remember to configure APNs yourself like this:
 
 ```swift
 let apnsConfig: APNSClientConfiguration
