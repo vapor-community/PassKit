@@ -5,6 +5,7 @@
 //  Created by Francesco Paolo Severino on 30/06/24.
 //
 
+/// Errors that can be thrown by the `Orders` module.
 public enum OrdersError: Error {
     /// The template path is not a directory
     case templateNotDirectory

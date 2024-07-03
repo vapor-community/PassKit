@@ -109,7 +109,7 @@ You'll need to implement based on your type of SQL database as there's not yet a
 
 ### Model the pass.json contents
 
-Create a `struct` that implements ``PassJSON`` which will contain all the fields for the generated `pass.json` file.
+Create a `struct` that implements ``PassJSON/Properties`` which will contain all the fields for the generated `pass.json` file.
 Create an initializer that takes your custom pass data, the ``PKPass`` and everything else you may need.
 
 > Tip: For information on the various keys available see the [documentation](https://developer.apple.com/documentation/walletpasses/pass). See also [this guide](https://developer.apple.com/library/archive/documentation/UserExperience/Conceptual/PassKit_PG/index.html#//apple_ref/doc/uid/TP40012195-CH1-SW1) for some help.
@@ -117,9 +117,9 @@ Create an initializer that takes your custom pass data, the ``PKPass`` and every
 ```swift
 import Passes
 
-struct PassJSONData: PassJSON {
+struct PassJSONData: PassJSON.Properties {
     let description: String
-    let formatVersion = PassJSONType.FormatVersion.v1
+    let formatVersion = PassJSON.FormatVersion.v1
     let organizationName = "vapor-community"
     let passTypeIdentifier = Environment.get("PASSKIT_PASS_TYPE_IDENTIFIER")!
     let serialNumber: String
@@ -133,28 +133,28 @@ struct PassJSONData: PassJSON {
     let foregroundColor = "rgb(255, 255, 255)"
 
     let barcodes = Barcode(message: "test")
-    struct Barcode: Barcodes {
-        let format = PassJSONType.BarcodeFormat.qr
+    struct Barcode: PassJSON.Barcodes {
+        let format = PassJSON.BarcodeFormat.qr
         let message: String
         let messageEncoding = "iso-8859-1"
     }
 
     let boardingPass = Boarding(transitType: .air)
-    struct Boarding: BoardingPass {
-        let transitType: PassJSONType.TransitType
+    struct Boarding: PassJSON.BoardingPass {
+        let transitType: PassJSON.TransitType
         let headerFields: [PassField]
         let primaryFields: [PassField]
         let secondaryFields: [PassField]
         let auxiliaryFields: [PassField]
         let backFields: [PassField]
 
-        struct PassField: PassFieldContent {
+        struct PassField: PassJSON.PassFieldContent {
             let key: String
             let label: String
             let value: String
         }
 
-        init(transitType: PassJSONType.TransitType) {
+        init(transitType: PassJSON.TransitType) {
             self.headerFields = [.init(key: "header", label: "Header", value: "Header")]
             self.primaryFields = [.init(key: "primary", label: "Primary", value: "Primary")]
             self.secondaryFields = [.init(key: "secondary", label: "Secondary", value: "Secondary")]

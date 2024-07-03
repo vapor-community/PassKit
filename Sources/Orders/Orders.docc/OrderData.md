@@ -105,7 +105,7 @@ You'll need to implement based on your type of SQL database as there's not yet a
 
 ### Model the order.json contents
 
-Create a `struct` that implements ``OrderJSON`` which will contain all the fields for the generated `order.json` file.
+Create a `struct` that implements ``OrderJSON/Properties`` which will contain all the fields for the generated `order.json` file.
 Create an initializer that takes your custom order data, the ``Order`` and everything else you may need.
 
 > Tip: For information on the various keys available see the [documentation](https://developer.apple.com/documentation/walletorders/order).
@@ -113,22 +113,22 @@ Create an initializer that takes your custom order data, the ``Order`` and every
 ```swift
 import Orders
 
-struct OrderJSONData: OrderJSON {
-    let schemaVersion = OrderJSONType.SchemaVersion.v1
+struct OrderJSONData: OrderJSON.Properties {
+    let schemaVersion = OrderJSON.SchemaVersion.v1
     let orderTypeIdentifier = Environment.get("PASSKIT_ORDER_TYPE_IDENTIFIER")!
     let orderIdentifier: String
-    let orderType = OrderJSONType.OrderType.ecommerce
+    let orderType = OrderJSON.OrderType.ecommerce
     let orderNumber = "HM090772020864"
     let createdAt: String
     let updatedAt: String
-    let status = OrderJSONType.OrderStatus.open
+    let status = OrderJSON.OrderStatus.open
     let merchant: MerchantData
     let orderManagementURL = "https://www.example.com/"
     let authenticationToken: String
 
     private let webServiceURL = "https://example.com/api/orders/"
 
-    struct MerchantData: Merchant {
+    struct MerchantData: OrderJSON.Merchant {
         let merchantIdentifier = "com.example.pet-store"
         let displayName: String
         let url = "https://www.example.com/"
