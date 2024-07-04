@@ -62,19 +62,19 @@ public final class PassesServiceCustom<P, D, R: PassesRegistrationModel, E: Erro
     /// ```
     ///
     /// - Parameter middleware: The `Middleware` which will control authentication for the routes.
-    /// - Throws: An error of type ``PassesError``.
+    /// - Throws: An error of type `PassKitError`.
     public func registerPushRoutes(middleware: any Middleware) throws {
         let privateKeyPath = URL(fileURLWithPath: delegate.pemPrivateKey, relativeTo:
             delegate.sslSigningFilesDirectory).unixPath()
 
         guard FileManager.default.fileExists(atPath: privateKeyPath) else {
-            throw PassesError.pemPrivateKeyMissing
+            throw PassKitError.pemPrivateKeyMissing(.passes)
         }
 
         let pemPath = URL(fileURLWithPath: delegate.pemCertificate, relativeTo: delegate.sslSigningFilesDirectory).unixPath()
 
         guard FileManager.default.fileExists(atPath: pemPath) else {
-            throw PassesError.pemCertificateMissing
+            throw PassKitError.pemCertificateMissing(.passes)
         }
 
         // PassKit *only* works with the production APNs. You can't pass in `.sandbox` here.
@@ -419,7 +419,7 @@ extension PassesServiceCustom {
         let sslBinary = delegate.sslBinary
 
         guard FileManager.default.fileExists(atPath: sslBinary.unixPath()) else {
-            throw PassesError.opensslBinaryMissing
+            throw PassKitError.opensslBinaryMissing(.passes)
         }
 
         let proc = Process()
@@ -448,7 +448,7 @@ extension PassesServiceCustom {
     private func zip(directory: URL, to: URL) throws {
         let zipBinary = delegate.zipBinary
         guard FileManager.default.fileExists(atPath: zipBinary.unixPath()) else {
-            throw PassesError.zipBinaryMissing
+            throw PassKitError.zipBinaryMissing(.passes)
         }
         
         let proc = Process()
@@ -475,7 +475,7 @@ extension PassesServiceCustom {
         
         let src = try await delegate.template(for: pass, db: db)
         guard (try? src.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? false else {
-            throw PassesError.templateNotDirectory
+            throw PassKitError.templateNotDirectory(.passes)
         }
         
         let encoded = try await self.delegate.encode(pass: pass, db: db, encoder: encoder)

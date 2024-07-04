@@ -4,7 +4,7 @@ Create, distribute, and update passes and orders for the Apple Wallet app with V
 
 ## Overview
 
-The PassKit framework provides a set of tools shared by the Passes and Orders frameworks, which includes the two protocols for defining custom models for device data and error logs.
+The PassKit framework provides a set of tools shared by the Passes and Orders frameworks, which includes the two protocols for defining custom models for device data and error logs, and ``PassKitError`` for handling errors in both frameworks.
 
 @Row {
     @Column(size: 2) { }
