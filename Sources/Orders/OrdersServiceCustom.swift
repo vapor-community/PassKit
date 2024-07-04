@@ -62,14 +62,14 @@ public final class OrdersServiceCustom<O, D, R: OrdersRegistrationModel, E: Erro
     /// ```
     ///
     /// - Parameter middleware: The `Middleware` which will control authentication for the routes.
-    /// - Throws: An error of type `PassKitError`.
+    /// - Throws: An error of type ``OrdersError``.
     public func registerPushRoutes(middleware: any Middleware) throws {
         let privateKeyPath = URL(
             fileURLWithPath: delegate.pemPrivateKey,
             relativeTo: delegate.sslSigningFilesDirectory).unixPath()
         
         guard FileManager.default.fileExists(atPath: privateKeyPath) else {
-            throw PassKitError.pemPrivateKeyMissing(.orders)
+            throw OrdersError.pemPrivateKeyMissing
         }
 
         let pemPath = URL(
@@ -77,7 +77,7 @@ public final class OrdersServiceCustom<O, D, R: OrdersRegistrationModel, E: Erro
             relativeTo: delegate.sslSigningFilesDirectory).unixPath()
         
         guard FileManager.default.fileExists(atPath: pemPath) else {
-            throw PassKitError.pemCertificateMissing(.orders)
+            throw OrdersError.pemCertificateMissing
         }
 
         // Apple Wallet *only* works with the production APNs. You can't pass in `.sandbox` here.
@@ -442,7 +442,7 @@ extension OrdersServiceCustom {
         let sslBinary = delegate.sslBinary
 
         guard FileManager.default.fileExists(atPath: sslBinary.unixPath()) else {
-            throw PassKitError.opensslBinaryMissing(.orders)
+            throw OrdersError.opensslBinaryMissing
         }
 
         let proc = Process()
@@ -471,7 +471,7 @@ extension OrdersServiceCustom {
     private func zip(directory: URL, to: URL) throws {
         let zipBinary = delegate.zipBinary
         guard FileManager.default.fileExists(atPath: zipBinary.unixPath()) else {
-            throw PassKitError.zipBinaryMissing(.orders)
+            throw OrdersError.zipBinaryMissing
         }
         
         let proc = Process()
@@ -498,7 +498,7 @@ extension OrdersServiceCustom {
         
         let src = try await delegate.template(for: order, db: db)
         guard (try? src.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? false else {
-            throw PassKitError.templateNotDirectory(.orders)
+            throw OrdersError.templateNotDirectory
         }
         
         let encoded = try await self.delegate.encode(order: order, db: db, encoder: encoder)

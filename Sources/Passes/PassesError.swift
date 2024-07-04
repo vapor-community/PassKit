@@ -1,13 +1,13 @@
 //
-//  PassKitError.swift
+//  PassesError.swift
 //  PassKit
 //
 //  Created by Francesco Paolo Severino on 04/07/24.
 //
 
-/// Errors that can be thrown by PassKit.
-public struct PassKitError: Error, Sendable {
-    /// The type of the errors that can be thrown by PassKit.
+/// Errors that can be thrown by PassKit passes.
+public struct PassesError: Error, Sendable {
+    /// The type of the errors that can be thrown by PassKit passes.
     public struct ErrorType: Sendable, Hashable, CustomStringConvertible {
         enum Base: String, Sendable {
             case templateNotDirectory
@@ -42,11 +42,9 @@ public struct PassKitError: Error, Sendable {
     
     private struct Backing: Sendable {
         fileprivate let errorType: ErrorType
-        fileprivate let framework: Framework
         
-        init(errorType: ErrorType, framework: Framework) {
+        init(errorType: ErrorType) {
             self.errorType = errorType
-            self.framework = framework
         }
     }
     
@@ -55,49 +53,28 @@ public struct PassKitError: Error, Sendable {
     /// The type of this error.
     public var errorType: ErrorType { backing.errorType }
 
-    /// The framework that threw this error.
-    public var framework: Framework { backing.framework }
-
-    private init(errorType: ErrorType, framework: Framework) {
-        self.backing = .init(errorType: errorType, framework: framework)
+    private init(errorType: ErrorType) {
+        self.backing = .init(errorType: errorType)
     }
     
     /// The template path is not a directory.
-    public static func templateNotDirectory(_ framework: Framework) -> Self {
-        Self(errorType: .templateNotDirectory, framework: framework)
-    }
+    public static let templateNotDirectory = Self(errorType: .templateNotDirectory)
 
     /// The `pemCertificate` file is missing.
-    public static func pemCertificateMissing(_ framework: Framework) -> Self {
-        Self(errorType: .pemCertificateMissing, framework: framework)
-    }
+    public static let pemCertificateMissing = Self(errorType: .pemCertificateMissing)
 
     /// The `pemPrivateKey` file is missing.
-    public static func pemPrivateKeyMissing(_ framework: Framework) -> Self {
-        Self(errorType: .pemPrivateKeyMissing, framework: framework)
-    }
+    public static let pemPrivateKeyMissing = Self(errorType: .pemPrivateKeyMissing)
 
     /// The path to the `zip` binary is incorrect.
-    public static func zipBinaryMissing(_ framework: Framework) -> Self {
-        Self(errorType: .zipBinaryMissing, framework: framework)
-    }
+    public static let zipBinaryMissing = Self(errorType: .zipBinaryMissing)
 
     /// The path to the `openssl` binary is incorrect.
-    public static func opensslBinaryMissing(_ framework: Framework) -> Self {
-        Self(errorType: .opensslBinaryMissing, framework: framework)
-    }
+    public static let opensslBinaryMissing = Self(errorType: .opensslBinaryMissing)
 }
 
-extension PassKitError: CustomStringConvertible {
+extension PassesError: CustomStringConvertible {
     public var description: String {
-        "PassKitError(errorType: \(self.errorType), framework: \(self.framework))"
+        "PassesError(errorType: \(self.errorType))"
     }
-}
-
-/// The frameworks offered by PassKit.
-public enum Framework: String, Sendable {
-    /// Apple Wallet passes.
-    case passes
-    /// Apple Wallet orders.
-    case orders
 }
