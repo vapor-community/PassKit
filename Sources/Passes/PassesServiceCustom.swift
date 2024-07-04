@@ -479,6 +479,7 @@ extension PassesServiceCustom {
         }
         
         let encoded = try await self.delegate.encode(pass: pass, db: db, encoder: encoder)
+        let encodedPersonalization = try await self.delegate.encodePersonalization(pass: pass, db: db, encoder: encoder)
         
         do {
             try FileManager.default.copyItem(at: src, to: root)
@@ -488,6 +489,9 @@ extension PassesServiceCustom {
             }
             
             try encoded.write(to: root.appendingPathComponent("pass.json"))
+            if let encodedPersonalization = encodedPersonalization {
+                try encodedPersonalization.write(to: root.appendingPathComponent("personalization.json"))
+            }
             
             try Self.generateManifestFile(using: encoder, in: root)
             try self.generateSignatureFile(in: root)
