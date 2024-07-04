@@ -7,8 +7,8 @@ let package = Package(
         .macOS(.v13)
     ],
     products: [
-        .library(name: "Passes", targets: ["PassKit", "Passes"]),
-        .library(name: "Orders", targets: ["PassKit", "Orders"]),
+        .library(name: "Passes", targets: ["Passes"]),
+        .library(name: "Orders", targets: ["Orders"]),
     ],
     dependencies: [
         .package(url: "https://github.com/vapor/vapor.git", from: "4.102.0"),
