@@ -18,7 +18,7 @@
 </div>
 <br>
 
-🎟️ 📦 A Vapor package for creating, distributing and updating passes and orders for Apple Wallet.
+🎟️ 📦 Create, distribute, and update passes and orders for the Apple Wallet app with Vapor.
 
 ### Major Releases
 
@@ -31,7 +31,7 @@ The table below shows a list of PassKit major releases alongside their compatibl
 |0.2.0|5.9+|`from: "0.2.0"`|
 |0.1.0|5.9+|`from: "0.1.0"`|
 
-Use the SPM string to easily include the dependendency in your `Package.swift` file
+Use the SPM string to easily include the dependendency in your `Package.swift` file.
 
 ```swift
 .package(url: "https://github.com/vapor-community/PassKit.git", from: "0.5.0")
@@ -41,15 +41,23 @@ Use the SPM string to easily include the dependendency in your `Package.swift` f
 
 ## 🎟️ Wallet Passes
 
+The Passes framework provides a set of tools to help you create, build, and distribute digital passes for the Apple Wallet app using a Vapor server.
+It also provides a way to update passes after they have been distributed, using APNs, and models to store pass and device data.
+
 Add the `Passes` product to your target's dependencies:
 
 ```swift
 .product(name: "Passes", package: "PassKit")
 ```
 
-See the [documentation](https://swiftpackageindex.com/vapor-community/PassKit/0.5.0/documentation/passes) for guides on how to use the framework.
+See the framework's [documentation](https://swiftpackageindex.com/vapor-community/PassKit/0.5.0/documentation/passes) for information on how to use it.
+
+For information on Apple Wallet passes, see the [Apple Developer Documentation](https://developer.apple.com/documentation/walletpasses).
 
 ## 📦 Wallet Orders
+
+The Orders framework provides a set of tools to help you create, build, and distribute orders that users can track and manage in Apple Wallet using a Vapor server.
+It also provides a way to update orders after they have been distributed, using APNs, and models to store order and device data.
 
 Add the `Orders` product to your target's dependencies:
 
@@ -57,4 +65,6 @@ Add the `Orders` product to your target's dependencies:
 .product(name: "Orders", package: "PassKit")
 ```
 
-See the [documentation](https://swiftpackageindex.com/vapor-community/PassKit/0.5.0/documentation/orders) for guides on how to use the framework.
+See the framework's [documentation](https://swiftpackageindex.com/vapor-community/PassKit/0.5.0/documentation/orders) for guides on how to use it.
+
+For information on Apple Wallet orders, see the [Apple Developer Documentation](https://developer.apple.com/documentation/walletorders).
