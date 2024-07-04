@@ -1,4 +1,4 @@
-# Implementing the Pass Data Model
+# Create the Pass Data Model
 
 Implement the pass data model, its model middleware and define the pass file contents.
 

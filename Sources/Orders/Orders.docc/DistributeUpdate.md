@@ -1,4 +1,4 @@
-# Building, Distributing, and Updating an Order
+# Building, Distributing and Updating an Order
 
 Build a distributable order and distribute it to your users or update an existing order.
 

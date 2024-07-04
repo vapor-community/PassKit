@@ -1,4 +1,4 @@
-# Building, Distributing, and Updating a Pass
+# Building, Distributing and Updating a Pass
 
 Build a distributable pass and distribute it to your users or update an existing pass.
 

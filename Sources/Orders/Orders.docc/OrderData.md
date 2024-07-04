@@ -1,4 +1,4 @@
-# Implementing the Order Data Model
+# Create the Order Data Model
 
 Implement the order data model, its model middleware and define the order file contents.
 

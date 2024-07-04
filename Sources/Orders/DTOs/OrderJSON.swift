@@ -5,7 +5,7 @@
 //  Created by Francesco Paolo Severino on 02/07/24.
 //
 
-/// A struct that defines the structure of a `order.json` file.
+/// The structure of a `order.json` file.
 public struct OrderJSON {
     /// A protocol that defines the structure of a `order.json` file.
     ///
