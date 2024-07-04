@@ -9,14 +9,6 @@ It also provides a way to update orders after they have been distributed, using 
 
 For information on Apple Wallet orders, see the [Apple Developer Documentation](https://developer.apple.com/documentation/walletorders).
 
-### Featured
-
-@Links(visualStyle: detailedGrid) {
-    - <doc:OrderData>
-    - <doc:DistributeUpdate>
-}
-
-
 ## Topics
 
 ### Essentials
@@ -25,9 +17,25 @@ For information on Apple Wallet orders, see the [Apple Developer Documentation](
 - <doc:DistributeUpdate>
 - ``OrderJSON``
 
+### Building and Distribution
+
+- ``OrdersDelegate``
+- ``OrdersService``
+- ``OrdersServiceCustom``
+
 ### Concrete Models
 
 - ``Order``
 - ``OrdersRegistration``
 - ``OrdersDevice``
 - ``OrdersErrorLog``
+
+### Abstract Models
+
+- ``OrderModel``
+- ``OrdersRegistrationModel``
+- ``OrderDataModel``
+
+### Errors
+
+- ``OrdersError``

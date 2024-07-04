@@ -16,14 +16,6 @@ The Passes framework provides a set of tools to help you create, build, and dist
 
 For information on Apple Wallet passes, see the [Apple Developer Documentation](https://developer.apple.com/documentation/walletpasses).
 
-### Featured
-
-@Links(visualStyle: detailedGrid) {
-    - <doc:PassData>
-    - <doc:DistributeUpdate>
-}
-
-
 ## Topics
 
 ### Essentials
@@ -32,9 +24,25 @@ For information on Apple Wallet passes, see the [Apple Developer Documentation](
 - <doc:DistributeUpdate>
 - ``PassJSON``
 
+### Building and Distribution
+
+- ``PassesDelegate``
+- ``PassesService``
+- ``PassesServiceCustom``
+
 ### Concrete Models
 
 - ``PKPass``
 - ``PassesRegistration``
 - ``PassesDevice``
 - ``PassesErrorLog``
+
+### Abstract Models
+
+- ``PassModel``
+- ``PassesRegistrationModel``
+- ``PassDataModel``
+
+### Errors
+
+- ``PassesError``
