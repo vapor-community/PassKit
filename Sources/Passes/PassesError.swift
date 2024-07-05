@@ -15,6 +15,7 @@ public struct PassesError: Error, Sendable {
             case pemPrivateKeyMissing
             case zipBinaryMissing
             case opensslBinaryMissing
+            case invalidNumberOfPasses
         }
         
         let base: Base
@@ -33,6 +34,8 @@ public struct PassesError: Error, Sendable {
         public static let zipBinaryMissing = Self(.zipBinaryMissing)
         /// The path to the `openssl` binary is incorrect.
         public static let opensslBinaryMissing = Self(.opensslBinaryMissing)
+        /// The number of passes to bundle is invalid.
+        public static let invalidNumberOfPasses = Self(.invalidNumberOfPasses)
 
         /// A textual representation of this error.
         public var description: String {
@@ -71,6 +74,9 @@ public struct PassesError: Error, Sendable {
 
     /// The path to the `openssl` binary is incorrect.
     public static let opensslBinaryMissing = Self(errorType: .opensslBinaryMissing)
+
+    /// The number of passes to bundle is invalid.
+    public static let invalidNumberOfPasses = Self(errorType: .invalidNumberOfPasses)
 }
 
 extension PassesError: CustomStringConvertible {

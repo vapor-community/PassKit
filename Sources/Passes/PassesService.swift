@@ -60,9 +60,19 @@ public final class PassesService: Sendable {
     /// - Parameters:
     ///   - pass: The pass to generate the content for.
     ///   - db: The `Database` to use.
-    /// - Returns: The generated pass content.
+    /// - Returns: The generated pass content as `Data`.
     public func generatePassContent(for pass: PKPass, on db: any Database) async throws -> Data {
         try await service.generatePassContent(for: pass, on: db)
+    }
+
+    /// Generates a bundle of passes to enable your user to download multiple passes at once.
+    ///
+    /// - Parameters:
+    ///   - passes: The passes to include in the bundle.
+    ///   - db: The `Database` to use.
+    /// - Returns: The the bundle of passes as `Data`.
+    public func generatePassesContent(for passes: [PKPass], on db: any Database) async throws -> Data {
+        try await service.generatePassesContent(for: passes, on: db)
     }
     
     /// Adds the migrations for PassKit passes models.

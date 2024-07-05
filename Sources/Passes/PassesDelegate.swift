@@ -85,7 +85,7 @@ public protocol PassesDelegate: AnyObject, Sendable {
     ///   - db: The SQL database to query against.
     ///   - encoder: The `JSONEncoder` which you should use.
     /// - Returns: The encoded personalization JSON data, or `nil` if the pass does not require personalization.
-    func encodePersonalization<P: PassModel>(pass: P, db: any Database, encoder: JSONEncoder) async throws -> Data?
+    func encodePersonalization<P: PassModel>(for pass: P, db: any Database, encoder: JSONEncoder) async throws -> Data?
 
     /// Should return a `URL` which points to the template data for the pass.
     ///

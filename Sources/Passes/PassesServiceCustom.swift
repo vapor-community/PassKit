@@ -52,6 +52,7 @@ public final class PassesServiceCustom<P, D, R: PassesRegistrationModel, E: Erro
         v1auth.post("devices", ":deviceLibraryIdentifier", "registrations", ":passTypeIdentifier", ":passSerial", use: { try await self.registerDevice(req: $0) })
         v1auth.get("passes", ":passTypeIdentifier", ":passSerial", use: { try await self.latestVersionOfPass(req: $0) })
         v1auth.delete("devices", ":deviceLibraryIdentifier", "registrations", ":passTypeIdentifier", ":passSerial", use: { try await self.unregisterDevice(req: $0) })
+        v1auth.post("passes", ":passTypeIdentifier", ":passSerial", "personalize", use: { try await self.personalizedPass(req: $0) })
     }
     
     /// Registers routes to send push notifications for updated passes
@@ -271,6 +272,27 @@ extension PassesServiceCustom {
             
         return .ok
     }
+
+    func personalizedPass(req: Request) async throws -> Response {
+        logger?.debug("Called personalizedPass")
+
+        guard let passTypeIdentifier = req.parameters.get("passTypeIdentifier"),
+            let id = req.parameters.get("passSerial", as: UUID.self) else {
+                throw Abort(.badRequest)
+        }
+
+        guard let pass = try await P.query(on: req.db)
+            .filter(\._$id == id)
+            .filter(\._$passTypeIdentifier == passTypeIdentifier)
+            .first()
+        else {
+            throw Abort(.notFound)
+        }
+
+        let personalization = try req.content.decode(PersonalizationDictionaryDTO.self)
+
+        throw Abort(.notImplemented)
+    }
     
     // MARK: - Push Routes
     func pushUpdatesForPass(req: Request) async throws -> HTTPStatus {
@@ -479,7 +501,6 @@ extension PassesServiceCustom {
         }
         
         let encoded = try await self.delegate.encode(pass: pass, db: db, encoder: encoder)
-        let encodedPersonalization = try await self.delegate.encodePersonalization(pass: pass, db: db, encoder: encoder)
         
         do {
             try FileManager.default.copyItem(at: src, to: root)
@@ -489,7 +510,9 @@ extension PassesServiceCustom {
             }
             
             try encoded.write(to: root.appendingPathComponent("pass.json"))
-            if let encodedPersonalization = encodedPersonalization {
+
+            // Pass Personalization
+            if let encodedPersonalization = try await self.delegate.encodePersonalization(pass: pass, db: db, encoder: encoder) {
                 try encodedPersonalization.write(to: root.appendingPathComponent("personalization.json"))
             }
             
@@ -506,5 +529,38 @@ extension PassesServiceCustom {
         } catch {
             throw error
         }
+    }
+
+    /// Generates a bundle of passes to enable your user to download multiple passes at once.
+    ///
+    /// - Parameters:
+    ///   - passes: The passes to include in the bundle.
+    ///   - db: The `Database` to use.
+    /// - Returns: The the bundle of passes as `Data`.
+    public func generatePassesContent(for passes: [P], on db: any Database) async throws -> Data {
+        guard passes.count > 1 && passes.count <= 10 else {
+            throw PassesError.invalidNumberOfPasses
+        }
+
+        let tmp = FileManager.default.temporaryDirectory
+        let root = tmp.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let zipFile = tmp.appendingPathComponent("\(UUID().uuidString).zip")
+        
+        for (i, pass) in passes.enumerated() {
+            try await self.generatePassContent(for: pass, on: db)
+                .write(to: root.appendingPathComponent("pass\(i).pkpass"))
+        }
+
+        defer {
+            _ = try? FileManager.default.removeItem(at: root)
+        }
+
+        try self.zip(directory: root, to: zipFile)
+
+        defer {
+            _ = try? FileManager.default.removeItem(at: zipFile)
+        }
+
+        return try Data(contentsOf: zipFile)
     }
 }
