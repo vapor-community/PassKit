@@ -108,7 +108,7 @@ final class PassDelegate: PassesDelegate {
 
 > Note: If you don't need to personalize passes for your app, you don't need to implement the ``PassesDelegate/encodePersonalization(for:db:encoder:)`` method.
 
-### Implement the Web Service (⛔️ WIP)
+### Implement the Web Service (⚠️ WIP)
 
 > Warning: This section is a work in progress. Right now, the endpoint required to handle pass personalization **is not implemented**. Development is hard without access to the certificates required to test this feature. If you have access to the entitlements, please help us implement this feature.
 

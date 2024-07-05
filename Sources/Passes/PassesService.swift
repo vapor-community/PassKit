@@ -67,6 +67,8 @@ public final class PassesService: Sendable {
 
     /// Generates a bundle of passes to enable your user to download multiple passes at once.
     ///
+    /// > Important: Bundles of passes are supported only in Safari. You can't send the bundle via AirDrop or other methods.
+    ///
     /// - Parameters:
     ///   - passes: The passes to include in the bundle.
     ///   - db: The `Database` to use.

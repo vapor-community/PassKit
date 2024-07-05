@@ -47,7 +47,7 @@ For information on Apple Wallet passes, see the [Apple Developer Documentation](
 
 - ``PassesError``
 
-### Personalized Passes (⛔️ WIP)
+### Personalized Passes (⚠️ WIP)
 
 - <doc:Personalization>
 - ``PersonalizationJSON``

@@ -74,11 +74,14 @@ public protocol PassesDelegate: AnyObject, Sendable {
 
     /// Encode the personalization JSON file.
     ///
-    /// This method should generate the entire personalization JSON file. You are provided with
-    /// the pass data from the SQL database and, if the pass in question requires personalization,
+    /// This method of the ``PassesDelegate`` should generate the entire personalization JSON file.
+    /// You are provided with the pass data from the SQL database and,
+    /// if the pass in question requires personalization,
     /// you should return a properly formatted personalization JSON file.
     ///
     /// If the pass does not require personalization, you should return `nil`.
+    /// 
+    /// The default implementation of this method returns `nil`.
     ///
     /// - Parameters:
     ///   - pass: The pass data from the SQL server.
