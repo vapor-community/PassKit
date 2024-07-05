@@ -46,3 +46,9 @@ For information on Apple Wallet passes, see the [Apple Developer Documentation](
 ### Errors
 
 - ``PassesError``
+
+### Personalized Passes (⛔️ WIP)
+
+- <doc:Personalization>
+- ``PersonalizationJSON``
+- ``PassesDelegate/encodePersonalization(for:db:encoder:)``

@@ -276,6 +276,7 @@ extension PassesServiceCustom {
     func personalizedPass(req: Request) async throws -> Response {
         logger?.debug("Called personalizedPass")
 
+        /*
         guard let passTypeIdentifier = req.parameters.get("passTypeIdentifier"),
             let id = req.parameters.get("passSerial", as: UUID.self) else {
                 throw Abort(.badRequest)
@@ -290,6 +291,7 @@ extension PassesServiceCustom {
         }
 
         let personalization = try req.content.decode(PersonalizationDictionaryDTO.self)
+        */
 
         throw Abort(.notImplemented)
     }
