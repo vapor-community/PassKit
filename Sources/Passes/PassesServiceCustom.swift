@@ -536,7 +536,7 @@ extension PassesServiceCustom {
     /// - Parameters:
     ///   - passes: The passes to include in the bundle.
     ///   - db: The `Database` to use.
-    /// - Returns: The the bundle of passes as `Data`.
+    /// - Returns: The bundle of passes as `Data`.
     public func generatePassesContent(for passes: [P], on db: any Database) async throws -> Data {
         guard passes.count > 1 && passes.count <= 10 else {
             throw PassesError.invalidNumberOfPasses
@@ -545,25 +545,23 @@ extension PassesServiceCustom {
         let tmp = FileManager.default.temporaryDirectory
         let root = tmp.appendingPathComponent(UUID().uuidString, isDirectory: true)
         let zipFile = tmp.appendingPathComponent("\(UUID().uuidString).zip")
+
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         
         for (i, pass) in passes.enumerated() {
             try await self.generatePassContent(for: pass, on: db)
                 .write(to: root.appendingPathComponent("pass\(i).pkpass"))
         }
 
-        /*
         defer {
             _ = try? FileManager.default.removeItem(at: root)
         }
-        */
 
         try self.zip(directory: root, to: zipFile)
 
-        /*
         defer {
             _ = try? FileManager.default.removeItem(at: zipFile)
         }
-        */
 
         return try Data(contentsOf: zipFile)
     }
