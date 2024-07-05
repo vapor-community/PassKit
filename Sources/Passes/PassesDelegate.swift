@@ -155,7 +155,7 @@ public extension PassesDelegate {
         return false
     }
 
-    func encodePersonalization<P: PassModel>(pass: P, db: any Database, encoder: JSONEncoder) async throws -> Data? {
+    func encodePersonalization<P: PassModel>(for pass: P, db: any Database, encoder: JSONEncoder) async throws -> Data? {
         return nil
     }
 }
