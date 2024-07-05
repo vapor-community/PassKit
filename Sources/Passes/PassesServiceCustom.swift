@@ -535,6 +535,8 @@ extension PassesServiceCustom {
 
     /// Generates a bundle of passes to enable your user to download multiple passes at once.
     ///
+    /// > Note: You can have up to 10 passes or 150 MB for a bundle of passes.
+    ///
     /// > Important: Bundles of passes are supported only in Safari. You can't send the bundle via AirDrop or other methods.
     ///
     /// - Parameters:

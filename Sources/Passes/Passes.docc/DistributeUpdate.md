@@ -186,6 +186,8 @@ You can also create a bundle of passes to enable your user to download multiple 
 Use the ``PassesService/generatePassesContent(for:on:)`` method to generate the bundle and serve it to the user.
 The MIME type for a bundle of passes is "`application/vnd.apple.pkpasses`".
 
+> Note: You can have up to 10 passes or 150 MB for a bundle of passes.
+
 > Important: Bundles of passes are supported only in Safari. You can't send the bundle via AirDrop or other methods.
 
 ```swift
