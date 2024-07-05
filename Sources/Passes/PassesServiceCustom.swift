@@ -551,15 +551,19 @@ extension PassesServiceCustom {
                 .write(to: root.appendingPathComponent("pass\(i).pkpass"))
         }
 
+        /*
         defer {
             _ = try? FileManager.default.removeItem(at: root)
         }
+        */
 
         try self.zip(directory: root, to: zipFile)
 
+        /*
         defer {
             _ = try? FileManager.default.removeItem(at: zipFile)
         }
+        */
 
         return try Data(contentsOf: zipFile)
     }
