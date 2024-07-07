@@ -51,4 +51,3 @@ For information on Apple Wallet passes, see the [Apple Developer Documentation](
 
 - <doc:Personalization>
 - ``PersonalizationJSON``
-- ``PassesDelegate/encodePersonalization(for:db:encoder:)``

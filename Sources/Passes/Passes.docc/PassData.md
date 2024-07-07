@@ -58,7 +58,9 @@ struct CreatePassData: AsyncMigration {
 
 You'll want to create a model middleware to handle the creation and update of the pass data model.
 This middleware could be responsible for creating and linking a ``PKPass`` to the pass data model, depending on your requirements.
-When your pass data changes, it should also update the ``PKPass/updatedAt`` field of the ``PKPass`` and send a push notification to all devices registered to that pass. See <doc:DistributeUpdate> for more information on how to send push notifications.
+When your pass data changes, it should also update the ``PKPass/updatedAt`` field of the ``PKPass`` and send a push notification to all devices registered to that pass. 
+
+See <doc:DistributeUpdate#Push-Notifications> for more information on how to send push notifications.
 
 ```swift
 import Vapor

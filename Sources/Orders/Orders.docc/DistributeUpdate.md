@@ -98,7 +98,7 @@ GET https://example.com/api/orders/v1/push/{orderTypeIdentifier}/{orderIdentifie
 
 Whether you include the routes or not, you'll want to add a model middleware that sends push notifications and updates the ``Order/updatedAt`` field when your order data updates. The model middleware could also create and link the ``Order`` during the creation of the order data, depending on your requirements.
 
-See <doc:OrderData> for more information.
+See <doc:OrderData#Order-Data-Model-Middleware> for more information.
 
 ### Apple Push Notification service
 

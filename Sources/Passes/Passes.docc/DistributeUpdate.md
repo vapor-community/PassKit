@@ -98,7 +98,7 @@ GET https://example.com/api/passes/v1/push/{passTypeIdentifier}/{passSerial} HTT
 
 Whether you include the routes or not, you'll want to add a model middleware that sends push notifications and updates the ``PKPass/updatedAt`` field when your pass data updates. The model middleware could also create and link the ``PKPass`` during the creation of the pass data, depending on your requirements.
 
-See <doc:PassData> for more information.
+See <doc:PassData#Pass-Data-Model-Middleware> for more information.
 
 ### Apple Push Notification service
 

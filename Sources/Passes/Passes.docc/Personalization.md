@@ -108,6 +108,10 @@ final class PassDelegate: PassesDelegate {
 
 > Note: If you don't need to personalize passes for your app, you don't need to implement the ``PassesDelegate/encodePersonalization(for:db:encoder:)`` method.
 
+### Implement the User Data Model (⚠️ WIP)
+
+> Warning: This section is a work in progress. Right now, the data model required to save users' personal information for each pass **is not implemented**. Development is hard without access to the certificates required to test pass personalization. If you have access to the entitlements, please help us implement this feature.
+
 ### Implement the Web Service (⚠️ WIP)
 
 > Warning: This section is a work in progress. Right now, the endpoint required to handle pass personalization **is not implemented**. Development is hard without access to the certificates required to test this feature. If you have access to the entitlements, please help us implement this feature.
@@ -116,3 +120,9 @@ After implementing the JSON `struct` and the delegate, there is nothing else you
 Adding the ``PassesService/registerRoutes()`` method to your `routes.swift` file will automatically set up the endpoints that Apple Wallet expects to exist on your server to handle pass personalization.
 
 Generate the pass bundle with ``PassesService/generatePassContent(for:on:)`` as usual and distribute it to the user. The Passes framework and Apple Wallet will take care of the rest.
+
+## Topics
+
+### Delegate Method
+
+- ``PassesDelegate/encodePersonalization(for:db:encoder:)``

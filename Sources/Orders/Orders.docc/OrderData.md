@@ -54,7 +54,9 @@ struct CreateOrderData: AsyncMigration {
 
 You'll want to create a model middleware to handle the creation and update of the order data model.
 This middleware could be responsible for creating and linking an ``Order`` to the order data model, depending on your requirements.
-When your order data changes, it should also update the ``Order/updatedAt`` field of the ``Order`` and send a push notification to all devices registered to that order. See <doc:DistributeUpdate> for more information on how to send push notifications.
+When your order data changes, it should also update the ``Order/updatedAt`` field of the ``Order`` and send a push notification to all devices registered to that order.
+
+See <doc:DistributeUpdate#Push-Notifications> for more information on how to send push notifications.
 
 ```swift
 import Vapor
