@@ -196,19 +196,19 @@ extension OrdersServiceCustom {
             .first()
         
         if let device = device {
-            return try await Self.createRegistration(device: device, order: order, req: req)
+            return try await Self.createRegistration(device: device, order: order, db: req.db)
         } else {
             let newDevice = D(deviceLibraryIdentifier: deviceIdentifier, pushToken: pushToken)
             try await newDevice.create(on: req.db)
-            return try await Self.createRegistration(device: newDevice, order: order, req: req)
+            return try await Self.createRegistration(device: newDevice, order: order, db: req.db)
         }
     }
 
-    private static func createRegistration(device: D, order: O, req: Request) async throws -> HTTPStatus {
+    private static func createRegistration(device: D, order: O, db: any Database) async throws -> HTTPStatus {
         let r = try await R.for(
             deviceLibraryIdentifier: device.deviceLibraryIdentifier,
             orderTypeIdentifier: order.orderTypeIdentifier,
-            on: req.db
+            on: db
         ).filter(O.self, \._$id == order.id!).first()
 
         if r != nil {
@@ -220,7 +220,7 @@ extension OrdersServiceCustom {
         registration._$order.id = order.id!
         registration._$device.id = device.id!
 
-        try await registration.create(on: req.db)
+        try await registration.create(on: db)
         return .created
     }
 

@@ -150,12 +150,29 @@ extension PassesServiceCustom {
             .first()
         
         if let device = device {
-            return try await Self.createRegistration(device: device, pass: pass, req: req)
+            return try await Self.createRegistration(device: device, pass: pass, db: req.db)
         } else {
             let newDevice = D(deviceLibraryIdentifier: deviceLibraryIdentifier, pushToken: pushToken)
             try await newDevice.create(on: req.db)
-            return try await Self.createRegistration(device: newDevice, pass: pass, req: req)
+            return try await Self.createRegistration(device: newDevice, pass: pass, db: req.db)
         }
+    }
+    
+    private static func createRegistration(device: D, pass: P, db: any Database) async throws -> HTTPStatus {
+        let r = try await R.for(deviceLibraryIdentifier: device.deviceLibraryIdentifier, passTypeIdentifier: pass.passTypeIdentifier, on: db)
+            .filter(P.self, \._$id == pass.id!)
+            .first()
+        if r != nil {
+            // If the registration already exists, docs say to return a 200
+            return .ok
+        }
+        
+        let registration = R()
+        registration._$pass.id = pass.id!
+        registration._$device.id = device.id!
+        
+        try await registration.create(on: db)
+        return .created
     }
     
     func passesForDevice(req: Request) async throws -> PassesForDeviceDTO {
@@ -321,23 +338,6 @@ extension PassesServiceCustom {
         
         let registrations = try await Self.registrationsForPass(id: id, of: passTypeIdentifier, on: req.db)
         return registrations.map { $0.device.pushToken }
-    }
-    
-    private static func createRegistration(device: D, pass: P, req: Request) async throws -> HTTPStatus {
-        let r = try await R.for(deviceLibraryIdentifier: device.deviceLibraryIdentifier, passTypeIdentifier: pass.passTypeIdentifier, on: req.db)
-            .filter(P.self, \._$id == pass.id!)
-            .first()
-        if r != nil {
-            // If the registration already exists, docs say to return a 200
-            return .ok
-        }
-        
-        let registration = R()
-        registration._$pass.id = pass.id!
-        registration._$device.id = device.id!
-        
-        try await registration.create(on: req.db)
-        return .created
     }
 }
     
