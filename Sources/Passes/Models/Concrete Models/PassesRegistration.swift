@@ -12,14 +12,17 @@ final public class PassesRegistration: PassesRegistrationModel, @unchecked Senda
     public typealias PassType = PKPass
     public typealias DeviceType = PassesDevice
 
+    /// The schema name of the passes registration model.
     public static let schema = PassesRegistration.FieldKeys.schemaName
 
     @ID(custom: .id)
     public var id: Int?
 
+    /// The device for this registration.
     @Parent(key: PassesRegistration.FieldKeys.deviceID)
     public var device: DeviceType
 
+    /// The pass for this registration.
     @Parent(key: PassesRegistration.FieldKeys.passID)
     public var pass: PassType
 

@@ -13,7 +13,7 @@ import Fluent
 import NIOSSL
 import PassKit
 
-/// Class to handle `PassesService`.
+/// Class to handle ``PassesService``.
 ///
 /// The generics should be passed in this order:
 /// - Pass Type
@@ -21,12 +21,19 @@ import PassKit
 /// - Registration Type
 /// - Error Log Type
 public final class PassesServiceCustom<P, D, R: PassesRegistrationModel, E: ErrorLogModel>: Sendable where P == R.PassType, D == R.DeviceType {
+    /// The ``PassesDelegate`` to use for pass generation.
     public unowned let delegate: any PassesDelegate
     private unowned let app: Application
     
     private let v1: any RoutesBuilder
     private let logger: Logger?
     
+    /// Initializes the service.
+    ///
+    /// - Parameters:
+    ///   - app: The `Vapor.Application` to use in route handlers and APNs.
+    ///   - delegate: The ``PassesDelegate`` to use for pass generation.
+    ///   - logger: The `Logger` to use.
     public init(app: Application, delegate: any PassesDelegate, logger: Logger? = nil) {
         self.delegate = delegate
         self.logger = logger
@@ -45,6 +52,7 @@ public final class PassesServiceCustom<P, D, R: PassesRegistrationModel, E: Erro
         v1auth.post("devices", ":deviceLibraryIdentifier", "registrations", ":passTypeIdentifier", ":passSerial", use: { try await self.registerDevice(req: $0) })
         v1auth.get("passes", ":passTypeIdentifier", ":passSerial", use: { try await self.latestVersionOfPass(req: $0) })
         v1auth.delete("devices", ":deviceLibraryIdentifier", "registrations", ":passTypeIdentifier", ":passSerial", use: { try await self.unregisterDevice(req: $0) })
+        v1auth.post("passes", ":passTypeIdentifier", ":passSerial", "personalize", use: { try await self.personalizedPass(req: $0) })
     }
     
     /// Registers routes to send push notifications for updated passes
@@ -55,7 +63,7 @@ public final class PassesServiceCustom<P, D, R: PassesRegistrationModel, E: Erro
     /// ```
     ///
     /// - Parameter middleware: The `Middleware` which will control authentication for the routes.
-    /// - Throws: An error of type `PassesError`
+    /// - Throws: An error of type ``PassesError``.
     public func registerPushRoutes(middleware: any Middleware) throws {
         let privateKeyPath = URL(fileURLWithPath: delegate.pemPrivateKey, relativeTo:
             delegate.sslSigningFilesDirectory).unixPath()
@@ -66,11 +74,11 @@ public final class PassesServiceCustom<P, D, R: PassesRegistrationModel, E: Erro
 
         let pemPath = URL(fileURLWithPath: delegate.pemCertificate, relativeTo: delegate.sslSigningFilesDirectory).unixPath()
 
-        guard FileManager.default.fileExists(atPath: privateKeyPath) else {
+        guard FileManager.default.fileExists(atPath: pemPath) else {
             throw PassesError.pemCertificateMissing
         }
 
-        // PassKit *only* works with the production APNs. You can't pass in .sandbox here.
+        // PassKit *only* works with the production APNs. You can't pass in `.sandbox` here.
         let apnsConfig: APNSClientConfiguration
         if let pwd = delegate.pemPrivateKeyPassword {
             apnsConfig = APNSClientConfiguration(
@@ -142,12 +150,29 @@ extension PassesServiceCustom {
             .first()
         
         if let device = device {
-            return try await Self.createRegistration(device: device, pass: pass, req: req)
+            return try await Self.createRegistration(device: device, pass: pass, db: req.db)
         } else {
             let newDevice = D(deviceLibraryIdentifier: deviceLibraryIdentifier, pushToken: pushToken)
             try await newDevice.create(on: req.db)
-            return try await Self.createRegistration(device: newDevice, pass: pass, req: req)
+            return try await Self.createRegistration(device: newDevice, pass: pass, db: req.db)
         }
+    }
+    
+    private static func createRegistration(device: D, pass: P, db: any Database) async throws -> HTTPStatus {
+        let r = try await R.for(deviceLibraryIdentifier: device.deviceLibraryIdentifier, passTypeIdentifier: pass.passTypeIdentifier, on: db)
+            .filter(P.self, \._$id == pass.id!)
+            .first()
+        if r != nil {
+            // If the registration already exists, docs say to return a 200
+            return .ok
+        }
+        
+        let registration = R()
+        registration._$pass.id = pass.id!
+        registration._$device.id = device.id!
+        
+        try await registration.create(on: db)
+        return .created
     }
     
     func passesForDevice(req: Request) async throws -> PassesForDeviceDTO {
@@ -264,7 +289,31 @@ extension PassesServiceCustom {
             
         return .ok
     }
+
+    func personalizedPass(req: Request) async throws -> Response {
+        logger?.debug("Called personalizedPass")
+
+        /*
+        guard let passTypeIdentifier = req.parameters.get("passTypeIdentifier"),
+            let id = req.parameters.get("passSerial", as: UUID.self) else {
+                throw Abort(.badRequest)
+        }
+
+        guard let pass = try await P.query(on: req.db)
+            .filter(\._$id == id)
+            .filter(\._$passTypeIdentifier == passTypeIdentifier)
+            .first()
+        else {
+            throw Abort(.notFound)
+        }
+
+        let personalization = try req.content.decode(PersonalizationDictionaryDTO.self)
+        */
+
+        throw Abort(.notImplemented)
+    }
     
+    // MARK: - Push Routes
     func pushUpdatesForPass(req: Request) async throws -> HTTPStatus {
         logger?.debug("Called pushUpdatesForPass")
         
@@ -290,27 +339,17 @@ extension PassesServiceCustom {
         let registrations = try await Self.registrationsForPass(id: id, of: passTypeIdentifier, on: req.db)
         return registrations.map { $0.device.pushToken }
     }
-    
-    private static func createRegistration(device: D, pass: P, req: Request) async throws -> HTTPStatus {
-        let r = try await R.for(deviceLibraryIdentifier: device.deviceLibraryIdentifier, passTypeIdentifier: pass.passTypeIdentifier, on: req.db)
-            .filter(P.self, \._$id == pass.id!)
-            .first()
-        if r != nil {
-            // If the registration already exists, docs say to return a 200
-            return .ok
-        }
-        
-        let registration = R()
-        registration._$pass.id = pass.id!
-        registration._$device.id = device.id!
-        
-        try await registration.create(on: req.db)
-        return .created
-    }
 }
     
 // MARK: - Push Notifications
 extension PassesServiceCustom {
+    /// Sends push notifications for a given pass.
+    ///
+    /// - Parameters:
+    ///   - id: The `UUID` of the pass to send the notifications for.
+    ///   - passTypeIdentifier: The type identifier of the pass.
+    ///   - db: The `Database` to use.
+    ///   - app: The `Application` to use.
     public static func sendPushNotificationsForPass(id: UUID, of passTypeIdentifier: String, on db: any Database, app: Application) async throws {
         let registrations = try await Self.registrationsForPass(id: id, of: passTypeIdentifier, on: db)
         for reg in registrations {
@@ -327,6 +366,12 @@ extension PassesServiceCustom {
         }
     }
 
+    /// Sends push notifications for a given pass.
+    /// 
+    /// - Parameters:
+    ///   - pass: The pass to send the notifications for.
+    ///   - db: The `Database` to use.
+    ///   - app: The `Application` to use.
     public static func sendPushNotifications(for pass: P, on db: any Database, app: Application) async throws {
         guard let id = pass.id else {
             throw FluentError.idRequired
@@ -335,6 +380,12 @@ extension PassesServiceCustom {
         try await Self.sendPushNotificationsForPass(id: id, of: pass.passTypeIdentifier, on: db, app: app)
     }
     
+    /// Sends push notifications for a given pass.
+    /// 
+    /// - Parameters:
+    ///   - pass: The pass (as the `ParentProperty`) to send the notifications for.
+    ///   - db: The `Database` to use.
+    ///   - app: The `Application` to use.
     public static func sendPushNotifications(for pass: ParentProperty<R, P>, on db: any Database, app: Application) async throws {
         let value: P
         
@@ -434,6 +485,12 @@ extension PassesServiceCustom {
         proc.waitUntilExit()
     }
     
+    /// Generates the pass content bundle for a given pass.
+    ///
+    /// - Parameters:
+    ///   - pass: The pass to generate the content for.
+    ///   - db: The `Database` to use.
+    /// - Returns: The generated pass content as `Data`.
     public func generatePassContent(for pass: P, on db: any Database) async throws -> Data {
         let tmp = FileManager.default.temporaryDirectory
         let root = tmp.appendingPathComponent(UUID().uuidString, isDirectory: true)
@@ -455,6 +512,11 @@ extension PassesServiceCustom {
             }
             
             try encoded.write(to: root.appendingPathComponent("pass.json"))
+
+            // Pass Personalization
+            if let encodedPersonalization = try await self.delegate.encodePersonalization(for: pass, db: db, encoder: encoder) {
+                try encodedPersonalization.write(to: root.appendingPathComponent("personalization.json"))
+            }
             
             try Self.generateManifestFile(using: encoder, in: root)
             try self.generateSignatureFile(in: root)
@@ -469,5 +531,44 @@ extension PassesServiceCustom {
         } catch {
             throw error
         }
+    }
+
+    /// Generates a bundle of passes to enable your user to download multiple passes at once.
+    ///
+    /// > Note: You can have up to 10 passes or 150 MB for a bundle of passes.
+    ///
+    /// > Important: Bundles of passes are supported only in Safari. You can't send the bundle via AirDrop or other methods.
+    ///
+    /// - Parameters:
+    ///   - passes: The passes to include in the bundle.
+    ///   - db: The `Database` to use.
+    /// - Returns: The bundle of passes as `Data`.
+    public func generatePassesContent(for passes: [P], on db: any Database) async throws -> Data {
+        guard passes.count > 1 && passes.count <= 10 else {
+            throw PassesError.invalidNumberOfPasses
+        }
+
+        let tmp = FileManager.default.temporaryDirectory
+        let root = tmp.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let zipFile = tmp.appendingPathComponent("\(UUID().uuidString).zip")
+
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        
+        for (i, pass) in passes.enumerated() {
+            try await self.generatePassContent(for: pass, on: db)
+                .write(to: root.appendingPathComponent("pass\(i).pkpass"))
+        }
+
+        defer {
+            _ = try? FileManager.default.removeItem(at: root)
+        }
+
+        try self.zip(directory: root, to: zipFile)
+
+        defer {
+            _ = try? FileManager.default.removeItem(at: zipFile)
+        }
+
+        return try Data(contentsOf: zipFile)
     }
 }

@@ -11,14 +11,17 @@ import PassKit
 
 /// The `Model` that stores PassKit passes error logs.
 final public class PassesErrorLog: ErrorLogModel, @unchecked Sendable {
+    /// The schema name of the error log model.
     public static let schema = PassesErrorLog.FieldKeys.schemaName
 
     @ID(custom: .id)
     public var id: Int?
 
+    /// The date and time the error log was created.
     @Timestamp(key: PassesErrorLog.FieldKeys.createdAt, on: .create)
     public var createdAt: Date?
 
+    /// The error message provided by PassKit.
     @Field(key: PassesErrorLog.FieldKeys.message)
     public var message: String
 

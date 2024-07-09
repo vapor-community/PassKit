@@ -36,6 +36,7 @@ public protocol PassesDelegate: AnyObject, Sendable {
     /// The URL should point to a directory containing all the images and localizations for the generated `.pkpass` archive but should *not* contain any of these items:
     ///  - `manifest.json`
     ///  - `pass.json`
+    ///  - `personalization.json`
     ///  - `signature`
     ///
     /// - Parameters:
@@ -70,6 +71,24 @@ public protocol PassesDelegate: AnyObject, Sendable {
     ///
     /// > Tip: See the [`Pass`](https://developer.apple.com/documentation/walletpasses/pass) object to understand the keys.
     func encode<P: PassModel>(pass: P, db: any Database, encoder: JSONEncoder) async throws -> Data
+
+    /// Encode the personalization JSON file.
+    ///
+    /// This method of the ``PassesDelegate`` should generate the entire personalization JSON file.
+    /// You are provided with the pass data from the SQL database and,
+    /// if the pass in question requires personalization,
+    /// you should return a properly formatted personalization JSON file.
+    ///
+    /// If the pass does not require personalization, you should return `nil`.
+    /// 
+    /// The default implementation of this method returns `nil`.
+    ///
+    /// - Parameters:
+    ///   - pass: The pass data from the SQL server.
+    ///   - db: The SQL database to query against.
+    ///   - encoder: The `JSONEncoder` which you should use.
+    /// - Returns: The encoded personalization JSON data, or `nil` if the pass does not require personalization.
+    func encodePersonalization<P: PassModel>(for pass: P, db: any Database, encoder: JSONEncoder) async throws -> Data?
 
     /// Should return a `URL` which points to the template data for the pass.
     ///
@@ -137,5 +156,9 @@ public extension PassesDelegate {
     
     func generateSignatureFile(in root: URL) -> Bool {
         return false
+    }
+
+    func encodePersonalization<P: PassModel>(for pass: P, db: any Database, encoder: JSONEncoder) async throws -> Data? {
+        return nil
     }
 }

@@ -13,6 +13,10 @@ struct OrdersForDeviceDTO: Content {
 
     init(with orderIdentifiers: [String], maxDate: Date) {
         self.orderIdentifiers = orderIdentifiers
-        lastModified = String(maxDate.timeIntervalSince1970)
+        self.lastModified = ISO8601DateFormatter.string(
+            from: maxDate,
+            timeZone: .init(secondsFromGMT: 0)!,
+            formatOptions: .withInternetDateTime
+        )
     }
 }

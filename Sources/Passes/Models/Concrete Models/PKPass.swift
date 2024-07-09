@@ -9,18 +9,28 @@ import Foundation
 import FluentKit
 
 /// The `Model` that stores PassKit passes.
+///
+/// Uses a UUID so people can't easily guess pass serial numbers.
 open class PKPass: PassModel, @unchecked Sendable {
+    /// The schema name of the pass model.
     public static let schema = PKPass.FieldKeys.schemaName
 
+    /// The pass alphanumeric serial number.
+    ///
+    /// The combination of the serial number and pass type identifier must be unique for each pass.
+    /// Uses a UUID so people can't easily guess the pass serial number.
     @ID
     public var id: UUID?
 
+    /// The last time the pass was modified.
     @Timestamp(key: PKPass.FieldKeys.updatedAt, on: .update)
     public var updatedAt: Date?
 
+    /// The pass type identifier that’s registered with Apple.
     @Field(key: PKPass.FieldKeys.passTypeIdentifier)
     public var passTypeIdentifier: String
 
+    /// The authentication token to use with the web service in the `webServiceURL` key.
     @Field(key: PKPass.FieldKeys.authenticationToken)
     public var authenticationToken: String
     

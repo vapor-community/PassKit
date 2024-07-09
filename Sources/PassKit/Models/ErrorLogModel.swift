@@ -30,10 +30,10 @@ import FluentKit
 
 /// Represents the `Model` that stores PassKit error logs.
 public protocol ErrorLogModel: Model {
-    /// The error message provided by PassKit
+    /// The error message provided by PassKit.
     var message: String { get set }
     
-    /// The designated initializer
+    /// The designated initializer.
     /// - Parameter message: The error message.
     init(message: String)
 }

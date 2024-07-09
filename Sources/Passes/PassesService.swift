@@ -33,6 +33,12 @@ import FluentKit
 public final class PassesService: Sendable {
     private let service: PassesServiceCustom<PKPass, PassesDevice, PassesRegistration, PassesErrorLog>
     
+    /// Initializes the service.
+    ///
+    /// - Parameters:
+    ///   - app: The `Vapor.Application` to use in route handlers and APNs.
+    ///   - delegate: The ``PassesDelegate`` to use for pass generation.
+    ///   - logger: The `Logger` to use.
     public init(app: Application, delegate: any PassesDelegate, logger: Logger? = nil) {
         service = .init(app: app, delegate: delegate, logger: logger)
     }
@@ -54,9 +60,23 @@ public final class PassesService: Sendable {
     /// - Parameters:
     ///   - pass: The pass to generate the content for.
     ///   - db: The `Database` to use.
-    /// - Returns: The generated pass content.
+    /// - Returns: The generated pass content as `Data`.
     public func generatePassContent(for pass: PKPass, on db: any Database) async throws -> Data {
         try await service.generatePassContent(for: pass, on: db)
+    }
+
+    /// Generates a bundle of passes to enable your user to download multiple passes at once.
+    ///
+    /// > Note: You can have up to 10 passes or 150 MB for a bundle of passes.
+    ///
+    /// > Important: Bundles of passes are supported only in Safari. You can't send the bundle via AirDrop or other methods.
+    ///
+    /// - Parameters:
+    ///   - passes: The passes to include in the bundle.
+    ///   - db: The `Database` to use.
+    /// - Returns: The bundle of passes as `Data`.
+    public func generatePassesContent(for passes: [PKPass], on db: any Database) async throws -> Data {
+        try await service.generatePassesContent(for: passes, on: db)
     }
     
     /// Adds the migrations for PassKit passes models.
