@@ -314,6 +314,7 @@ extension PassesServiceCustom {
         if let postalCode = userInfo.requiredPersonalizationInfo.postalCode { userPersonalization.postalCode = postalCode }
         if let ISOCountryCode = userInfo.requiredPersonalizationInfo.ISOCountryCode { userPersonalization.ISOCountryCode = ISOCountryCode }
         if let phoneNumber = userInfo.requiredPersonalizationInfo.phoneNumber { userPersonalization.phoneNumber = phoneNumber }
+        try await userPersonalization.create(on: req.db)
 
         pass._$userPersonalization.id = userPersonalization.id
         try await pass.update(on: req.db)
