@@ -18,13 +18,13 @@ public protocol OrdersDelegate: AnyObject, Sendable {
     ///  - `signature`
     ///
     /// - Parameters:
-    ///   - for: The order data from the SQL server.
+    ///   - order: The order data from the SQL server.
     ///   - db: The SQL database to query against.
     ///
     /// - Returns: A `URL` which points to the template data for the order.
     ///
     /// > Important: Be sure to use the `URL(fileURLWithPath:isDirectory:)` constructor.
-    func template<O: OrderModel>(for: O, db: any Database) async throws -> URL
+    func template<O: OrderModel>(for order: O, db: any Database) async throws -> URL
 
     /// Generates the SSL `signature` file.
     ///
