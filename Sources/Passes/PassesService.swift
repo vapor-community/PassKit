@@ -31,7 +31,7 @@ import FluentKit
 
 /// The main class that handles PassKit passes.
 public final class PassesService: Sendable {
-    private let service: PassesServiceCustom<PKPass, PassesDevice, PassesRegistration, PassesErrorLog>
+    private let service: PassesServiceCustom<PKPass, UserPersonalization, PassesDevice, PassesRegistration, PassesErrorLog>
     
     /// Initializes the service.
     ///
@@ -83,6 +83,7 @@ public final class PassesService: Sendable {
     ///
     /// - Parameter migrations: The `Migrations` object to add the migrations to.
     public static func register(migrations: Migrations) {
+        migrations.add(UserPersonalization())
         migrations.add(PKPass())
         migrations.add(PassesDevice())
         migrations.add(PassesRegistration())
@@ -97,7 +98,7 @@ public final class PassesService: Sendable {
     ///   - db: The `Database` to use.
     ///   - app: The `Application` to use.
     public static func sendPushNotificationsForPass(id: UUID, of passTypeIdentifier: String, on db: any Database, app: Application) async throws {
-        try await PassesServiceCustom<PKPass, PassesDevice, PassesRegistration, PassesErrorLog>.sendPushNotificationsForPass(id: id, of: passTypeIdentifier, on: db, app: app)
+        try await PassesServiceCustom<PKPass, UserPersonalization, PassesDevice, PassesRegistration, PassesErrorLog>.sendPushNotificationsForPass(id: id, of: passTypeIdentifier, on: db, app: app)
     }
     
     /// Sends push notifications for a given pass.
@@ -107,7 +108,7 @@ public final class PassesService: Sendable {
     ///   - db: The `Database` to use.
     ///   - app: The `Application` to use.
     public static func sendPushNotifications(for pass: PKPass, on db: any Database, app: Application) async throws {
-        try await PassesServiceCustom<PKPass, PassesDevice, PassesRegistration, PassesErrorLog>.sendPushNotifications(for: pass, on: db, app: app)
+        try await PassesServiceCustom<PKPass, UserPersonalization, PassesDevice, PassesRegistration, PassesErrorLog>.sendPushNotifications(for: pass, on: db, app: app)
     }
     
     /// Sends push notifications for a given pass.
@@ -117,6 +118,6 @@ public final class PassesService: Sendable {
     ///   - db: The `Database` to use.
     ///   - app: The `Application` to use.
     public static func sendPushNotifications(for pass: ParentProperty<PassesRegistration, PKPass>, on db: any Database, app: Application) async throws {
-        try await PassesServiceCustom<PKPass, PassesDevice, PassesRegistration, PassesErrorLog>.sendPushNotifications(for: pass, on: db, app: app)
+        try await PassesServiceCustom<PKPass, UserPersonalization, PassesDevice, PassesRegistration, PassesErrorLog>.sendPushNotifications(for: pass, on: db, app: app)
     }
 }

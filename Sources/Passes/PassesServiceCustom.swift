@@ -17,10 +17,11 @@ import PassKit
 ///
 /// The generics should be passed in this order:
 /// - Pass Type
+/// - User Personalization Type
 /// - Device Type
 /// - Registration Type
 /// - Error Log Type
-public final class PassesServiceCustom<P, D, R: PassesRegistrationModel, E: ErrorLogModel>: Sendable where P == R.PassType, D == R.DeviceType {
+public final class PassesServiceCustom<P, U, D, R: PassesRegistrationModel, E: ErrorLogModel>: Sendable where P == R.PassType, D == R.DeviceType, U == P.UserPersonalizationType {
     /// The ``PassesDelegate`` to use for pass generation.
     public unowned let delegate: any PassesDelegate
     private unowned let app: Application
@@ -292,13 +293,10 @@ extension PassesServiceCustom {
 
     func personalizedPass(req: Request) async throws -> Response {
         logger?.debug("Called personalizedPass")
-
-        /*
         guard let passTypeIdentifier = req.parameters.get("passTypeIdentifier"),
             let id = req.parameters.get("passSerial", as: UUID.self) else {
                 throw Abort(.badRequest)
         }
-
         guard let pass = try await P.query(on: req.db)
             .filter(\._$id == id)
             .filter(\._$passTypeIdentifier == passTypeIdentifier)
@@ -307,10 +305,57 @@ extension PassesServiceCustom {
             throw Abort(.notFound)
         }
 
-        let personalization = try req.content.decode(PersonalizationDictionaryDTO.self)
-        */
+        let userInfo = try req.content.decode(PersonalizationDictionaryDTO.self)
+        let userPersonalization = U()
+        if let fullName = userInfo.requiredPersonalizationInfo.fullName { userPersonalization.fullName = fullName }
+        if let givenName = userInfo.requiredPersonalizationInfo.givenName { userPersonalization.givenName = givenName }
+        if let familyName = userInfo.requiredPersonalizationInfo.familyName { userPersonalization.familyName = familyName }
+        if let emailAddress = userInfo.requiredPersonalizationInfo.emailAddress { userPersonalization.emailAddress = emailAddress }
+        if let postalCode = userInfo.requiredPersonalizationInfo.postalCode { userPersonalization.postalCode = postalCode }
+        if let ISOCountryCode = userInfo.requiredPersonalizationInfo.ISOCountryCode { userPersonalization.ISOCountryCode = ISOCountryCode }
+        if let phoneNumber = userInfo.requiredPersonalizationInfo.phoneNumber { userPersonalization.phoneNumber = phoneNumber }
 
-        throw Abort(.notImplemented)
+        pass._$userPersonalization.id = userPersonalization.id
+        try await pass.update(on: req.db)
+
+        let tmp = FileManager.default.temporaryDirectory
+        let root = tmp.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { _ = try? FileManager.default.removeItem(at: root) }
+
+        let token = userInfo.personalizationToken.data(using: .utf8)!
+        try token.write(to: root.appendingPathComponent("personalizationToken"))
+
+        let sslBinary = delegate.sslBinary
+        guard FileManager.default.fileExists(atPath: sslBinary.unixPath()) else {
+            throw PassesError.opensslBinaryMissing
+        }
+
+        let proc = Process()
+        proc.currentDirectoryURL = delegate.sslSigningFilesDirectory
+        proc.executableURL = sslBinary
+        proc.arguments = [
+            "smime", "-binary", "-sign",
+            "-certfile", delegate.wwdrCertificate,
+            "-signer", delegate.pemCertificate,
+            "-inkey", delegate.pemPrivateKey,
+            "-in", root.appendingPathComponent("personalizationToken").unixPath(),
+            "-out", root.appendingPathComponent("signature").unixPath(),
+            "-outform", "DER"
+        ]
+        if let pwd = delegate.pemPrivateKeyPassword {
+            proc.arguments!.append(contentsOf: ["-passin", "pass:\(pwd)"])
+        }
+        try proc.run()
+        proc.waitUntilExit()
+
+        let signature = try Data(contentsOf: root.appendingPathComponent("signature"))
+
+        let body = Response.Body(data: signature)
+        var headers = HTTPHeaders()
+        headers.add(name: .contentType, value: "application/octet-stream")
+        headers.add(name: .contentTransferEncoding, value: "binary")
+        return Response(status: .ok, headers: headers, body: body)
     }
     
     // MARK: - Push Routes

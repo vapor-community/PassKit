@@ -12,6 +12,8 @@ import FluentKit
 ///
 /// Uses a UUID so people can't easily guess pass serial numbers.
 open class PKPass: PassModel, @unchecked Sendable {
+    public typealias UserPersonalizationType = UserPersonalization
+
     /// The schema name of the pass model.
     public static let schema = PKPass.FieldKeys.schemaName
 
@@ -33,6 +35,10 @@ open class PKPass: PassModel, @unchecked Sendable {
     /// The authentication token to use with the web service in the `webServiceURL` key.
     @Field(key: PKPass.FieldKeys.authenticationToken)
     public var authenticationToken: String
+
+    /// The user personalization info.
+    @OptionalParent(key: PKPass.FieldKeys.userPersonalizationID)
+    public var userPersonalization: UserPersonalizationType?
     
     public required init() { }
 
@@ -49,6 +55,8 @@ extension PKPass: AsyncMigration {
             .field(PKPass.FieldKeys.updatedAt, .datetime, .required)
             .field(PKPass.FieldKeys.passTypeIdentifier, .string, .required)
             .field(PKPass.FieldKeys.authenticationToken, .string, .required)
+            .field(PKPass.FieldKeys.userPersonalizationID, .int, .references(UserPersonalizationType.schema, .id))
+            .unique(on: PKPass.FieldKeys.userPersonalizationID)
             .create()
     }
 
@@ -63,5 +71,6 @@ extension PKPass {
         static let updatedAt = FieldKey(stringLiteral: "updated_at")
         static let passTypeIdentifier = FieldKey(stringLiteral: "pass_type_identifier")
         static let authenticationToken = FieldKey(stringLiteral: "authentication_token")
+        static let userPersonalizationID = FieldKey(stringLiteral: "user_personalization_id")
     }
 }
