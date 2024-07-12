@@ -188,13 +188,13 @@ PassesService.register(migrations: app.migrations)
 
 ### Custom Implementation
 
-If you don't like the schema names provided by the framework that are used by default, you can instead create your own models conforming to ``PassModel``, `DeviceModel`, ``PassesRegistrationModel`` and `ErrorLogModel` and instantiate the generic ``PassesServiceCustom``, providing it your model types.
+If you don't like the schema names provided by the framework that are used by default, you can instead create your own models conforming to ``PassModel``, ``UserPersonalizationModel``, `DeviceModel`, ``PassesRegistrationModel`` and `ErrorLogModel` and instantiate the generic ``PassesServiceCustom``, providing it your model types.
 
 ```swift
 import PassKit
 import Passes
 
-let passesService = PassesServiceCustom<MyPassType, MyDeviceType, MyPassesRegistrationType, MyErrorLogType>(app: app, delegate: delegate)
+let passesService = PassesServiceCustom<MyPassType, MyUserPersonalizationType, MyDeviceType, MyPassesRegistrationType, MyErrorLogType>(app: app, delegate: delegate)
 ```
 
 > Important: `DeviceModel` and `ErrorLogModel` are defined in the PassKit framework.

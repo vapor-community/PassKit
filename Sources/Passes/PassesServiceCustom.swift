@@ -316,7 +316,7 @@ extension PassesServiceCustom {
         if let phoneNumber = userInfo.requiredPersonalizationInfo.phoneNumber { userPersonalization.phoneNumber = phoneNumber }
         try await userPersonalization.create(on: req.db)
 
-        pass._$userPersonalization.id = userPersonalization.id
+        pass._$userPersonalization.id = userPersonalization.id!
         try await pass.update(on: req.db)
 
         let tmp = FileManager.default.temporaryDirectory

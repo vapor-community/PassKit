@@ -46,7 +46,7 @@ final class OrderDelegate: OrdersDelegate {
         return data
     }
 
-    func template<O: OrderModel>(for: O, db: Database) async throws -> URL {
+    func template<O: OrderModel>(for order: O, db: Database) async throws -> URL {
         // The location might vary depending on the type of order.
         return URL(fileURLWithPath: "Templates/Orders/", isDirectory: true)
     }

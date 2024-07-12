@@ -46,7 +46,7 @@ final class PassDelegate: PassesDelegate {
         return data
     }
 
-    func template<P: PassModel>(for: P, db: Database) async throws -> URL {
+    func template<P: PassModel>(for pass: P, db: Database) async throws -> URL {
         // The location might vary depending on the type of pass.
         return URL(fileURLWithPath: "Templates/Passes/", isDirectory: true)
     }
