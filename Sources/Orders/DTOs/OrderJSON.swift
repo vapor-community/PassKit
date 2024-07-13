@@ -13,9 +13,6 @@ public struct OrderJSON {
     public protocol Properties: Encodable {
         /// The date and time when the customer created the order, in RFC 3339 format.
         var createdAt: String { get }
-
-        /// The merchant for this order.
-        var merchant: any Merchant { get }
         
         /// A unique order identifier scoped to your order type identifier.
         ///
