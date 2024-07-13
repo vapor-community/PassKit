@@ -20,8 +20,7 @@ For information on Apple Wallet passes, see the [Apple Developer Documentation](
 
 ### Essentials
 
-- <doc:PassData>
-- <doc:DistributeUpdate>
+- <doc:GettingStarted>
 - ``PassJSON``
 
 ### Building and Distribution

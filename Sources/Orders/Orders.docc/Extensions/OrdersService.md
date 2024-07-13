@@ -6,11 +6,10 @@
 
 - ``generateOrderContent(for:on:)``
 - ``register(migrations:)``
-- ``registerRoutes()``
+- ``registerRoutes(app:pushMiddleware:)``
 
 ### Push Notifications
 
-- ``registerPushRoutes(middleware:)``
-- ``sendPushNotifications(for:on:app:)-wkeu``
-- ``sendPushNotifications(for:on:app:)-4hxhb``
-- ``sendPushNotificationsForOrder(id:of:on:app:)``
+- ``sendPushNotifications(for:on:)-3l32q``
+- ``sendPushNotifications(for:on:)-53601``
+- ``sendPushNotificationsForOrder(id:of:on:)``

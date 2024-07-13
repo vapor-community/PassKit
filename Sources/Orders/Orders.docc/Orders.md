@@ -13,8 +13,7 @@ For information on Apple Wallet orders, see the [Apple Developer Documentation](
 
 ### Essentials
 
-- <doc:OrderData>
-- <doc:DistributeUpdate>
+- <doc:GettingStarted>
 - ``OrderJSON``
 
 ### Building and Distribution

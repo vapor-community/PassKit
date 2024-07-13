@@ -39,7 +39,7 @@ Add the `Passes` product to your target's dependencies:
 .product(name: "Passes", package: "PassKit")
 ```
 
-See the framework's [documentation](https://swiftpackageindex.com/vapor-community/PassKit/0.6.0/documentation/passes) for information on how to use it.
+See the framework's [documentation](https://swiftpackageindex.com/vapor-community/PassKit/0.6.0/documentation/passes) for information and guides on how to use it.
 
 For information on Apple Wallet passes, see the [Apple Developer Documentation](https://developer.apple.com/documentation/walletpasses).
 
@@ -54,6 +54,6 @@ Add the `Orders` product to your target's dependencies:
 .product(name: "Orders", package: "PassKit")
 ```
 
-See the framework's [documentation](https://swiftpackageindex.com/vapor-community/PassKit/0.6.0/documentation/orders) for information on how to use it.
+See the framework's [documentation](https://swiftpackageindex.com/vapor-community/PassKit/0.6.0/documentation/orders) for information and guides on how to use it.
 
 For information on Apple Wallet orders, see the [Apple Developer Documentation](https://developer.apple.com/documentation/walletorders).
