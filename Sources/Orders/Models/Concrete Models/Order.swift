@@ -9,7 +9,7 @@ import Foundation
 import FluentKit
 
 /// The `Model` that stores Wallet orders.
-open class Order: OrderModel, @unchecked Sendable {
+final public class Order: OrderModel, @unchecked Sendable {
     /// The schema name of the order model.
     public static let schema = Order.FieldKeys.schemaName
 

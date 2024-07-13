@@ -13,7 +13,7 @@ let package = Package(
     dependencies: [
         .package(url: "https://github.com/vapor/vapor.git", from: "4.102.0"),
         .package(url: "https://github.com/vapor/fluent.git", from: "4.11.0"),
-        .package(url: "https://github.com/vapor/apns.git", from: "4.1.0"),
+        .package(url: "https://github.com/swift-server-community/APNSwift.git", from: "5.0.3"),
     ],
     targets: [
         .target(
@@ -21,7 +21,7 @@ let package = Package(
             dependencies: [
                 .product(name: "Fluent", package: "fluent"),
                 .product(name: "Vapor", package: "vapor"),
-                .product(name: "VaporAPNS", package: "apns"),
+                .product(name: "APNS", package: "APNSwift"),
             ],
             swiftSettings: swiftSettings
         ),

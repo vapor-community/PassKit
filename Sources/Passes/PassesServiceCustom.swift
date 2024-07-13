@@ -5,10 +5,9 @@
 //  Created by Francesco Paolo Severino on 29/06/24.
 //
 
-@preconcurrency import Vapor
+import Vapor
 import APNS
-import VaporAPNS
-@preconcurrency import APNSCore
+import APNSCore
 import Fluent
 import NIOSSL
 import PassKit
@@ -22,23 +21,18 @@ import PassKit
 /// - Registration Type
 /// - Error Log Type
 public final class PassesServiceCustom<P, U, D, R: PassesRegistrationModel, E: ErrorLogModel>: Sendable where P == R.PassType, D == R.DeviceType, U == P.UserPersonalizationType {
-    /// The ``PassesDelegate`` to use for pass generation.
-    public unowned let delegate: any PassesDelegate
-    
-    private let v1: any RoutesBuilder
+    private let delegate: any PassesDelegate
     private let logger: Logger?
+    private let apnsClient: APNSClient<JSONDecoder, JSONEncoder>
     
     /// Initializes the service.
     ///
     /// - Parameters:
-    ///   - app: The `Vapor.Application` to use in route handlers and APNs.
     ///   - delegate: The ``PassesDelegate`` to use for pass generation.
     ///   - logger: The `Logger` to use.
-    public init(app: Application, delegate: any PassesDelegate, logger: Logger? = nil) throws {
+    public init(delegate: any PassesDelegate, logger: Logger? = nil) throws {
         self.delegate = delegate
         self.logger = logger
-        
-        v1 = app.grouped("api", "passes", "v1")
 
         let privateKeyPath = URL(fileURLWithPath: delegate.pemPrivateKey, relativeTo: delegate.sslSigningFilesDirectory).unixPath()
         guard FileManager.default.fileExists(atPath: privateKeyPath) else {
@@ -69,18 +63,26 @@ public final class PassesServiceCustom<P, U, D, R: PassesRegistrationModel, E: E
                 environment: .production
             )
         }
-        app.apns.containers.use(
-            apnsConfig,
-            eventLoopGroupProvider: .shared(app.eventLoopGroup),
+        apnsClient = APNSClient(
+            configuration: apnsConfig,
+            eventLoopGroupProvider: .createNew,
             responseDecoder: JSONDecoder(),
-            requestEncoder: JSONEncoder(),
-            as: .init(string: "passes"),
-            isDefault: false
+            requestEncoder: JSONEncoder()
         )
+        defer {
+            apnsClient.shutdown { _ in
+                logger?.error("Failed to shutdown APNSClient")
+            }
+        }
     }
     
     /// Registers all the routes required for PassKit to work.
-    public func registerRoutes() {
+    ///
+    /// - Parameters:
+    ///   - app: The `Vapor.Application` to setup the routes.
+    ///   - pushMiddleware: The `Middleware` to use for push notification routes. If `nil`, push routes will not be registered.
+    public func registerRoutes(app: Application, pushMiddleware: (any Middleware)? = nil) {
+        let v1 = app.grouped("api", "passes", "v1")
         v1.get("devices", ":deviceLibraryIdentifier", "registrations", ":passTypeIdentifier", use: { try await self.passesForDevice(req: $0) })
         v1.post("log", use: { try await self.logError(req: $0) })
         let v1auth = v1.grouped(ApplePassMiddleware<P>())
@@ -88,18 +90,14 @@ public final class PassesServiceCustom<P, U, D, R: PassesRegistrationModel, E: E
         v1auth.get("passes", ":passTypeIdentifier", ":passSerial", use: { try await self.latestVersionOfPass(req: $0) })
         v1auth.delete("devices", ":deviceLibraryIdentifier", "registrations", ":passTypeIdentifier", ":passSerial", use: { try await self.unregisterDevice(req: $0) })
         v1auth.post("passes", ":passTypeIdentifier", ":passSerial", "personalize", use: { try await self.personalizedPass(req: $0) })
+        
+        if let pushMiddleware {
+            registerPushRoutes(routesBuilder: v1, middleware: pushMiddleware)
+        }
     }
     
-    /// Registers routes to send push notifications for updated passes
-    ///
-    /// ### Example ###
-    /// ```swift
-    /// passesService.registerPushRoutes(middleware: SecretMiddleware(secret: "foo"))
-    /// ```
-    ///
-    /// - Parameter middleware: The `Middleware` which will control authentication for the routes.
-    public func registerPushRoutes(middleware: any Middleware) {
-        let pushAuth = v1.grouped(middleware)
+    private func registerPushRoutes(routesBuilder: any RoutesBuilder, middleware: any Middleware) {
+        let pushAuth = routesBuilder.grouped(middleware)
         pushAuth.post("push", ":passTypeIdentifier", ":passSerial", use: { try await self.pushUpdatesForPass(req: $0) })
         pushAuth.get("push", ":passTypeIdentifier", ":passSerial", use: { try await self.tokensForPassUpdate(req: $0) })
     }
@@ -340,7 +338,7 @@ extension PassesServiceCustom {
         logger?.debug("Called pushUpdatesForPass")
         guard let id = req.parameters.get("passSerial", as: UUID.self) else { throw Abort(.badRequest) }
         let passTypeIdentifier = req.parameters.get("passTypeIdentifier")!
-        try await Self.sendPushNotificationsForPass(id: id, of: passTypeIdentifier, on: req.db, app: req.application)
+        try await sendPushNotificationsForPass(id: id, of: passTypeIdentifier, on: req.db)
         return .noContent
     }
     
@@ -361,13 +359,16 @@ extension PassesServiceCustom {
     ///   - id: The `UUID` of the pass to send the notifications for.
     ///   - passTypeIdentifier: The type identifier of the pass.
     ///   - db: The `Database` to use.
-    ///   - app: The `Application` to use.
-    public static func sendPushNotificationsForPass(id: UUID, of passTypeIdentifier: String, on db: any Database, app: Application) async throws {
+    public func sendPushNotificationsForPass(id: UUID, of passTypeIdentifier: String, on db: any Database) async throws {
         let registrations = try await Self.registrationsForPass(id: id, of: passTypeIdentifier, on: db)
         for reg in registrations {
-            let backgroundNotification = APNSBackgroundNotification(expiration: .immediately, topic: reg.pass.passTypeIdentifier, payload: EmptyPayload())
+            let backgroundNotification = APNSBackgroundNotification(
+                expiration: .immediately,
+                topic: reg.pass.passTypeIdentifier,
+                payload: PassKit.Payload()
+            )
             do {
-                try await app.apns.client(.init(string: "passes")).sendBackgroundNotification(
+                try await apnsClient.sendBackgroundNotification(
                     backgroundNotification,
                     deviceToken: reg.device.pushToken
                 )
@@ -383,9 +384,8 @@ extension PassesServiceCustom {
     /// - Parameters:
     ///   - pass: The pass to send the notifications for.
     ///   - db: The `Database` to use.
-    ///   - app: The `Application` to use.
-    public static func sendPushNotifications(for pass: P, on db: any Database, app: Application) async throws {
-        try await Self.sendPushNotificationsForPass(id: pass.requireID(), of: pass.passTypeIdentifier, on: db, app: app)
+    public func sendPushNotifications(for pass: P, on db: any Database) async throws {
+        try await sendPushNotificationsForPass(id: pass.requireID(), of: pass.passTypeIdentifier, on: db)
     }
     
     /// Sends push notifications for a given pass.
@@ -393,15 +393,14 @@ extension PassesServiceCustom {
     /// - Parameters:
     ///   - pass: The pass (as the `ParentProperty`) to send the notifications for.
     ///   - db: The `Database` to use.
-    ///   - app: The `Application` to use.
-    public static func sendPushNotifications(for pass: ParentProperty<R, P>, on db: any Database, app: Application) async throws {
+    public func sendPushNotifications(for pass: ParentProperty<R, P>, on db: any Database) async throws {
         let value: P
         if let eagerLoaded = pass.value {
             value = eagerLoaded
         } else {
             value = try await pass.get(on: db)
         }
-        try await sendPushNotifications(for: value, on: db, app: app)
+        try await sendPushNotifications(for: value, on: db)
     }
     
     private static func registrationsForPass(id: UUID, of passTypeIdentifier: String, on db: any Database) async throws -> [R] {

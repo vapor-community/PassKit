@@ -11,7 +11,7 @@ import FluentKit
 /// The `Model` that stores PassKit passes.
 ///
 /// Uses a UUID so people can't easily guess pass serial numbers.
-open class PKPass: PassModel, @unchecked Sendable {
+final public class PKPass: PassModel, @unchecked Sendable {
     public typealias UserPersonalizationType = UserPersonalization
 
     /// The schema name of the pass model.

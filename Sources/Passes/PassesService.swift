@@ -36,28 +36,19 @@ public final class PassesService: Sendable {
     /// Initializes the service.
     ///
     /// - Parameters:
-    ///   - app: The `Vapor.Application` to use in route handlers and APNs.
     ///   - delegate: The ``PassesDelegate`` to use for pass generation.
     ///   - logger: The `Logger` to use.
-    public init(app: Application, delegate: any PassesDelegate, logger: Logger? = nil) throws {
-        service = try .init(app: app, delegate: delegate, logger: logger)
+    public init(delegate: any PassesDelegate, logger: Logger? = nil) throws {
+        service = try .init(delegate: delegate, logger: logger)
     }
     
     /// Registers all the routes required for PassKit to work.
-    public func registerRoutes() {
-        service.registerRoutes()
-    }
-    
-    /// Registers routes to send push notifications to updated passes.
     ///
-    /// ### Example ###
-    /// ```swift
-    /// passesService.registerPushRoutes(middleware: SecretMiddleware(secret: "foo"))
-    /// ```
-    ///
-    /// - Parameter middleware: The `Middleware` which will control authentication for the routes.
-    public func registerPushRoutes(middleware: any Middleware) {
-        service.registerPushRoutes(middleware: middleware)
+    /// - Parameters:
+    ///   - app: The `Vapor.Application` to setup the routes.
+    ///   - pushMiddleware: The `Middleware` to use for push notification routes. If `nil`, push routes will not be registered.
+    public func registerRoutes(app: Application, pushMiddleware: (any Middleware)? = nil) {
+        service.registerRoutes(app: app, pushMiddleware: pushMiddleware)
     }
 
     /// Generates the pass content bundle for a given pass.
@@ -101,9 +92,8 @@ public final class PassesService: Sendable {
     ///   - id: The `UUID` of the pass to send the notifications for.
     ///   - passTypeIdentifier: The type identifier of the pass.
     ///   - db: The `Database` to use.
-    ///   - app: The `Application` to use.
-    public static func sendPushNotificationsForPass(id: UUID, of passTypeIdentifier: String, on db: any Database, app: Application) async throws {
-        try await PassesServiceCustom<PKPass, UserPersonalization, PassesDevice, PassesRegistration, PassesErrorLog>.sendPushNotificationsForPass(id: id, of: passTypeIdentifier, on: db, app: app)
+    public func sendPushNotificationsForPass(id: UUID, of passTypeIdentifier: String, on db: any Database) async throws {
+        try await service.sendPushNotificationsForPass(id: id, of: passTypeIdentifier, on: db)
     }
     
     /// Sends push notifications for a given pass.
@@ -111,9 +101,8 @@ public final class PassesService: Sendable {
     /// - Parameters:
     ///   - pass: The pass to send the notifications for.
     ///   - db: The `Database` to use.
-    ///   - app: The `Application` to use.
-    public static func sendPushNotifications(for pass: PKPass, on db: any Database, app: Application) async throws {
-        try await PassesServiceCustom<PKPass, UserPersonalization, PassesDevice, PassesRegistration, PassesErrorLog>.sendPushNotifications(for: pass, on: db, app: app)
+    public func sendPushNotifications(for pass: PKPass, on db: any Database) async throws {
+        try await service.sendPushNotifications(for: pass, on: db)
     }
     
     /// Sends push notifications for a given pass.
@@ -121,8 +110,7 @@ public final class PassesService: Sendable {
     /// - Parameters:
     ///   - pass: The pass (as the `ParentProperty`) to send the notifications for.
     ///   - db: The `Database` to use.
-    ///   - app: The `Application` to use.
-    public static func sendPushNotifications(for pass: ParentProperty<PassesRegistration, PKPass>, on db: any Database, app: Application) async throws {
-        try await PassesServiceCustom<PKPass, UserPersonalization, PassesDevice, PassesRegistration, PassesErrorLog>.sendPushNotifications(for: pass, on: db, app: app)
+    public func sendPushNotifications(for pass: ParentProperty<PassesRegistration, PKPass>, on db: any Database) async throws {
+        try await service.sendPushNotifications(for: pass, on: db)
     }
 }

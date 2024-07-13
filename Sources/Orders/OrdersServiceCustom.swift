@@ -5,10 +5,9 @@
 //  Created by Francesco Paolo Severino on 01/07/24.
 //
 
-@preconcurrency import Vapor
+import Vapor
 import APNS
-import VaporAPNS
-@preconcurrency import APNSCore
+import APNSCore
 import Fluent
 import NIOSSL
 import PassKit
@@ -21,23 +20,18 @@ import PassKit
 /// - Registration Type
 /// - Error Log Type
 public final class OrdersServiceCustom<O, D, R: OrdersRegistrationModel, E: ErrorLogModel>: Sendable where O == R.OrderType, D == R.DeviceType {
-    /// The ``OrdersDelegate`` to use for order generation.
-    public unowned let delegate: any OrdersDelegate
-    
-    private let v1: any RoutesBuilder
+    private let delegate: any OrdersDelegate
     private let logger: Logger?
+    private let apnsClient: APNSClient<JSONDecoder, JSONEncoder>
     
     /// Initializes the service.
     ///
     /// - Parameters:
-    ///   - app: The `Vapor.Application` to use in route handlers and APNs.
     ///   - delegate: The ``OrdersDelegate`` to use for order generation.
     ///   - logger: The `Logger` to use.
-    public init(app: Application, delegate: any OrdersDelegate, logger: Logger? = nil) throws {
+    public init(delegate: any OrdersDelegate, logger: Logger? = nil) throws {
         self.delegate = delegate
         self.logger = logger
-        
-        v1 = app.grouped("api", "orders", "v1")
         
         let privateKeyPath = URL(fileURLWithPath: delegate.pemPrivateKey, relativeTo: delegate.sslSigningFilesDirectory).unixPath()
         guard FileManager.default.fileExists(atPath: privateKeyPath) else {
@@ -68,36 +62,40 @@ public final class OrdersServiceCustom<O, D, R: OrdersRegistrationModel, E: Erro
                 environment: .production
             )
         }
-        app.apns.containers.use(
-            apnsConfig,
-            eventLoopGroupProvider: .shared(app.eventLoopGroup),
+        apnsClient = APNSClient(
+            configuration: apnsConfig,
+            eventLoopGroupProvider: .createNew,
             responseDecoder: JSONDecoder(),
-            requestEncoder: JSONEncoder(),
-            as: .init(string: "orders"),
-            isDefault: false
+            requestEncoder: JSONEncoder()
         )
+        defer {
+            apnsClient.shutdown { _ in
+                logger?.error("Failed to shutdown APNSClient")
+            }
+        }
     }
 
     /// Registers all the routes required for Apple Wallet to work.
-    public func registerRoutes() {
+    ///
+    /// - Parameters:
+    ///   - app: The `Vapor.Application` to setup the routes.
+    ///   - pushMiddleware: The `Middleware` to use for push notification routes. If `nil`, push routes will not be registered.
+    public func registerRoutes(app: Application, pushMiddleware: (any Middleware)? = nil) {
+        let v1 = app.grouped("api", "orders", "v1")
         v1.get("devices", ":deviceIdentifier", "registrations", ":orderTypeIdentifier", use: { try await self.ordersForDevice(req: $0) })
         v1.post("log", use: { try await self.logError(req: $0) })
         let v1auth = v1.grouped(AppleOrderMiddleware<O>())
         v1auth.post("devices", ":deviceIdentifier", "registrations", ":orderTypeIdentifier", ":orderIdentifier", use: { try await self.registerDevice(req: $0) })
         v1auth.get("orders", ":orderTypeIdentifier", ":orderIdentifier", use: { try await self.latestVersionOfOrder(req: $0) })
         v1auth.delete("devices", ":deviceIdentifier", "registrations", ":orderTypeIdentifier", ":orderIdentifier", use: { try await self.unregisterDevice(req: $0) })
+        
+        if let pushMiddleware {
+            registerPushRoutes(routesBuilder: v1, middleware: pushMiddleware)
+        }
     }
-
-    /// Registers routes to send push notifications for updated orders.
-    ///
-    /// ### Example ###
-    /// ```swift
-    /// ordersService.registerPushRoutes(middleware: SecretMiddleware(secret: "foo"))
-    /// ```
-    ///
-    /// - Parameter middleware: The `Middleware` which will control authentication for the routes.
-    public func registerPushRoutes(middleware: any Middleware) {
-        let pushAuth = v1.grouped(middleware)
+    
+    private func registerPushRoutes(routesBuilder: any RoutesBuilder, middleware: any Middleware) {
+        let pushAuth = routesBuilder.grouped(middleware)
         pushAuth.post("push", ":orderTypeIdentifier", ":orderIdentifier", use: { try await self.pushUpdatesForOrder(req: $0) })
         pushAuth.get("push", ":orderTypeIdentifier", ":orderIdentifier", use: { try await self.tokensForOrderUpdate(req: $0) })
     }
@@ -278,7 +276,7 @@ extension OrdersServiceCustom {
             throw Abort(.badRequest)
         }
         let orderTypeIdentifier = req.parameters.get("orderTypeIdentifier")!
-        try await Self.sendPushNotificationsForOrder(id: id, of: orderTypeIdentifier, on: req.db, app: req.application)
+        try await sendPushNotificationsForOrder(id: id, of: orderTypeIdentifier, on: req.db)
         return .noContent
     }
 
@@ -301,17 +299,16 @@ extension OrdersServiceCustom {
     ///   - id: The `UUID` of the order to send the notifications for.
     ///   - orderTypeIdentifier: The type identifier of the order.
     ///   - db: The `Database` to use.
-    ///   - app: The `Application` to use.
-    public static func sendPushNotificationsForOrder(id: UUID, of orderTypeIdentifier: String, on db: any Database, app: Application) async throws {
+    public func sendPushNotificationsForOrder(id: UUID, of orderTypeIdentifier: String, on db: any Database) async throws {
         let registrations = try await Self.registrationsForOrder(id: id, of: orderTypeIdentifier, on: db)
         for reg in registrations {
             let backgroundNotification = APNSBackgroundNotification(
                 expiration: .immediately,
                 topic: reg.order.orderTypeIdentifier,
-                payload: EmptyPayload()
+                payload: PassKit.Payload()
             )
             do {
-                try await app.apns.client(.init(string: "orders")).sendBackgroundNotification(
+                try await apnsClient.sendBackgroundNotification(
                     backgroundNotification,
                     deviceToken: reg.device.pushToken
                 )
@@ -327,9 +324,8 @@ extension OrdersServiceCustom {
     /// - Parameters:
     ///   - order: The order to send the notifications for.
     ///   - db: The `Database` to use.
-    ///   - app: The `Application` to use.
-    public static func sendPushNotifications(for order: O, on db: any Database, app: Application) async throws {
-        try await Self.sendPushNotificationsForOrder(id: order.requireID(), of: order.orderTypeIdentifier, on: db, app: app)
+    public func sendPushNotifications(for order: O, on db: any Database) async throws {
+        try await sendPushNotificationsForOrder(id: order.requireID(), of: order.orderTypeIdentifier, on: db)
     }
     
     /// Sends push notifications for a given order.
@@ -337,15 +333,14 @@ extension OrdersServiceCustom {
     /// - Parameters:
     ///   - order: The order (as the `ParentProperty`) to send the notifications for.
     ///   - db: The `Database` to use.
-    ///   - app: The `Application` to use.
-    public static func sendPushNotifications(for order: ParentProperty<R, O>, on db: any Database, app: Application) async throws {
+    public func sendPushNotifications(for order: ParentProperty<R, O>, on db: any Database) async throws {
         let value: O
         if let eagerLoaded = order.value {
             value = eagerLoaded
         } else {
             value = try await order.get(on: db)
         }
-        try await sendPushNotifications(for: value, on: db, app: app)
+        try await sendPushNotifications(for: value, on: db)
     }
 
     private static func registrationsForOrder(id: UUID, of orderTypeIdentifier: String, on db: any Database) async throws -> [R] {
