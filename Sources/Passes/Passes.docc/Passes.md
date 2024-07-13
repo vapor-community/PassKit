@@ -51,3 +51,5 @@ For information on Apple Wallet passes, see the [Apple Developer Documentation](
 
 - <doc:Personalization>
 - ``PersonalizationJSON``
+- ``UserPersonalization``
+- ``UserPersonalizationModel``

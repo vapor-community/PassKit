@@ -8,8 +8,4 @@ final class OrdersTests: XCTestCase {
         // results.
         //XCTAssertEqual(OrdersService().text, "Hello, World!")
     }
-
-    static var allTests = [
-        ("testExample", testExample),
-    ]
 }

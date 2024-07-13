@@ -24,7 +24,6 @@ import PassKit
 public final class PassesServiceCustom<P, U, D, R: PassesRegistrationModel, E: ErrorLogModel>: Sendable where P == R.PassType, D == R.DeviceType, U == P.UserPersonalizationType {
     /// The ``PassesDelegate`` to use for pass generation.
     public unowned let delegate: any PassesDelegate
-    private unowned let app: Application
     
     private let v1: any RoutesBuilder
     private let logger: Logger?
@@ -35,46 +34,24 @@ public final class PassesServiceCustom<P, U, D, R: PassesRegistrationModel, E: E
     ///   - app: The `Vapor.Application` to use in route handlers and APNs.
     ///   - delegate: The ``PassesDelegate`` to use for pass generation.
     ///   - logger: The `Logger` to use.
-    public init(app: Application, delegate: any PassesDelegate, logger: Logger? = nil) {
+    public init(app: Application, delegate: any PassesDelegate, logger: Logger? = nil) throws {
         self.delegate = delegate
         self.logger = logger
-        self.app = app
         
         v1 = app.grouped("api", "passes", "v1")
-    }
-    
-    /// Registers all the routes required for PassKit to work.
-    public func registerRoutes() {
-        v1.get("devices", ":deviceLibraryIdentifier", "registrations", ":passTypeIdentifier", use: { try await self.passesForDevice(req: $0) })
-        v1.post("log", use: { try await self.logError(req: $0) })
-        
-        let v1auth = v1.grouped(ApplePassMiddleware<P>())
-        
-        v1auth.post("devices", ":deviceLibraryIdentifier", "registrations", ":passTypeIdentifier", ":passSerial", use: { try await self.registerDevice(req: $0) })
-        v1auth.get("passes", ":passTypeIdentifier", ":passSerial", use: { try await self.latestVersionOfPass(req: $0) })
-        v1auth.delete("devices", ":deviceLibraryIdentifier", "registrations", ":passTypeIdentifier", ":passSerial", use: { try await self.unregisterDevice(req: $0) })
-        v1auth.post("passes", ":passTypeIdentifier", ":passSerial", "personalize", use: { try await self.personalizedPass(req: $0) })
-    }
-    
-    /// Registers routes to send push notifications for updated passes
-    ///
-    /// ### Example ###
-    /// ```swift
-    /// try passesService.registerPushRoutes(middleware: SecretMiddleware(secret: "foo"))
-    /// ```
-    ///
-    /// - Parameter middleware: The `Middleware` which will control authentication for the routes.
-    /// - Throws: An error of type ``PassesError``.
-    public func registerPushRoutes(middleware: any Middleware) throws {
-        let privateKeyPath = URL(fileURLWithPath: delegate.pemPrivateKey, relativeTo:
-            delegate.sslSigningFilesDirectory).unixPath()
 
+        let privateKeyPath = URL(
+            fileURLWithPath: delegate.pemPrivateKey,
+            relativeTo: delegate.sslSigningFilesDirectory
+        ).unixPath()
         guard FileManager.default.fileExists(atPath: privateKeyPath) else {
             throw PassesError.pemPrivateKeyMissing
         }
 
-        let pemPath = URL(fileURLWithPath: delegate.pemCertificate, relativeTo: delegate.sslSigningFilesDirectory).unixPath()
-
+        let pemPath = URL(
+            fileURLWithPath: delegate.pemCertificate,
+            relativeTo: delegate.sslSigningFilesDirectory
+        ).unixPath()
         guard FileManager.default.fileExists(atPath: pemPath) else {
             throw PassesError.pemCertificateMissing
         }
@@ -109,9 +86,31 @@ public final class PassesServiceCustom<P, U, D, R: PassesRegistrationModel, E: E
             as: .init(string: "passes"),
             isDefault: false
         )
+    }
+    
+    /// Registers all the routes required for PassKit to work.
+    public func registerRoutes() {
+        v1.get("devices", ":deviceLibraryIdentifier", "registrations", ":passTypeIdentifier", use: { try await self.passesForDevice(req: $0) })
+        v1.post("log", use: { try await self.logError(req: $0) })
         
+        let v1auth = v1.grouped(ApplePassMiddleware<P>())
+        
+        v1auth.post("devices", ":deviceLibraryIdentifier", "registrations", ":passTypeIdentifier", ":passSerial", use: { try await self.registerDevice(req: $0) })
+        v1auth.get("passes", ":passTypeIdentifier", ":passSerial", use: { try await self.latestVersionOfPass(req: $0) })
+        v1auth.delete("devices", ":deviceLibraryIdentifier", "registrations", ":passTypeIdentifier", ":passSerial", use: { try await self.unregisterDevice(req: $0) })
+        v1auth.post("passes", ":passTypeIdentifier", ":passSerial", "personalize", use: { try await self.personalizedPass(req: $0) })
+    }
+    
+    /// Registers routes to send push notifications for updated passes
+    ///
+    /// ### Example ###
+    /// ```swift
+    /// try passesService.registerPushRoutes(middleware: SecretMiddleware(secret: "foo"))
+    /// ```
+    ///
+    /// - Parameter middleware: The `Middleware` which will control authentication for the routes.
+    public func registerPushRoutes(middleware: any Middleware) throws {
         let pushAuth = v1.grouped(middleware)
-        
         pushAuth.post("push", ":passTypeIdentifier", ":passSerial", use: { try await self.pushUpdatesForPass(req: $0) })
         pushAuth.get("push", ":passTypeIdentifier", ":passSerial", use: { try await self.tokensForPassUpdate(req: $0) })
     }

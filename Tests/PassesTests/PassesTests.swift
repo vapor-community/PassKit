@@ -8,8 +8,4 @@ final class PassesTests: XCTestCase {
         // results.
         //XCTAssertEqual(PassesService().text, "Hello, World!")
     }
-
-    static var allTests = [
-        ("testExample", testExample),
-    ]
 }

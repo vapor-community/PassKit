@@ -18,8 +18,8 @@ public final class OrdersService: Sendable {
     ///   - app: The `Vapor.Application` to use in route handlers and APNs.
     ///   - delegate: The ``OrdersDelegate`` to use for order generation.
     ///   - logger: The `Logger` to use.
-    public init(app: Application, delegate: any OrdersDelegate, logger: Logger? = nil) {
-        service = .init(app: app, delegate: delegate, logger: logger)
+    public init(app: Application, delegate: any OrdersDelegate, logger: Logger? = nil) throws {
+        service = try .init(app: app, delegate: delegate, logger: logger)
     }
 
     /// Registers all the routes required for Wallet orders to work.

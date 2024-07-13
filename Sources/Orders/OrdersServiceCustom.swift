@@ -23,7 +23,6 @@ import PassKit
 public final class OrdersServiceCustom<O, D, R: OrdersRegistrationModel, E: ErrorLogModel>: Sendable where O == R.OrderType, D == R.DeviceType {
     /// The ``OrdersDelegate`` to use for order generation.
     public unowned let delegate: any OrdersDelegate
-    private unowned let app: Application
     
     private let v1: any RoutesBuilder
     private let logger: Logger?
@@ -34,48 +33,24 @@ public final class OrdersServiceCustom<O, D, R: OrdersRegistrationModel, E: Erro
     ///   - app: The `Vapor.Application` to use in route handlers and APNs.
     ///   - delegate: The ``OrdersDelegate`` to use for order generation.
     ///   - logger: The `Logger` to use.
-    public init(app: Application, delegate: any OrdersDelegate, logger: Logger? = nil) {
+    public init(app: Application, delegate: any OrdersDelegate, logger: Logger? = nil) throws {
         self.delegate = delegate
         self.logger = logger
-        self.app = app
         
         v1 = app.grouped("api", "orders", "v1")
-    }
-
-    /// Registers all the routes required for Apple Wallet to work.
-    public func registerRoutes() {
-        v1.get("devices", ":deviceIdentifier", "registrations", ":orderTypeIdentifier", use: { try await self.ordersForDevice(req: $0) })
-        v1.post("log", use: { try await self.logError(req: $0) })
         
-        let v1auth = v1.grouped(AppleOrderMiddleware<O>())
-        
-        v1auth.post("devices", ":deviceIdentifier", "registrations", ":orderTypeIdentifier", ":orderIdentifier", use: { try await self.registerDevice(req: $0) })
-        v1auth.get("orders", ":orderTypeIdentifier", ":orderIdentifier", use: { try await self.latestVersionOfOrder(req: $0) })
-        v1auth.delete("devices", ":deviceIdentifier", "registrations", ":orderTypeIdentifier", ":orderIdentifier", use: { try await self.unregisterDevice(req: $0) })
-    }
-
-    /// Registers routes to send push notifications for updated orders.
-    ///
-    /// ### Example ###
-    /// ```swift
-    /// try ordersService.registerPushRoutes(middleware: SecretMiddleware(secret: "foo"))
-    /// ```
-    ///
-    /// - Parameter middleware: The `Middleware` which will control authentication for the routes.
-    /// - Throws: An error of type ``OrdersError``.
-    public func registerPushRoutes(middleware: any Middleware) throws {
         let privateKeyPath = URL(
             fileURLWithPath: delegate.pemPrivateKey,
-            relativeTo: delegate.sslSigningFilesDirectory).unixPath()
-        
+            relativeTo: delegate.sslSigningFilesDirectory
+        ).unixPath()
         guard FileManager.default.fileExists(atPath: privateKeyPath) else {
             throw OrdersError.pemPrivateKeyMissing
         }
 
         let pemPath = URL(
             fileURLWithPath: delegate.pemCertificate,
-            relativeTo: delegate.sslSigningFilesDirectory).unixPath()
-        
+            relativeTo: delegate.sslSigningFilesDirectory
+        ).unixPath()
         guard FileManager.default.fileExists(atPath: pemPath) else {
             throw OrdersError.pemCertificateMissing
         }
@@ -110,9 +85,30 @@ public final class OrdersServiceCustom<O, D, R: OrdersRegistrationModel, E: Erro
             as: .init(string: "orders"),
             isDefault: false
         )
+    }
 
-        let pushAuth = v1.grouped(middleware)
+    /// Registers all the routes required for Apple Wallet to work.
+    public func registerRoutes() {
+        v1.get("devices", ":deviceIdentifier", "registrations", ":orderTypeIdentifier", use: { try await self.ordersForDevice(req: $0) })
+        v1.post("log", use: { try await self.logError(req: $0) })
         
+        let v1auth = v1.grouped(AppleOrderMiddleware<O>())
+        
+        v1auth.post("devices", ":deviceIdentifier", "registrations", ":orderTypeIdentifier", ":orderIdentifier", use: { try await self.registerDevice(req: $0) })
+        v1auth.get("orders", ":orderTypeIdentifier", ":orderIdentifier", use: { try await self.latestVersionOfOrder(req: $0) })
+        v1auth.delete("devices", ":deviceIdentifier", "registrations", ":orderTypeIdentifier", ":orderIdentifier", use: { try await self.unregisterDevice(req: $0) })
+    }
+
+    /// Registers routes to send push notifications for updated orders.
+    ///
+    /// ### Example ###
+    /// ```swift
+    /// try ordersService.registerPushRoutes(middleware: SecretMiddleware(secret: "foo"))
+    /// ```
+    ///
+    /// - Parameter middleware: The `Middleware` which will control authentication for the routes.
+    public func registerPushRoutes(middleware: any Middleware) throws {
+        let pushAuth = v1.grouped(middleware)
         pushAuth.post("push", ":orderTypeIdentifier", ":orderIdentifier", use: { try await self.pushUpdatesForOrder(req: $0) })
         pushAuth.get("push", ":orderTypeIdentifier", ":orderIdentifier", use: { try await self.tokensForOrderUpdate(req: $0) })
     }
