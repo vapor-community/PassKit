@@ -272,7 +272,7 @@ struct PassDataMiddleware: AsyncModelMiddleware {
 Remember to register it in the `routes.swift` file.
 
 ```swift
-app.databases.middleware.use(PassDataMiddleware(app: app), on: .psql)
+app.databases.middleware.use(PassDataMiddleware(service: passesService), on: .psql)
 ```
 
 > Important: Whenever your pass data changes, you must update the ``PKPass/updatedAt`` time of the linked pass so that Apple knows to send you a new pass.

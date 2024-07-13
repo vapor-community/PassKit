@@ -248,7 +248,7 @@ struct OrderDataMiddleware: AsyncModelMiddleware {
 Remember to register it in the `routes.swift` file.
 
 ```swift
-app.databases.middleware.use(OrderDataMiddleware(app: app), on: .psql)
+app.databases.middleware.use(OrderDataMiddleware(service: ordersService), on: .psql)
 ```
 
 > Important: Whenever your order data changes, you must update the ``Order/updatedAt`` time of the linked order so that Apple knows to send you a new order.
