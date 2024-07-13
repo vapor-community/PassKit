@@ -288,6 +288,17 @@ extension OrdersServiceCustom {
     ///   - orderTypeIdentifier: The type identifier of the order.
     ///   - db: The `Database` to use.
     public func sendPushNotificationsForOrder(id: UUID, of orderTypeIdentifier: String, on db: any Database) async throws {
+        let apnsClient = APNSClient(
+            configuration: apnsConfig,
+            eventLoopGroupProvider: .createNew,
+            responseDecoder: JSONDecoder(),
+            requestEncoder: JSONEncoder()
+        )
+        defer {
+            apnsClient.shutdown { _ in
+                self.logger?.error("Failed to shutdown APNSClient")
+            }
+        }
         let registrations = try await Self.registrationsForOrder(id: id, of: orderTypeIdentifier, on: db)
         for reg in registrations {
             let backgroundNotification = APNSBackgroundNotification(
@@ -296,17 +307,6 @@ extension OrdersServiceCustom {
                 payload: PassKit.Payload()
             )
             do {
-                let apnsClient = APNSClient(
-                    configuration: apnsConfig,
-                    eventLoopGroupProvider: .createNew,
-                    responseDecoder: JSONDecoder(),
-                    requestEncoder: JSONEncoder()
-                )
-                defer {
-                    apnsClient.shutdown { _ in
-                        self.logger?.error("Failed to shutdown APNSClient")
-                    }
-                }
                 try await apnsClient.sendBackgroundNotification(
                     backgroundNotification,
                     deviceToken: reg.device.pushToken
