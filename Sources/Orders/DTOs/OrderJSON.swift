@@ -13,6 +13,9 @@ public struct OrderJSON {
     public protocol Properties: Encodable {
         /// The date and time when the customer created the order, in RFC 3339 format.
         var createdAt: String { get }
+
+        /// The merchant for this order.
+        var merchant: any Merchant { get }
         
         /// A unique order identifier scoped to your order type identifier.
         ///
@@ -52,6 +55,40 @@ public struct OrderJSON {
 }
 
 extension OrderJSON {
+    /// A protocol that represents the merchant associated with the order.
+    ///
+    /// > Tip: See the [`Order.Merchant`](https://developer.apple.com/documentation/walletorders/merchant) object to understand the keys.
+    public protocol Merchant: Encodable {
+        /// The localized display name of the merchant.
+        var displayName: String { get }
+        
+        /// The Apple Merchant Identifier for this merchant, generated at `developer.apple.com`.
+        var merchantIdentifier: String { get }
+        
+        /// The URL for the merchant’s website or landing page.
+        var url: String { get }
+    }
+}
+
+extension OrderJSON {
+    /// A protocol that represents the details of a barcode for an order.
+    ///
+    /// > Tip: See the [`Order.Barcode`](https://developer.apple.com/documentation/walletorders/barcode) object to understand the keys.
+    public protocol Barcode: Encodable {
+        /// The format of the barcode.
+        var format: BarcodeFormat { get }
+        
+        /// The contents of the barcode.
+        var message: String { get }
+        
+        /// The text encoding of the barcode message.
+        ///
+        /// Typically this is `iso-8859-1`, but you may specify an alternative encoding if required.
+        var messageEncoding: String { get }
+    }
+}
+
+extension OrderJSON {
     /// The type of order this bundle represents.
     public enum OrderType: String, Encodable {
         case ecommerce
@@ -68,20 +105,12 @@ extension OrderJSON {
     public enum SchemaVersion: Int, Encodable {
         case v1 = 1
     }
-}
 
-extension OrderJSON {
-    /// A protocol that represents the merchant associated with the order.
-    ///
-    /// > Tip: See the [`Order.Merchant`](https://developer.apple.com/documentation/walletorders/merchant) object to understand the keys.
-    public protocol Merchant: Encodable {
-        /// The localized display name of the merchant.
-        var displayName: String { get }
-        
-        /// The Apple Merchant Identifier for this merchant, generated at `developer.apple.com`.
-        var merchantIdentifier: String { get }
-        
-        /// The URL for the merchant’s website or landing page.
-        var url: String { get }
+    /// The format of the barcode.
+    public enum BarcodeFormat: String, Encodable {
+        case pdf417
+        case qr
+        case aztec
+        case code128
     }
 }
