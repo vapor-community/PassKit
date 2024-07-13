@@ -68,11 +68,6 @@ public final class OrdersServiceCustom<O, D, R: OrdersRegistrationModel, E: Erro
             responseDecoder: JSONDecoder(),
             requestEncoder: JSONEncoder()
         )
-        defer {
-            apnsClient.shutdown { _ in
-                logger?.error("Failed to shutdown APNSClient")
-            }
-        }
     }
 
     /// Registers all the routes required for Apple Wallet to work.

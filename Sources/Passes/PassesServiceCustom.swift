@@ -69,11 +69,6 @@ public final class PassesServiceCustom<P, U, D, R: PassesRegistrationModel, E: E
             responseDecoder: JSONDecoder(),
             requestEncoder: JSONEncoder()
         )
-        defer {
-            apnsClient.shutdown { _ in
-                logger?.error("Failed to shutdown APNSClient")
-            }
-        }
     }
     
     /// Registers all the routes required for PassKit to work.
