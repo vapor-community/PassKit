@@ -103,11 +103,11 @@ public final class OrdersServiceCustom<O, D, R: OrdersRegistrationModel, E: Erro
     ///
     /// ### Example ###
     /// ```swift
-    /// try ordersService.registerPushRoutes(middleware: SecretMiddleware(secret: "foo"))
+    /// ordersService.registerPushRoutes(middleware: SecretMiddleware(secret: "foo"))
     /// ```
     ///
     /// - Parameter middleware: The `Middleware` which will control authentication for the routes.
-    public func registerPushRoutes(middleware: any Middleware) throws {
+    public func registerPushRoutes(middleware: any Middleware) {
         let pushAuth = v1.grouped(middleware)
         pushAuth.post("push", ":orderTypeIdentifier", ":orderIdentifier", use: { try await self.pushUpdatesForOrder(req: $0) })
         pushAuth.get("push", ":orderTypeIdentifier", ":orderIdentifier", use: { try await self.tokensForOrderUpdate(req: $0) })

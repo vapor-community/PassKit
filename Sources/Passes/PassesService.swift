@@ -50,9 +50,14 @@ public final class PassesService: Sendable {
     
     /// Registers routes to send push notifications to updated passes.
     ///
+    /// ### Example ###
+    /// ```swift
+    /// passesService.registerPushRoutes(middleware: SecretMiddleware(secret: "foo"))
+    /// ```
+    ///
     /// - Parameter middleware: The `Middleware` which will control authentication for the routes.
-    public func registerPushRoutes(middleware: any Middleware) throws {
-        try service.registerPushRoutes(middleware: middleware)
+    public func registerPushRoutes(middleware: any Middleware) {
+        service.registerPushRoutes(middleware: middleware)
     }
 
     /// Generates the pass content bundle for a given pass.

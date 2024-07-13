@@ -67,21 +67,19 @@ import Orders
 let orderDelegate = OrderDelegate()
 
 func routes(_ app: Application) throws {
-    let ordersService = OrdersService(app: app, delegate: orderDelegate)
+    let ordersService = try OrdersService(app: app, delegate: orderDelegate)
     ordersService.registerRoutes()
 }
 ```
 
 > Note: Notice how the ``OrdersDelegate`` is created as a global variable. You need to ensure that the delegate doesn't go out of scope as soon as the `routes(_:)` method exits.
 
-### Push Notifications
+### Push Notifications Routes
 
 If you wish to include routes specifically for sending push notifications to updated orders you can also include this line in your `routes(_:)` method. You'll need to pass in whatever `Middleware` you want Vapor to use to authenticate the two routes.
 
-> Important: If you don't include this line, you have to configure an APNS container yourself.
-
 ```swift
-try ordersService.registerPushRoutes(middleware: SecretMiddleware(secret: "foo"))
+ordersService.registerPushRoutes(middleware: SecretMiddleware(secret: "foo"))
 ```
 
 That will add two routes, the first one sends notifications and the second one retrieves a list of push tokens which would be sent a notification.
@@ -99,44 +97,6 @@ GET https://example.com/api/orders/v1/push/{orderTypeIdentifier}/{orderIdentifie
 Whether you include the routes or not, you'll want to add a model middleware that sends push notifications and updates the ``Order/updatedAt`` field when your order data updates. The model middleware could also create and link the ``Order`` during the creation of the order data, depending on your requirements.
 
 See <doc:OrderData#Order-Data-Model-Middleware> for more information.
-
-### Apple Push Notification service
-
-If you did not include the push notification routes, remember to configure APNs yourself.
-
-> Important: Apple Wallet *only* works with the APNs production environment. You can't pass in the `.sandbox` environment.
-
-```swift
-let apnsConfig: APNSClientConfiguration
-if let pemPrivateKeyPassword {
-    apnsConfig = APNSClientConfiguration(
-        authenticationMethod: try .tls(
-            privateKey: .privateKey(
-                NIOSSLPrivateKey(file: privateKeyPath, format: .pem) { closure in
-                    closure(pemPrivateKeyPassword.utf8)
-                }),
-            certificateChain: NIOSSLCertificate.fromPEMFile(pemPath).map { .certificate($0) }
-        ),
-        environment: .production
-    )
-} else {
-    apnsConfig = APNSClientConfiguration(
-        authenticationMethod: try .tls(
-            privateKey: .file(privateKeyPath),
-            certificateChain: NIOSSLCertificate.fromPEMFile(pemPath).map { .certificate($0) }
-        ),
-        environment: .production
-    )
-}
-app.apns.containers.use(
-    apnsConfig,
-    eventLoopGroupProvider: .shared(app.eventLoopGroup),
-    responseDecoder: JSONDecoder(),
-    requestEncoder: JSONEncoder(),
-    as: .init(string: "orders"),
-    isDefault: false
-)
-```
 
 ### Generate the Order Content
 

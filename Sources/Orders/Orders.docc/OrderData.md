@@ -56,7 +56,7 @@ You'll want to create a model middleware to handle the creation and update of th
 This middleware could be responsible for creating and linking an ``Order`` to the order data model, depending on your requirements.
 When your order data changes, it should also update the ``Order/updatedAt`` field of the ``Order`` and send a push notification to all devices registered to that order.
 
-See <doc:DistributeUpdate#Push-Notifications> for more information on how to send push notifications.
+> Important: To send push notifications inside the middleware, you need to initialize the ``OrdersService`` first, using the `Application` instance. See <doc:DistributeUpdate#Register-the-Routes> for more information.
 
 ```swift
 import Vapor
@@ -170,7 +170,7 @@ If you don't like the schema names provided by the framework that are used by de
 import PassKit
 import Orders
 
-let ordersService = OrdersServiceCustom<MyOrderType, MyDeviceType, MyOrdersRegistrationType, MyErrorLogType>(app: app, delegate: delegate)
+let ordersService = try OrdersServiceCustom<MyOrderType, MyDeviceType, MyOrdersRegistrationType, MyErrorLogType>(app: app, delegate: delegate)
 ```
 
 > Important: `DeviceModel` and `ErrorLogModel` are defined in the PassKit framework.

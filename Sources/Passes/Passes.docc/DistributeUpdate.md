@@ -67,21 +67,19 @@ import Passes
 let passDelegate = PassDelegate()
 
 func routes(_ app: Application) throws {
-    let passesService = PassesService(app: app, delegate: passDelegate)
+    let passesService = try PassesService(app: app, delegate: passDelegate)
     passesService.registerRoutes()
 }
 ```
 
 > Note: Notice how the ``PassesDelegate`` is created as a global variable. You need to ensure that the delegate doesn't go out of scope as soon as the `routes(_:)` method exits.
 
-### Push Notifications
+### Push Notifications Routes
 
 If you wish to include routes specifically for sending push notifications to updated passes you can also include this line in your `routes(_:)` method. You'll need to pass in whatever `Middleware` you want Vapor to use to authenticate the two routes.
 
-> Important: If you don't include this line, you have to configure an APNS container yourself.
-
 ```swift
-try passesService.registerPushRoutes(middleware: SecretMiddleware(secret: "foo"))
+passesService.registerPushRoutes(middleware: SecretMiddleware(secret: "foo"))
 ```
 
 That will add two routes, the first one sends notifications and the second one retrieves a list of push tokens which would be sent a notification.
@@ -99,44 +97,6 @@ GET https://example.com/api/passes/v1/push/{passTypeIdentifier}/{passSerial} HTT
 Whether you include the routes or not, you'll want to add a model middleware that sends push notifications and updates the ``PKPass/updatedAt`` field when your pass data updates. The model middleware could also create and link the ``PKPass`` during the creation of the pass data, depending on your requirements.
 
 See <doc:PassData#Pass-Data-Model-Middleware> for more information.
-
-### Apple Push Notification service
-
-If you did not include the push notification routes, remember to configure APNs yourself.
-
-> Important: PassKit *only* works with the APNs production environment. You can't pass in the `.sandbox` environment.
-
-```swift
-let apnsConfig: APNSClientConfiguration
-if let pemPrivateKeyPassword {
-    apnsConfig = APNSClientConfiguration(
-        authenticationMethod: try .tls(
-            privateKey: .privateKey(
-                NIOSSLPrivateKey(file: privateKeyPath, format: .pem) { closure in
-                    closure(pemPrivateKeyPassword.utf8)
-                }),
-            certificateChain: NIOSSLCertificate.fromPEMFile(pemPath).map { .certificate($0) }
-        ),
-        environment: .production
-    )
-} else {
-    apnsConfig = APNSClientConfiguration(
-        authenticationMethod: try .tls(
-            privateKey: .file(privateKeyPath),
-            certificateChain: NIOSSLCertificate.fromPEMFile(pemPath).map { .certificate($0) }
-        ),
-        environment: .production
-    )
-}
-app.apns.containers.use(
-    apnsConfig,
-    eventLoopGroupProvider: .shared(app.eventLoopGroup),
-    responseDecoder: JSONDecoder(),
-    requestEncoder: JSONEncoder(),
-    as: .init(string: "passes"),
-    isDefault: false
-)
-```
 
 ### Generate the Pass Content
 

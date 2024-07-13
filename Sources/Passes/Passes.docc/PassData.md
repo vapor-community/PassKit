@@ -60,7 +60,7 @@ You'll want to create a model middleware to handle the creation and update of th
 This middleware could be responsible for creating and linking a ``PKPass`` to the pass data model, depending on your requirements.
 When your pass data changes, it should also update the ``PKPass/updatedAt`` field of the ``PKPass`` and send a push notification to all devices registered to that pass. 
 
-See <doc:DistributeUpdate#Push-Notifications> for more information on how to send push notifications.
+> Important: To send push notifications inside the middleware, you need to initialize the ``PassesService`` first, using the `Application` instance. See <doc:DistributeUpdate#Register-the-Routes> for more information.
 
 ```swift
 import Vapor
@@ -194,7 +194,7 @@ If you don't like the schema names provided by the framework that are used by de
 import PassKit
 import Passes
 
-let passesService = PassesServiceCustom<MyPassType, MyUserPersonalizationType, MyDeviceType, MyPassesRegistrationType, MyErrorLogType>(app: app, delegate: delegate)
+let passesService = try PassesServiceCustom<MyPassType, MyUserPersonalizationType, MyDeviceType, MyPassesRegistrationType, MyErrorLogType>(app: app, delegate: delegate)
 ```
 
 > Important: `DeviceModel` and `ErrorLogModel` are defined in the PassKit framework.

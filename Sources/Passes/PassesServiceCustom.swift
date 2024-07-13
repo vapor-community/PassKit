@@ -105,11 +105,11 @@ public final class PassesServiceCustom<P, U, D, R: PassesRegistrationModel, E: E
     ///
     /// ### Example ###
     /// ```swift
-    /// try passesService.registerPushRoutes(middleware: SecretMiddleware(secret: "foo"))
+    /// passesService.registerPushRoutes(middleware: SecretMiddleware(secret: "foo"))
     /// ```
     ///
     /// - Parameter middleware: The `Middleware` which will control authentication for the routes.
-    public func registerPushRoutes(middleware: any Middleware) throws {
+    public func registerPushRoutes(middleware: any Middleware) {
         let pushAuth = v1.grouped(middleware)
         pushAuth.post("push", ":passTypeIdentifier", ":passSerial", use: { try await self.pushUpdatesForPass(req: $0) })
         pushAuth.get("push", ":passTypeIdentifier", ":passSerial", use: { try await self.tokensForPassUpdate(req: $0) })
