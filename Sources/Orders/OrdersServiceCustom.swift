@@ -22,7 +22,7 @@ import PassKit
 public final class OrdersServiceCustom<O, D, R: OrdersRegistrationModel, E: ErrorLogModel>: Sendable where O == R.OrderType, D == R.DeviceType {
     private let delegate: any OrdersDelegate
     private let logger: Logger?
-    private let apnsClient: APNSClient<JSONDecoder, JSONEncoder>
+    private let apnsConfig: APNSClientConfiguration
     
     /// Initializes the service.
     ///
@@ -41,7 +41,6 @@ public final class OrdersServiceCustom<O, D, R: OrdersRegistrationModel, E: Erro
         guard FileManager.default.fileExists(atPath: pemPath) else {
             throw OrdersError.pemCertificateMissing
         }
-        let apnsConfig: APNSClientConfiguration
         if let pwd = delegate.pemPrivateKeyPassword {
             apnsConfig = APNSClientConfiguration(
                 authenticationMethod: try .tls(
@@ -62,12 +61,6 @@ public final class OrdersServiceCustom<O, D, R: OrdersRegistrationModel, E: Erro
                 environment: .production
             )
         }
-        apnsClient = APNSClient(
-            configuration: apnsConfig,
-            eventLoopGroupProvider: .createNew,
-            responseDecoder: JSONDecoder(),
-            requestEncoder: JSONEncoder()
-        )
     }
 
     /// Registers all the routes required for Apple Wallet to work.
@@ -303,6 +296,17 @@ extension OrdersServiceCustom {
                 payload: PassKit.Payload()
             )
             do {
+                let apnsClient = APNSClient(
+                    configuration: apnsConfig,
+                    eventLoopGroupProvider: .createNew,
+                    responseDecoder: JSONDecoder(),
+                    requestEncoder: JSONEncoder()
+                )
+                defer {
+                    apnsClient.shutdown { _ in
+                        self.logger?.error("Failed to shutdown APNSClient")
+                    }
+                }
                 try await apnsClient.sendBackgroundNotification(
                     backgroundNotification,
                     deviceToken: reg.device.pushToken
