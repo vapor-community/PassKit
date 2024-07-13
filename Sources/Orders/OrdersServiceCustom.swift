@@ -205,7 +205,7 @@ extension OrdersServiceCustom {
             deviceLibraryIdentifier: device.deviceLibraryIdentifier,
             orderTypeIdentifier: order.orderTypeIdentifier,
             on: db
-        ).filter(O.self, \._$id == order.id!).first()
+        ).filter(O.self, \._$id == order.requireID()).first()
 
         if r != nil {
             // If the registration already exists, docs say to return a 200
@@ -213,8 +213,8 @@ extension OrdersServiceCustom {
         }
 
         let registration = R()
-        registration._$order.id = order.id!
-        registration._$device.id = device.id!
+        registration._$order.id = try order.requireID()
+        registration._$device.id = try device.requireID()
 
         try await registration.create(on: db)
         return .created
@@ -246,10 +246,10 @@ extension OrdersServiceCustom {
         var orderIdentifiers: [String] = []
         var maxDate = Date.distantPast
 
-        registrations.forEach { r in
+        try registrations.forEach { r in
             let order = r.order
             
-            orderIdentifiers.append(order.id!.uuidString)
+            try orderIdentifiers.append(order.requireID().uuidString)
             if let updatedAt = order.updatedAt, updatedAt > maxDate {
                 maxDate = updatedAt
             }

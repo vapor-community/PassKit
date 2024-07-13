@@ -35,7 +35,7 @@ final class PassDelegate: PassesDelegate {
         // The specific PassData class you use here may vary based on the `pass.passTypeIdentifier`
         // if you have multiple different types of passes, and thus multiple types of pass data.
         guard let passData = try await PassData.query(on: db)
-            .filter(\.$pass.$id == pass.id!)
+            .filter(\.$pass.$id == pass.requireID())
             .first()
         else {
             throw Abort(.internalServerError)

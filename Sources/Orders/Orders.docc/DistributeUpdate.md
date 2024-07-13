@@ -35,7 +35,7 @@ final class OrderDelegate: OrdersDelegate {
         // The specific OrderData class you use here may vary based on the `order.orderTypeIdentifier`
         // if you have multiple different types of orders, and thus multiple types of order data.
         guard let orderData = try await OrderData.query(on: db)
-            .filter(\.$order.$id == order.id!)
+            .filter(\.$order.$id == order.requireID())
             .first()
         else {
             throw Abort(.internalServerError)

@@ -160,7 +160,7 @@ extension PassesServiceCustom {
     
     private static func createRegistration(device: D, pass: P, db: any Database) async throws -> HTTPStatus {
         let r = try await R.for(deviceLibraryIdentifier: device.deviceLibraryIdentifier, passTypeIdentifier: pass.passTypeIdentifier, on: db)
-            .filter(P.self, \._$id == pass.id!)
+            .filter(P.self, \._$id == pass.requireID())
             .first()
         if r != nil {
             // If the registration already exists, docs say to return a 200
@@ -168,8 +168,8 @@ extension PassesServiceCustom {
         }
         
         let registration = R()
-        registration._$pass.id = pass.id!
-        registration._$device.id = device.id!
+        registration._$pass.id = try pass.requireID()
+        registration._$device.id = try device.requireID()
         
         try await registration.create(on: db)
         return .created
@@ -196,10 +196,10 @@ extension PassesServiceCustom {
         var serialNumbers: [String] = []
         var maxDate = Date.distantPast
         
-        registrations.forEach { r in
+        try registrations.forEach { r in
             let pass = r.pass
             
-            serialNumbers.append(pass.id!.uuidString)
+            try serialNumbers.append(pass.requireID().uuidString)
             if let updatedAt = pass.updatedAt, updatedAt > maxDate {
                 maxDate = updatedAt
             }
@@ -315,7 +315,7 @@ extension PassesServiceCustom {
         if let phoneNumber = userInfo.requiredPersonalizationInfo.phoneNumber { userPersonalization.phoneNumber = phoneNumber }
         try await userPersonalization.create(on: req.db)
 
-        pass._$userPersonalization.id = userPersonalization.id!
+        pass._$userPersonalization.id = try userPersonalization.requireID()
         try await pass.update(on: req.db)
 
         let tmp = FileManager.default.temporaryDirectory
@@ -323,7 +323,9 @@ extension PassesServiceCustom {
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         defer { _ = try? FileManager.default.removeItem(at: root) }
 
-        let token = userInfo.personalizationToken.data(using: .utf8)!
+        guard let token = userInfo.personalizationToken.data(using: .utf8) else {
+            throw Abort(.internalServerError)
+        }
         try token.write(to: root.appendingPathComponent("personalizationToken"))
 
         let sslBinary = delegate.sslBinary

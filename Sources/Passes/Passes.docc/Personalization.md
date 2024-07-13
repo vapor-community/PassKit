@@ -64,7 +64,7 @@ final class PassDelegate: PassesDelegate {
     func encode<P: PassModel>(pass: P, db: Database, encoder: JSONEncoder) async throws -> Data {
         // Here encode the pass JSON data as usual.
         guard let passData = try await PassData.query(on: db)
-            .filter(\.$pass.$id == pass.id!)
+            .filter(\.$pass.$id == pass.requireID())
             .first()
         else {
             throw Abort(.internalServerError)
@@ -77,7 +77,7 @@ final class PassDelegate: PassesDelegate {
 
     func encodePersonalization<P: PassModel>(for pass: P, db: any Database, encoder: JSONEncoder) async throws -> Data? {
         guard let passData = try await PassData.query(on: db)
-            .filter(\.$pass.$id == pass.id!)
+            .filter(\.$pass.$id == pass.requireID())
             .with(\.$pass)
             .first()
         else {
@@ -98,7 +98,7 @@ final class PassDelegate: PassesDelegate {
 
     func template<P: PassModel>(for pass: P, db: Database) async throws -> URL {
         guard let passData = try await PassData.query(on: db)
-            .filter(\.$pass.$id == pass.id!)
+            .filter(\.$pass.$id == pass.requireID())
             .first()
         else {
             throw Abort(.internalServerError)
