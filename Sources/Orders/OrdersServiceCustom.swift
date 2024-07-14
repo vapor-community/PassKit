@@ -22,7 +22,7 @@ import PassKit
 public final class OrdersServiceCustom<O, D, R: OrdersRegistrationModel, E: ErrorLogModel>: Sendable where O == R.OrderType, D == R.DeviceType {
     private let delegate: any OrdersDelegate
     private let logger: Logger?
-    private let apnsConfig: APNSClientConfiguration
+    private let apnsClient: APNSClient<JSONDecoder, JSONEncoder>
     
     /// Initializes the service.
     ///
@@ -41,6 +41,7 @@ public final class OrdersServiceCustom<O, D, R: OrdersRegistrationModel, E: Erro
         guard FileManager.default.fileExists(atPath: pemPath) else {
             throw OrdersError.pemCertificateMissing
         }
+        let apnsConfig: APNSClientConfiguration
         if let pwd = delegate.pemPrivateKeyPassword {
             apnsConfig = APNSClientConfiguration(
                 authenticationMethod: try .tls(
@@ -60,6 +61,18 @@ public final class OrdersServiceCustom<O, D, R: OrdersRegistrationModel, E: Erro
                 ),
                 environment: .production
             )
+        }
+        apnsClient = APNSClient(
+            configuration: apnsConfig,
+            eventLoopGroupProvider: .createNew,
+            responseDecoder: JSONDecoder(),
+            requestEncoder: JSONEncoder()
+        )
+    }
+    
+    deinit {
+        apnsClient.shutdown { _ in
+            self.logger?.error("Failed to shutdown APNSClient")
         }
     }
 
@@ -288,17 +301,6 @@ extension OrdersServiceCustom {
     ///   - orderTypeIdentifier: The type identifier of the order.
     ///   - db: The `Database` to use.
     public func sendPushNotificationsForOrder(id: UUID, of orderTypeIdentifier: String, on db: any Database) async throws {
-        let apnsClient = APNSClient(
-            configuration: apnsConfig,
-            eventLoopGroupProvider: .createNew,
-            responseDecoder: JSONDecoder(),
-            requestEncoder: JSONEncoder()
-        )
-        defer {
-            apnsClient.shutdown { _ in
-                self.logger?.error("Failed to shutdown APNSClient")
-            }
-        }
         let registrations = try await Self.registrationsForOrder(id: id, of: orderTypeIdentifier, on: db)
         for reg in registrations {
             let backgroundNotification = APNSBackgroundNotification(

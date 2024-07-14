@@ -23,7 +23,7 @@ import PassKit
 public final class PassesServiceCustom<P, U, D, R: PassesRegistrationModel, E: ErrorLogModel>: Sendable where P == R.PassType, D == R.DeviceType, U == P.UserPersonalizationType {
     private let delegate: any PassesDelegate
     private let logger: Logger?
-    private let apnsConfig: APNSClientConfiguration
+    private let apnsClient: APNSClient<JSONDecoder, JSONEncoder>
     
     /// Initializes the service.
     ///
@@ -42,6 +42,7 @@ public final class PassesServiceCustom<P, U, D, R: PassesRegistrationModel, E: E
         guard FileManager.default.fileExists(atPath: pemPath) else {
             throw PassesError.pemCertificateMissing
         }
+        let apnsConfig: APNSClientConfiguration
         if let pwd = delegate.pemPrivateKeyPassword {
             apnsConfig = APNSClientConfiguration(
                 authenticationMethod: try .tls(
@@ -61,6 +62,18 @@ public final class PassesServiceCustom<P, U, D, R: PassesRegistrationModel, E: E
                 ),
                 environment: .production
             )
+        }
+        apnsClient = APNSClient(
+            configuration: apnsConfig,
+            eventLoopGroupProvider: .createNew,
+            responseDecoder: JSONDecoder(),
+            requestEncoder: JSONEncoder()
+        )
+    }
+    
+    deinit {
+        apnsClient.shutdown { _ in
+            self.logger?.error("Failed to shutdown APNSClient")
         }
     }
     
@@ -348,17 +361,6 @@ extension PassesServiceCustom {
     ///   - passTypeIdentifier: The type identifier of the pass.
     ///   - db: The `Database` to use.
     public func sendPushNotificationsForPass(id: UUID, of passTypeIdentifier: String, on db: any Database) async throws {
-        let apnsClient = APNSClient(
-            configuration: apnsConfig,
-            eventLoopGroupProvider: .createNew,
-            responseDecoder: JSONDecoder(),
-            requestEncoder: JSONEncoder()
-        )
-        defer {
-            apnsClient.shutdown { _ in
-                self.logger?.error("Failed to shutdown APNSClient")
-            }
-        }
         let registrations = try await Self.registrationsForPass(id: id, of: passTypeIdentifier, on: db)
         for reg in registrations {
             let backgroundNotification = APNSBackgroundNotification(
