@@ -269,7 +269,7 @@ struct PassDataMiddleware: AsyncModelMiddleware {
 }
 ```
 
-Remember to register it in the `routes.swift` file.
+You could register it in the `routes.swift` file.
 
 ```swift
 app.databases.middleware.use(PassDataMiddleware(service: passesService), on: .psql)

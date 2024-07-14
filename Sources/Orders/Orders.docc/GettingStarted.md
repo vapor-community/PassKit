@@ -245,7 +245,7 @@ struct OrderDataMiddleware: AsyncModelMiddleware {
 }
 ```
 
-Remember to register it in the `routes.swift` file.
+You could register it in the `routes.swift` file.
 
 ```swift
 app.databases.middleware.use(OrderDataMiddleware(service: ordersService), on: .psql)

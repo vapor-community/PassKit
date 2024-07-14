@@ -5,10 +5,11 @@
 //  Created by Francesco Paolo Severino on 01/07/24.
 //
 
-import Vapor
+import Foundation
+import Crypto
 import APNS
 import APNSCore
-import Fluent
+import FluentKit
 import NIOSSL
 import PassKit
 
@@ -20,8 +21,8 @@ import PassKit
 /// - Registration Type
 /// - Error Log Type
 public final class OrdersServiceCustom<O, D, R: OrdersRegistrationModel, E: ErrorLogModel>: Sendable where O == R.OrderType, D == R.DeviceType {
-    private let delegate: any OrdersDelegate
-    private let logger: Logger?
+    let delegate: any OrdersDelegate
+    let logger: Logger?
     private let apnsClient: APNSClient<JSONDecoder, JSONEncoder>
     
     /// Initializes the service.
@@ -74,221 +75,6 @@ public final class OrdersServiceCustom<O, D, R: OrdersRegistrationModel, E: Erro
         apnsClient.shutdown { _ in
             self.logger?.error("Failed to shutdown APNSClient")
         }
-    }
-
-    /// Registers all the routes required for Apple Wallet to work.
-    ///
-    /// - Parameters:
-    ///   - app: The `Vapor.Application` to setup the routes.
-    ///   - pushMiddleware: The `Middleware` to use for push notification routes. If `nil`, push routes will not be registered.
-    public func registerRoutes(app: Application, pushMiddleware: (any Middleware)? = nil) {
-        let v1 = app.grouped("api", "orders", "v1")
-        v1.get("devices", ":deviceIdentifier", "registrations", ":orderTypeIdentifier", use: { try await self.ordersForDevice(req: $0) })
-        v1.post("log", use: { try await self.logError(req: $0) })
-        let v1auth = v1.grouped(AppleOrderMiddleware<O>())
-        v1auth.post("devices", ":deviceIdentifier", "registrations", ":orderTypeIdentifier", ":orderIdentifier", use: { try await self.registerDevice(req: $0) })
-        v1auth.get("orders", ":orderTypeIdentifier", ":orderIdentifier", use: { try await self.latestVersionOfOrder(req: $0) })
-        v1auth.delete("devices", ":deviceIdentifier", "registrations", ":orderTypeIdentifier", ":orderIdentifier", use: { try await self.unregisterDevice(req: $0) })
-        
-        if let pushMiddleware {
-            registerPushRoutes(routesBuilder: v1, middleware: pushMiddleware)
-        }
-    }
-    
-    private func registerPushRoutes(routesBuilder: any RoutesBuilder, middleware: any Middleware) {
-        let pushAuth = routesBuilder.grouped(middleware)
-        pushAuth.post("push", ":orderTypeIdentifier", ":orderIdentifier", use: { try await self.pushUpdatesForOrder(req: $0) })
-        pushAuth.get("push", ":orderTypeIdentifier", ":orderIdentifier", use: { try await self.tokensForOrderUpdate(req: $0) })
-    }
-}
-
-// MARK: - API Routes
-extension OrdersServiceCustom {
-    func latestVersionOfOrder(req: Request) async throws -> Response {
-        logger?.debug("Called latestVersionOfOrder")
-
-        guard FileManager.default.fileExists(atPath: delegate.zipBinary.unixPath()) else {
-            throw Abort(.internalServerError, suggestedFixes: ["Provide full path to zip command"])
-        }
-        
-        let dateFormatter = ISO8601DateFormatter()
-        dateFormatter.formatOptions = .withInternetDateTime
-        var ifModifiedSince = Date.distantPast
-        if let header = req.headers[.ifModifiedSince].first, let ims = dateFormatter.date(from: header) {
-            ifModifiedSince = ims
-        }
-
-        guard let orderTypeIdentifier = req.parameters.get("orderTypeIdentifier"),
-            let id = req.parameters.get("orderIdentifier", as: UUID.self) else {
-                throw Abort(.badRequest)
-        }
-
-        guard let order = try await O.query(on: req.db)
-            .filter(\._$id == id)
-            .filter(\._$orderTypeIdentifier == orderTypeIdentifier)
-            .first()
-        else {
-            throw Abort(.notFound)
-        }
-
-        guard ifModifiedSince < order.updatedAt ?? Date.distantPast else {
-            throw Abort(.notModified)
-        }
-
-        let data = try await self.generateOrderContent(for: order, on: req.db)
-        let body = Response.Body(data: data)
-        var headers = HTTPHeaders()
-        headers.add(name: .contentType, value: "application/vnd.apple.order")
-        headers.add(name: .lastModified, value: dateFormatter.string(from: order.updatedAt ?? Date.distantPast))
-        headers.add(name: .contentTransferEncoding, value: "binary")
-        return Response(status: .ok, headers: headers, body: body)
-    }
-
-    func registerDevice(req: Request) async throws -> HTTPStatus {
-        logger?.debug("Called register device")
-
-        guard let orderIdentifier = req.parameters.get("orderIdentifier", as: UUID.self) else {
-            throw Abort(.badRequest)
-        }
-
-        let pushToken: String
-        do {
-            let content = try req.content.decode(RegistrationDTO.self)
-            pushToken = content.pushToken
-        } catch {
-            throw Abort(.badRequest)
-        }
-
-        let orderTypeIdentifier = req.parameters.get("orderTypeIdentifier")!
-        let deviceIdentifier = req.parameters.get("deviceIdentifier")!
-
-        guard let order = try await O.query(on: req.db)
-            .filter(\._$id == orderIdentifier)
-            .filter(\._$orderTypeIdentifier == orderTypeIdentifier)
-            .first()
-        else {
-            throw Abort(.notFound)
-        }
-
-        let device = try await D.query(on: req.db)
-            .filter(\._$deviceLibraryIdentifier == deviceIdentifier)
-            .filter(\._$pushToken == pushToken)
-            .first()
-        
-        if let device = device {
-            return try await Self.createRegistration(device: device, order: order, db: req.db)
-        } else {
-            let newDevice = D(deviceLibraryIdentifier: deviceIdentifier, pushToken: pushToken)
-            try await newDevice.create(on: req.db)
-            return try await Self.createRegistration(device: newDevice, order: order, db: req.db)
-        }
-    }
-
-    private static func createRegistration(device: D, order: O, db: any Database) async throws -> HTTPStatus {
-        let r = try await R.for(deviceLibraryIdentifier: device.deviceLibraryIdentifier, orderTypeIdentifier: order.orderTypeIdentifier, on: db)
-            .filter(O.self, \._$id == order.requireID())
-            .first()
-        if r != nil {
-            // If the registration already exists, docs say to return a 200
-            return .ok
-        }
-        let registration = R()
-        registration._$order.id = try order.requireID()
-        registration._$device.id = try device.requireID()
-        try await registration.create(on: db)
-        return .created
-    }
-
-    func ordersForDevice(req: Request) async throws -> OrdersForDeviceDTO {
-        logger?.debug("Called ordersForDevice")
-
-        let orderTypeIdentifier = req.parameters.get("orderTypeIdentifier")!
-        let deviceIdentifier = req.parameters.get("deviceIdentifier")!
-
-        var query = R.for(
-            deviceLibraryIdentifier: deviceIdentifier,
-            orderTypeIdentifier: orderTypeIdentifier,
-            on: req.db
-        )
-        
-        if let since: String = req.query["ordersModifiedSince"] {
-            let dateFormatter = ISO8601DateFormatter()
-            dateFormatter.formatOptions = .withInternetDateTime
-            let when = dateFormatter.date(from: since) ?? Date.distantPast
-            query = query.filter(O.self, \._$updatedAt > when)
-        }
-
-        let registrations = try await query.all()
-        guard !registrations.isEmpty else {
-            throw Abort(.noContent)
-        }
-
-        var orderIdentifiers: [String] = []
-        var maxDate = Date.distantPast
-        try registrations.forEach { r in
-            let order = r.order
-            try orderIdentifiers.append(order.requireID().uuidString)
-            if let updatedAt = order.updatedAt, updatedAt > maxDate {
-                maxDate = updatedAt
-            }
-        }
-
-        return OrdersForDeviceDTO(with: orderIdentifiers, maxDate: maxDate)
-    }
-
-    func logError(req: Request) async throws -> HTTPStatus {
-        logger?.debug("Called logError")
-        let body: ErrorLogDTO
-        do {
-            body = try req.content.decode(ErrorLogDTO.self)
-        } catch {
-            throw Abort(.badRequest)
-        }
-        guard body.logs.isEmpty == false else {
-            throw Abort(.badRequest)
-        }
-        try await body.logs.map(E.init(message:)).create(on: req.db)
-        return .ok
-    }
-
-    func unregisterDevice(req: Request) async throws -> HTTPStatus {
-        logger?.debug("Called unregisterDevice")
-
-        let orderTypeIdentifier = req.parameters.get("orderTypeIdentifier")!
-        guard let orderIdentifier = req.parameters.get("orderIdentifier", as: UUID.self) else {
-            throw Abort(.badRequest)
-        }
-        let deviceIdentifier = req.parameters.get("deviceIdentifier")!
-
-        guard let r = try await R.for(deviceLibraryIdentifier: deviceIdentifier, orderTypeIdentifier: orderTypeIdentifier, on: req.db)
-            .filter(O.self, \._$id == orderIdentifier)
-            .first()
-        else {
-            throw Abort(.notFound)
-        }
-        try await r.delete(on: req.db)
-        return .ok
-    }
-
-    // MARK: - Push Routes
-    func pushUpdatesForOrder(req: Request) async throws -> HTTPStatus {
-        logger?.debug("Called pushUpdatesForOrder")
-        guard let id = req.parameters.get("orderIdentifier", as: UUID.self) else {
-            throw Abort(.badRequest)
-        }
-        let orderTypeIdentifier = req.parameters.get("orderTypeIdentifier")!
-        try await sendPushNotificationsForOrder(id: id, of: orderTypeIdentifier, on: req.db)
-        return .noContent
-    }
-
-    func tokensForOrderUpdate(req: Request) async throws -> [String] {
-        logger?.debug("Called tokensForOrderUpdate")
-        guard let id = req.parameters.get("orderIdentifier", as: UUID.self) else {
-            throw Abort(.badRequest)
-        }
-        let orderTypeIdentifier = req.parameters.get("orderTypeIdentifier")!
-        let registrations = try await Self.registrationsForOrder(id: id, of: orderTypeIdentifier, on: req.db)
-        return registrations.map { $0.device.pushToken }
     }
 }
 
@@ -344,10 +130,9 @@ extension OrdersServiceCustom {
         try await sendPushNotifications(for: value, on: db)
     }
 
-    private static func registrationsForOrder(id: UUID, of orderTypeIdentifier: String, on db: any Database) async throws -> [R] {
-        // This could be done by enforcing the caller to have a Siblings property
-        // wrapper, but there's not really any value to forcing that on them when
-        // we can just do the query ourselves like this.
+    static func registrationsForOrder(id: UUID, of orderTypeIdentifier: String, on db: any Database) async throws -> [R] {
+        // This could be done by enforcing the caller to have a Siblings property wrapper,
+        // but there's not really any value to forcing that on them when we can just do the query ourselves like this.
         try await R.query(on: db)
             .join(parent: \._$order)
             .join(parent: \._$device)
@@ -363,7 +148,7 @@ extension OrdersServiceCustom {
 extension OrdersServiceCustom {
     private static func generateManifestFile(using encoder: JSONEncoder, in root: URL) throws {
         var manifest: [String: String] = [:]
-        
+
         let paths = try FileManager.default.subpathsOfDirectory(atPath: root.unixPath())
         try paths.forEach { relativePath in
             let file = URL(fileURLWithPath: relativePath, relativeTo: root)
@@ -372,16 +157,14 @@ extension OrdersServiceCustom {
             let hash = SHA256.hash(data: data)
             manifest[relativePath] = hash.map { "0\(String($0, radix: 16))".suffix(2) }.joined()
         }
-        
-        let encoded = try encoder.encode(manifest)
-        try encoded.write(to: root.appendingPathComponent("manifest.json"))
+
+        try encoder.encode(manifest)
+            .write(to: root.appendingPathComponent("manifest.json"))
     }
 
     private func generateSignatureFile(in root: URL) throws {
-        if delegate.generateSignatureFile(in: root) {
-            // If the caller's delegate generated a file we don't have to do it.
-            return
-        }
+        // If the caller's delegate generated a file we don't have to do it.
+        if delegate.generateSignatureFile(in: root) { return }
 
         let sslBinary = delegate.sslBinary
         guard FileManager.default.fileExists(atPath: sslBinary.unixPath()) else {
@@ -412,6 +195,7 @@ extension OrdersServiceCustom {
         guard FileManager.default.fileExists(atPath: zipBinary.unixPath()) else {
             throw OrdersError.zipBinaryMissing
         }
+
         let proc = Process()
         proc.currentDirectoryURL = directory
         proc.executableURL = zipBinary
@@ -427,31 +211,28 @@ extension OrdersServiceCustom {
     ///   - db: The `Database` to use.
     /// - Returns: The generated order content as `Data`.
     public func generateOrderContent(for order: O, on db: any Database) async throws -> Data {
-        let tmp = FileManager.default.temporaryDirectory
-        let root = tmp.appendingPathComponent(UUID().uuidString, isDirectory: true)
-        let zipFile = tmp.appendingPathComponent("\(UUID().uuidString).zip")
-        let encoder = JSONEncoder()
-        
         let src = try await delegate.template(for: order, db: db)
         guard (try? src.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? false else {
             throw OrdersError.templateNotDirectory
         }
-        
-        let encoded = try await self.delegate.encode(order: order, db: db, encoder: encoder)
-        
-        do {
-            try FileManager.default.copyItem(at: src, to: root)
-            defer { _ = try? FileManager.default.removeItem(at: root) }
-            try encoded.write(to: root.appendingPathComponent("order.json"))
-            
-            try Self.generateManifestFile(using: encoder, in: root)
-            try self.generateSignatureFile(in: root)
-            
-            try self.zip(directory: root, to: zipFile)
-            defer { _ = try? FileManager.default.removeItem(at: zipFile) }
-            return try Data(contentsOf: zipFile)
-        } catch {
-            throw error
-        }
+
+        let tmp = FileManager.default.temporaryDirectory
+        let root = tmp.appendingPathComponent(UUID().uuidString, isDirectory: true)
+
+        try FileManager.default.copyItem(at: src, to: root)
+        defer { _ = try? FileManager.default.removeItem(at: root) }
+
+        let encoder = JSONEncoder()
+        try await self.delegate.encode(order: order, db: db, encoder: encoder)
+            .write(to: root.appendingPathComponent("order.json"))
+
+        try Self.generateManifestFile(using: encoder, in: root)
+        try self.generateSignatureFile(in: root)
+
+        let zipFile = tmp.appendingPathComponent("\(UUID().uuidString).zip")
+        try self.zip(directory: root, to: zipFile)
+        defer { _ = try? FileManager.default.removeItem(at: zipFile) }
+
+        return try Data(contentsOf: zipFile)
     }
 }
