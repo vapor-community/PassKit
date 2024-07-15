@@ -191,14 +191,14 @@ import Passes
 let passDelegate = PassDelegate()
 
 func routes(_ app: Application) throws {
-    let passesService = try PassesService(delegate: passDelegate)
-    passesService.registerRoutes(app: app)
+    let passesService = try PassesService(app: app, delegate: passDelegate)
+    passesService.registerRoutes()
 }
 ```
 
 > Note: Notice how the ``PassesDelegate`` is created as a global variable. You need to ensure that the delegate doesn't go out of scope as soon as the `routes(_:)` method exits.
 
-If you wish to include routes specifically for sending push notifications to updated passes, you can also pass to the ``PassesService/registerRoutes(app:pushMiddleware:)`` whatever `Middleware` you want Vapor to use to authenticate the two routes. Doing so will add two routes, the first one sends notifications and the second one retrieves a list of push tokens which would be sent a notification.
+If you wish to include routes specifically for sending push notifications to updated passes, you can also pass to the ``PassesService/registerRoutes(pushMiddleware:)`` whatever `Middleware` you want Vapor to use to authenticate the two routes. Doing so will add two routes, the first one sends notifications and the second one retrieves a list of push tokens which would be sent a notification.
 
 ```http
 POST https://example.com/api/passes/v1/push/{passTypeIdentifier}/{passSerial} HTTP/2
@@ -216,7 +216,7 @@ If you don't like the schema names provided by the framework that are used by de
 import PassKit
 import Passes
 
-let passesService = try PassesServiceCustom<MyPassType, MyUserPersonalizationType, MyDeviceType, MyPassesRegistrationType, MyErrorLogType>(delegate: delegate)
+let passesService = try PassesServiceCustom<MyPassType, MyUserPersonalizationType, MyDeviceType, MyPassesRegistrationType, MyErrorLogType>(app: app, delegate: delegate)
 ```
 
 > Important: `DeviceModel` and `ErrorLogModel` are defined in the PassKit framework.

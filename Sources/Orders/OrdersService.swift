@@ -10,12 +10,12 @@ import FluentKit
 
 /// The main class that handles Wallet orders.
 public final class OrdersService: Sendable {
-    let service: OrdersServiceCustom<Order, OrdersDevice, OrdersRegistration, OrdersErrorLog>
+    private let service: OrdersServiceCustom<Order, OrdersDevice, OrdersRegistration, OrdersErrorLog>
     
     /// Initializes the service.
     ///
     /// - Parameters:
-    ///   - app: The `Vapor.Application` to use for APNs.
+    ///   - app: The `Vapor.Application` to use in route handlers and APNs.
     ///   - delegate: The ``OrdersDelegate`` to use for order generation.
     ///   - logger: The `Logger` to use.
     public init(app: Application, delegate: any OrdersDelegate, logger: Logger? = nil) throws {
@@ -24,11 +24,9 @@ public final class OrdersService: Sendable {
 
     /// Registers all the routes required for Wallet orders to work.
     ///
-    /// - Parameters:
-    ///   - app: The `Vapor.Application` to setup the routes.
-    ///   - pushMiddleware: The `Middleware` to use for push notification routes. If `nil`, push routes will not be registered.
-    public func registerRoutes(app: Application, pushMiddleware: (any Middleware)? = nil) {
-        service.registerRoutes(app: app, pushMiddleware: pushMiddleware)
+    /// - Parameter pushMiddleware: The `Middleware` to use for push notification routes. If `nil`, push routes will not be registered.
+    public func registerRoutes(pushMiddleware: (any Middleware)? = nil) {
+        service.registerRoutes(pushMiddleware: pushMiddleware)
     }
 
     /// Generates the order content bundle for a given order.

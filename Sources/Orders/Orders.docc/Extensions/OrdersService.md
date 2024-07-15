@@ -6,7 +6,7 @@
 
 - ``generateOrderContent(for:on:)``
 - ``register(migrations:)``
-- ``registerRoutes(app:pushMiddleware:)``
+- ``registerRoutes(pushMiddleware:)``
 
 ### Push Notifications
 

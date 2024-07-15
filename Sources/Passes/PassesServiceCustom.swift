@@ -29,7 +29,7 @@ public final class PassesServiceCustom<P, U, D, R: PassesRegistrationModel, E: E
     /// Initializes the service.
     ///
     /// - Parameters:
-    ///   - app: The `Vapor.Application` to use for APNs.
+    ///   - app: The `Vapor.Application` to use in route handlers and APNs.
     ///   - delegate: The ``PassesDelegate`` to use for pass generation.
     ///   - logger: The `Logger` to use.
     public init(app: Application, delegate: any PassesDelegate, logger: Logger? = nil) throws {
@@ -78,10 +78,8 @@ public final class PassesServiceCustom<P, U, D, R: PassesRegistrationModel, E: E
 
     /// Registers all the routes required for PassKit to work.
     ///
-    /// - Parameters:
-    ///   - app: The `Vapor.Application` to setup the routes.
-    ///   - pushMiddleware: The `Middleware` to use for push notification routes. If `nil`, push routes will not be registered.
-    public func registerRoutes(app: Application, pushMiddleware: (any Middleware)? = nil) {
+    /// - Parameter pushMiddleware: The `Middleware` to use for push notification routes. If `nil`, push routes will not be registered.
+    public func registerRoutes(pushMiddleware: (any Middleware)? = nil) {
         let v1 = app.grouped("api", "passes", "v1")
         v1.get("devices", ":deviceLibraryIdentifier", "registrations", ":passTypeIdentifier", use: { try await self.passesForDevice(req: $0) })
         v1.post("log", use: { try await self.logError(req: $0) })

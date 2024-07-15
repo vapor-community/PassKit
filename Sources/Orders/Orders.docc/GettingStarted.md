@@ -167,14 +167,14 @@ import Orders
 let orderDelegate = OrderDelegate()
 
 func routes(_ app: Application) throws {
-    let ordersService = try OrdersService(delegate: orderDelegate)
-    ordersService.registerRoutes(app: app)
+    let ordersService = try OrdersService(app: app, delegate: orderDelegate)
+    ordersService.registerRoutes()
 }
 ```
 
 > Note: Notice how the ``OrdersDelegate`` is created as a global variable. You need to ensure that the delegate doesn't go out of scope as soon as the `routes(_:)` method exits.
 
-If you wish to include routes specifically for sending push notifications to updated orders, you can also pass to the ``OrdersService/registerRoutes(app:pushMiddleware:)`` whatever `Middleware` you want Vapor to use to authenticate the two routes. Doing so will add two routes, the first one sends notifications and the second one retrieves a list of push tokens which would be sent a notification.
+If you wish to include routes specifically for sending push notifications to updated orders, you can also pass to the ``OrdersService/registerRoutes(pushMiddleware:)`` whatever `Middleware` you want Vapor to use to authenticate the two routes. Doing so will add two routes, the first one sends notifications and the second one retrieves a list of push tokens which would be sent a notification.
 
 ```http
 POST https://example.com/api/orders/v1/push/{orderTypeIdentifier}/{orderIdentifier} HTTP/2
@@ -192,7 +192,7 @@ If you don't like the schema names provided by the framework that are used by de
 import PassKit
 import Orders
 
-let ordersService = try OrdersServiceCustom<MyOrderType, MyDeviceType, MyOrdersRegistrationType, MyErrorLogType>(delegate: delegate)
+let ordersService = try OrdersServiceCustom<MyOrderType, MyDeviceType, MyOrdersRegistrationType, MyErrorLogType>(app: app, delegate: delegate)
 ```
 
 > Important: `DeviceModel` and `ErrorLogModel` are defined in the PassKit framework.

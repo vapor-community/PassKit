@@ -28,7 +28,7 @@ public final class OrdersServiceCustom<O, D, R: OrdersRegistrationModel, E: Erro
     /// Initializes the service.
     ///
     /// - Parameters:
-    ///   - app: The `Vapor.Application` to use for APNs.
+    ///   - app: The `Vapor.Application` to use in route handlers and APNs.
     ///   - delegate: The ``OrdersDelegate`` to use for order generation.
     ///   - logger: The `Logger` to use.
     public init(app: Application, delegate: any OrdersDelegate, logger: Logger? = nil) throws {
@@ -77,10 +77,8 @@ public final class OrdersServiceCustom<O, D, R: OrdersRegistrationModel, E: Erro
 
     /// Registers all the routes required for Apple Wallet to work.
     ///
-    /// - Parameters:
-    ///   - app: The `Vapor.Application` to setup the routes.
-    ///   - pushMiddleware: The `Middleware` to use for push notification routes. If `nil`, push routes will not be registered.
-    public func registerRoutes(app: Application, pushMiddleware: (any Middleware)? = nil) {
+    /// - Parameter pushMiddleware: The `Middleware` to use for push notification routes. If `nil`, push routes will not be registered.
+    public func registerRoutes(pushMiddleware: (any Middleware)? = nil) {
         let v1 = app.grouped("api", "orders", "v1")
         v1.get("devices", ":deviceIdentifier", "registrations", ":orderTypeIdentifier", use: { try await self.ordersForDevice(req: $0) })
         v1.post("log", use: { try await self.logError(req: $0) })
