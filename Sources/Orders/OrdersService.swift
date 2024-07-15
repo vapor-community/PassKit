@@ -5,7 +5,7 @@
 //  Created by Francesco Paolo Severino on 01/07/24.
 //
 
-import Foundation
+import Vapor
 import FluentKit
 
 /// The main class that handles Wallet orders.
@@ -15,10 +15,20 @@ public final class OrdersService: Sendable {
     /// Initializes the service.
     ///
     /// - Parameters:
+    ///   - app: The `Vapor.Application` to use for APNs.
     ///   - delegate: The ``OrdersDelegate`` to use for order generation.
     ///   - logger: The `Logger` to use.
-    public init(delegate: any OrdersDelegate, logger: Logger? = nil) throws {
-        service = try .init(delegate: delegate, logger: logger)
+    public init(app: Application, delegate: any OrdersDelegate, logger: Logger? = nil) throws {
+        service = try .init(app: app, delegate: delegate, logger: logger)
+    }
+
+    /// Registers all the routes required for Wallet orders to work.
+    ///
+    /// - Parameters:
+    ///   - app: The `Vapor.Application` to setup the routes.
+    ///   - pushMiddleware: The `Middleware` to use for push notification routes. If `nil`, push routes will not be registered.
+    public func registerRoutes(app: Application, pushMiddleware: (any Middleware)? = nil) {
+        service.registerRoutes(app: app, pushMiddleware: pushMiddleware)
     }
 
     /// Generates the order content bundle for a given order.
