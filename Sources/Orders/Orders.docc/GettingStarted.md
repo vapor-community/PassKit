@@ -192,7 +192,7 @@ If you don't like the schema names provided by the framework that are used by de
 import PassKit
 import Orders
 
-let ordersService = try OrdersServiceCustom<MyOrderType, MyDeviceType, MyOrdersRegistrationType, MyErrorLogType>(app: app, delegate: delegate)
+let ordersService = try OrdersServiceCustom<MyOrderType, MyDeviceType, MyOrdersRegistrationType, MyErrorLogType>(app: app, delegate: orderDelegate)
 ```
 
 > Important: `DeviceModel` and `ErrorLogModel` are defined in the PassKit framework.
