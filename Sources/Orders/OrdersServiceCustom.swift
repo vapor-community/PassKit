@@ -25,13 +25,19 @@ public final class OrdersServiceCustom<O, D, R: OrdersRegistrationModel, E: Erro
     private unowned let delegate: any OrdersDelegate
     private let logger: Logger?
     
-    /// Initializes the service.
+    /// Initializes the service and registers all the routes required for Apple Wallet to work.
     ///
     /// - Parameters:
     ///   - app: The `Vapor.Application` to use in route handlers and APNs.
     ///   - delegate: The ``OrdersDelegate`` to use for order generation.
+    ///   - pushRoutesMiddleware: The `Middleware` to use for push notification routes. If `nil`, push routes will not be registered.
     ///   - logger: The `Logger` to use.
-    public init(app: Application, delegate: any OrdersDelegate, logger: Logger? = nil) throws {
+    public init(
+        app: Application,
+        delegate: any OrdersDelegate,
+        pushRoutesMiddleware: (any Middleware)? = nil,
+        logger: Logger? = nil
+    ) throws {
         self.app = app
         self.delegate = delegate
         self.logger = logger
@@ -73,12 +79,7 @@ public final class OrdersServiceCustom<O, D, R: OrdersRegistrationModel, E: Erro
             as: .init(string: "orders"),
             isDefault: false
         )
-    }
 
-    /// Registers all the routes required for Apple Wallet to work.
-    ///
-    /// - Parameter pushMiddleware: The `Middleware` to use for push notification routes. If `nil`, push routes will not be registered.
-    public func registerRoutes(pushMiddleware: (any Middleware)? = nil) {
         let v1 = app.grouped("api", "orders", "v1")
         v1.get("devices", ":deviceIdentifier", "registrations", ":orderTypeIdentifier", use: { try await self.ordersForDevice(req: $0) })
         v1.post("log", use: { try await self.logError(req: $0) })
@@ -88,8 +89,8 @@ public final class OrdersServiceCustom<O, D, R: OrdersRegistrationModel, E: Erro
         v1auth.get("orders", ":orderTypeIdentifier", ":orderIdentifier", use: { try await self.latestVersionOfOrder(req: $0) })
         v1auth.delete("devices", ":deviceIdentifier", "registrations", ":orderTypeIdentifier", ":orderIdentifier", use: { try await self.unregisterDevice(req: $0) })
         
-        if let pushMiddleware {
-            let pushAuth = v1.grouped(pushMiddleware)
+        if let pushRoutesMiddleware {
+            let pushAuth = v1.grouped(pushRoutesMiddleware)
             pushAuth.post("push", ":orderTypeIdentifier", ":orderIdentifier", use: { try await self.pushUpdatesForOrder(req: $0) })
             pushAuth.get("push", ":orderTypeIdentifier", ":orderIdentifier", use: { try await self.tokensForOrderUpdate(req: $0) })
         }

@@ -33,21 +33,15 @@ import FluentKit
 public final class PassesService: Sendable {
     private let service: PassesServiceCustom<PKPass, UserPersonalization, PassesDevice, PassesRegistration, PassesErrorLog>
     
-    /// Initializes the service.
+    /// Initializes the service and registers all the routes required for PassKit to work.
     ///
     /// - Parameters:
     ///   - app: The `Vapor.Application` to use in route handlers and APNs.
     ///   - delegate: The ``PassesDelegate`` to use for pass generation.
+    ///   - pushRoutesMiddleware: The `Middleware` to use for push notification routes. If `nil`, push routes will not be registered.
     ///   - logger: The `Logger` to use.
-    public init(app: Application, delegate: any PassesDelegate, logger: Logger? = nil) throws {
-        service = try .init(app: app, delegate: delegate, logger: logger)
-    }
-
-    /// Registers all the routes required for PassKit to work.
-    ///
-    /// - Parameter pushMiddleware: The `Middleware` to use for push notification routes. If `nil`, push routes will not be registered.
-    public func registerRoutes(pushMiddleware: (any Middleware)? = nil) {
-        service.registerRoutes(pushMiddleware: pushMiddleware)
+    public init(app: Application, delegate: any PassesDelegate, pushRoutesMiddleware: (any Middleware)? = nil, logger: Logger? = nil) throws {
+        service = try .init(app: app, delegate: delegate, pushRoutesMiddleware: pushRoutesMiddleware, logger: logger)
     }
 
     /// Generates the pass content bundle for a given pass.

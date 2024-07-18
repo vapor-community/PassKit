@@ -120,7 +120,7 @@ final class PassDelegate: PassesDelegate {
 
 After implementing the JSON `struct` and the delegate, there is nothing else you have to do.
 
-Adding the ``PassesService/registerRoutes(pushMiddleware:)`` method to your `routes.swift` file will automatically set up the endpoints that Apple Wallet expects to exist on your server to handle pass personalization.
+Initializing the ``PassesService`` will automatically set up the endpoints that Apple Wallet expects to exist on your server to handle pass personalization.
 
 Adding the ``PassesService/register(migrations:)`` method to your `configure.swift` file will automatically set up the database table that stores the user personalization data.
 

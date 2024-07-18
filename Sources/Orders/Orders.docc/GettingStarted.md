@@ -155,26 +155,27 @@ final class OrderDelegate: OrdersDelegate {
 
 > Important: You **must** explicitly declare ``OrdersDelegate/pemPrivateKeyPassword`` as a `String?` or Swift will ignore it as it'll think it's a `String` instead.
 
-### Register the Routes
+### Initialize the Service
 
-Next, register the routes in `routes.swift`.
+Next, initializes the ``OrdersService`` inside the `configure.swift` file.
 This will implement all of the routes that Apple Wallet expects to exist on your server for you.
 
 ```swift
+import Fluent
 import Vapor
 import Orders
 
 let orderDelegate = OrderDelegate()
 
-func routes(_ app: Application) throws {
+public func configure(_ app: Application) async throws {
+    ...
     let ordersService = try OrdersService(app: app, delegate: orderDelegate)
-    ordersService.registerRoutes()
 }
 ```
 
-> Note: Notice how the ``OrdersDelegate`` is created as a global variable. You need to ensure that the delegate doesn't go out of scope as soon as the `routes(_:)` method exits.
+> Note: Notice how the ``OrdersDelegate`` is created as a global variable. You need to ensure that the delegate doesn't go out of scope as soon as the `configure(_:)` method exits.
 
-If you wish to include routes specifically for sending push notifications to updated orders, you can also pass to the ``OrdersService/registerRoutes(pushMiddleware:)`` whatever `Middleware` you want Vapor to use to authenticate the two routes. Doing so will add two routes, the first one sends notifications and the second one retrieves a list of push tokens which would be sent a notification.
+If you wish to include routes specifically for sending push notifications to updated orders, you can also pass to the ``OrdersService`` initializer whatever `Middleware` you want Vapor to use to authenticate the two routes. Doing so will add two routes, the first one sends notifications and the second one retrieves a list of push tokens which would be sent a notification.
 
 ```http
 POST https://example.com/api/orders/v1/push/{orderTypeIdentifier}/{orderIdentifier} HTTP/2
@@ -189,10 +190,17 @@ GET https://example.com/api/orders/v1/push/{orderTypeIdentifier}/{orderIdentifie
 If you don't like the schema names provided by the framework that are used by default, you can instead create your own models conforming to ``OrderModel``, `DeviceModel`, ``OrdersRegistrationModel`` and `ErrorLogModel` and instantiate the generic ``OrdersServiceCustom``, providing it your model types.
 
 ```swift
+import Fluent
+import Vapor
 import PassKit
 import Orders
 
-let ordersService = try OrdersServiceCustom<MyOrderType, MyDeviceType, MyOrdersRegistrationType, MyErrorLogType>(app: app, delegate: orderDelegate)
+let orderDelegate = OrderDelegate()
+
+public func configure(_ app: Application) async throws {
+    ...
+    let ordersService = try OrdersServiceCustom<MyOrderType, MyDeviceType, MyOrdersRegistrationType, MyErrorLogType>(app: app, delegate: orderDelegate)
+}
 ```
 
 > Important: `DeviceModel` and `ErrorLogModel` are defined in the PassKit framework.
@@ -245,7 +253,7 @@ struct OrderDataMiddleware: AsyncModelMiddleware {
 }
 ```
 
-You could register it in the `routes.swift` file.
+You could register it in the `configure.swift` file.
 
 ```swift
 app.databases.middleware.use(OrderDataMiddleware(service: ordersService), on: .psql)
@@ -270,6 +278,8 @@ struct OrdersController: RouteCollection {
     }
 }
 ```
+
+> Note: You'll have to register the `OrdersController` in the `configure.swift` file, in order to pass it the ``OrdersService`` object.
 
 Then use the object inside your route handlers to generate and distribute the order bundle.
 

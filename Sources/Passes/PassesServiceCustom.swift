@@ -26,13 +26,19 @@ public final class PassesServiceCustom<P, U, D, R: PassesRegistrationModel, E: E
     private unowned let delegate: any PassesDelegate
     private let logger: Logger?
     
-    /// Initializes the service.
+    /// Initializes the service and registers all the routes required for PassKit to work.
     ///
     /// - Parameters:
     ///   - app: The `Vapor.Application` to use in route handlers and APNs.
     ///   - delegate: The ``PassesDelegate`` to use for pass generation.
+    ///   - pushRoutesMiddleware: The `Middleware` to use for push notification routes. If `nil`, push routes will not be registered.
     ///   - logger: The `Logger` to use.
-    public init(app: Application, delegate: any PassesDelegate, logger: Logger? = nil) throws {
+    public init(
+        app: Application,
+        delegate: any PassesDelegate,
+        pushRoutesMiddleware: (any Middleware)? = nil,
+        logger: Logger? = nil
+    ) throws {
         self.app = app
         self.delegate = delegate
         self.logger = logger
@@ -74,12 +80,7 @@ public final class PassesServiceCustom<P, U, D, R: PassesRegistrationModel, E: E
             as: .init(string: "passes"),
             isDefault: false
         )
-    }
 
-    /// Registers all the routes required for PassKit to work.
-    ///
-    /// - Parameter pushMiddleware: The `Middleware` to use for push notification routes. If `nil`, push routes will not be registered.
-    public func registerRoutes(pushMiddleware: (any Middleware)? = nil) {
         let v1 = app.grouped("api", "passes", "v1")
         v1.get("devices", ":deviceLibraryIdentifier", "registrations", ":passTypeIdentifier", use: { try await self.passesForDevice(req: $0) })
         v1.post("log", use: { try await self.logError(req: $0) })
@@ -90,8 +91,8 @@ public final class PassesServiceCustom<P, U, D, R: PassesRegistrationModel, E: E
         v1auth.delete("devices", ":deviceLibraryIdentifier", "registrations", ":passTypeIdentifier", ":passSerial", use: { try await self.unregisterDevice(req: $0) })
         v1auth.post("passes", ":passTypeIdentifier", ":passSerial", "personalize", use: { try await self.personalizedPass(req: $0) })
 
-        if let pushMiddleware {
-            let pushAuth = v1.grouped(pushMiddleware)
+        if let pushRoutesMiddleware {
+            let pushAuth = v1.grouped(pushRoutesMiddleware)
             pushAuth.post("push", ":passTypeIdentifier", ":passSerial", use: {try await self.pushUpdatesForPass(req: $0) })
             pushAuth.get("push", ":passTypeIdentifier", ":passSerial", use: { try await self.tokensForPassUpdate(req: $0) })
         }

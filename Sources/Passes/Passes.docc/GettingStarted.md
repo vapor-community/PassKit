@@ -179,26 +179,27 @@ final class PassDelegate: PassesDelegate {
 
 > Important: You **must** explicitly declare ``PassesDelegate/pemPrivateKeyPassword`` as a `String?` or Swift will ignore it as it'll think it's a `String` instead.
 
-### Register the Routes
+### Initialize the Service
 
-Next, register the routes in `routes.swift`.
+Next, initializes the ``PassesService`` inside the `configure.swift` file.
 This will implement all of the routes that Apple Wallet expects to exist on your server for you.
 
 ```swift
+import Fluent
 import Vapor
 import Passes
 
 let passDelegate = PassDelegate()
 
-func routes(_ app: Application) throws {
+public func configure(_ app: Application) async throws {
+    ...
     let passesService = try PassesService(app: app, delegate: passDelegate)
-    passesService.registerRoutes()
 }
 ```
 
-> Note: Notice how the ``PassesDelegate`` is created as a global variable. You need to ensure that the delegate doesn't go out of scope as soon as the `routes(_:)` method exits.
+> Note: Notice how the ``PassesDelegate`` is created as a global variable. You need to ensure that the delegate doesn't go out of scope as soon as the `configure(_:)` method exits.
 
-If you wish to include routes specifically for sending push notifications to updated passes, you can also pass to the ``PassesService/registerRoutes(pushMiddleware:)`` whatever `Middleware` you want Vapor to use to authenticate the two routes. Doing so will add two routes, the first one sends notifications and the second one retrieves a list of push tokens which would be sent a notification.
+If you wish to include routes specifically for sending push notifications to updated passes, you can also pass to the ``PassesService`` initializer whatever `Middleware` you want Vapor to use to authenticate the two routes. Doing so will add two routes, the first one sends notifications and the second one retrieves a list of push tokens which would be sent a notification.
 
 ```http
 POST https://example.com/api/passes/v1/push/{passTypeIdentifier}/{passSerial} HTTP/2
@@ -213,10 +214,17 @@ GET https://example.com/api/passes/v1/push/{passTypeIdentifier}/{passSerial} HTT
 If you don't like the schema names provided by the framework that are used by default, you can instead create your own models conforming to ``PassModel``, ``UserPersonalizationModel``, `DeviceModel`, ``PassesRegistrationModel`` and `ErrorLogModel` and instantiate the generic ``PassesServiceCustom``, providing it your model types.
 
 ```swift
+import Fluent
+import Vapor
 import PassKit
 import Passes
 
-let passesService = try PassesServiceCustom<MyPassType, MyUserPersonalizationType, MyDeviceType, MyPassesRegistrationType, MyErrorLogType>(app: app, delegate: passDelegate)
+let passDelegate = PassDelegate()
+
+public func configure(_ app: Application) async throws {
+    ...
+    let passesService = try PassesServiceCustom<MyPassType, MyUserPersonalizationType, MyDeviceType, MyPassesRegistrationType, MyErrorLogType>(app: app, delegate: passDelegate)
+}
 ```
 
 > Important: `DeviceModel` and `ErrorLogModel` are defined in the PassKit framework.
@@ -269,7 +277,7 @@ struct PassDataMiddleware: AsyncModelMiddleware {
 }
 ```
 
-You could register it in the `routes.swift` file.
+You could register it in the `configure.swift` file.
 
 ```swift
 app.databases.middleware.use(PassDataMiddleware(service: passesService), on: .psql)
@@ -294,6 +302,8 @@ struct PassesController: RouteCollection {
     }
 }
 ```
+
+> Note: You'll have to register the `PassesController` in the `configure.swift` file, in order to pass it the ``PassesService`` object.
 
 Then use the object inside your route handlers to generate the pass bundle with the ``PassesService/generatePassContent(for:on:)`` method and distribute it with the "`application/vnd.apple.pkpass`" MIME type.
 
