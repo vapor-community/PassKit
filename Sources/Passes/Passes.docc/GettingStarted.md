@@ -1,16 +1,16 @@
 # Getting Started with Passes
 
-Implement the pass data model, define the pass file contents, build a distributable pass and distribute it.
+Create the pass data model, build a pass and distribute it.
 
 ## Overview
 
 The Passes framework provides models to save all the basic information for passes, user devices and their registration to each pass.
-For all the other custom data needed to generate the pass (such as the barcodes, locations, etc.), you have to create your own model and its model middleware to handle the creation and update of passes.
-The pass data model will be used to generate the `pass.json` file contents, along side image files for the icon and other visual elements, such as a logo.
+For all the other custom data needed to generate the pass, such as the barcodes, locations, etc., you have to create your own model and its model middleware to handle the creation and update of passes.
+The pass data model will be used to generate the `pass.json` file contents.
 
 The pass you distribute to a user is a signed bundle that contains the `pass.json` file, images and optional localizations.
 The Passes framework provides the ``PassesService`` class that handles the creation of the pass JSON file and the signing of the pass bundle, using a ``PassesDelegate`` that you must implement.
-The ``PassesService`` class also provides methods to send push notifications to all devices registered to a pass when it's updated and all the routes that Apple Wallet expects to get and update passes.
+The ``PassesService`` class also provides methods to send push notifications to all devices registered when you update a pass, and all the routes that Apple Wallet uses to retrieve passes.
 
 ### Implement the Pass Data Model
 
@@ -61,7 +61,7 @@ struct CreatePassData: AsyncMigration {
 ### Handle Cleanup
 
 Depending on your implementation details, you may want to automatically clean out the passes and devices table when a registration is deleted.
-You'll need to implement based on your type of SQL database as there's not yet a Fluent way to implement something like SQL's `NOT EXISTS` call with a `DELETE` statement.
+The implementation will be based on your type of SQL database, as there's not yet a Fluent way to implement something like SQL's `NOT EXISTS` call with a `DELETE` statement.
 
 > Warning: Be careful with SQL triggers, as they can have unintended consequences if not properly implemented.
 
@@ -134,7 +134,7 @@ struct PassJSONData: PassJSON.Properties {
 
 ### Implement the Delegate
 
-Create a delegate file that implements ``PassesDelegate``.
+Create a delegate class that implements ``PassesDelegate``.
 In the ``PassesDelegate/sslSigningFilesDirectory`` you specify there must be the `WWDR.pem`, `passcertificate.pem` and `passkey.pem` files.
 If they are named like that you're good to go, otherwise you have to specify the custom name.
 
@@ -182,7 +182,7 @@ final class PassDelegate: PassesDelegate {
 ### Initialize the Service
 
 Next, initializes the ``PassesService`` inside the `configure.swift` file.
-This will implement all of the routes that Apple Wallet expects to exist on your server for you.
+This will implement all of the routes that Apple Wallet expects to exist on your server.
 
 ```swift
 import Fluent
@@ -211,7 +211,7 @@ GET https://example.com/api/passes/v1/push/{passTypeIdentifier}/{passSerial} HTT
 
 ### Custom Implementation of PassesService
 
-If you don't like the schema names provided by the framework that are used by default, you can instead create your own models conforming to ``PassModel``, ``UserPersonalizationModel``, `DeviceModel`, ``PassesRegistrationModel`` and `ErrorLogModel` and instantiate the generic ``PassesServiceCustom``, providing it your model types.
+If you don't like the schema names provided by default, you can create your own models conforming to ``PassModel``, ``UserPersonalizationModel``, `DeviceModel`, ``PassesRegistrationModel`` and `ErrorLogModel` and instantiate the generic ``PassesServiceCustom``, providing it your model types.
 
 ```swift
 import Fluent
@@ -226,8 +226,6 @@ public func configure(_ app: Application) async throws {
     let passesService = try PassesServiceCustom<MyPassType, MyUserPersonalizationType, MyDeviceType, MyPassesRegistrationType, MyErrorLogType>(app: app, delegate: passDelegate)
 }
 ```
-
-> Important: `DeviceModel` and `ErrorLogModel` are defined in the PassKit framework.
 
 ### Register Migrations
 
@@ -283,7 +281,7 @@ You could register it in the `configure.swift` file.
 app.databases.middleware.use(PassDataMiddleware(service: passesService), on: .psql)
 ```
 
-> Important: Whenever your pass data changes, you must update the ``PKPass/updatedAt`` time of the linked pass so that Apple knows to send you a new pass.
+> Important: Whenever your pass data changes, you must update the ``PKPass/updatedAt`` time of the linked ``PKPass`` so that Wallet knows to retrieve a new pass.
 
 ### Generate the Pass Content
 
@@ -322,7 +320,7 @@ fileprivate func passHandler(_ req: Request) async throws -> Response {
     let body = Response.Body(data: bundle)
     var headers = HTTPHeaders()
     headers.add(name: .contentType, value: "application/vnd.apple.pkpass")
-    headers.add(name: .contentDisposition, value: "attachment; filename=name.pkpass") // Add this header only if you are serving the pass in a web page
+    headers.add(name: .contentDisposition, value: "attachment; filename=name.pkpass")
     headers.add(name: .lastModified, value: String(passData.pass.updatedAt?.timeIntervalSince1970 ?? 0))
     headers.add(name: .contentTransferEncoding, value: "binary")
     return Response(status: .ok, headers: headers, body: body)
