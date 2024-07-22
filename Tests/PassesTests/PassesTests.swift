@@ -1,11 +1,27 @@
 import XCTVapor
+import Fluent
+import FluentSQLiteDriver
 @testable import Passes
 
 final class PassesTests: XCTestCase {
-    func testExample() {
-        // This is an example of a functional test case.
-        // Use XCTAssert and related functions to verify your tests produce the correct
-        // results.
-        //XCTAssertEqual(PassesService().text, "Hello, World!")
+    var app: Application!
+    let passDelegate = PassDelegate()
+    
+    override func setUp() async throws {
+        self.app = try await Application.make(.testing)
+
+        app.databases.use(.sqlite(.memory), as: .sqlite)
+        PassesService.register(migrations: app.migrations)
+        app.migrations.add(CreatePassData())
+        let passesService = try PassesService(app: app, delegate: passDelegate)
+        app.databases.middleware.use(PassDataMiddleware(service: passesService), on: .sqlite)
+
+        try await app.autoMigrate()
+    }
+    
+    override func tearDown() async throws { 
+        try await app.autoRevert()
+        try await self.app.asyncShutdown()
+        self.app = nil
     }
 }

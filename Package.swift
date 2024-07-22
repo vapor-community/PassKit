@@ -14,6 +14,8 @@ let package = Package(
         .package(url: "https://github.com/vapor/vapor.git", from: "4.102.0"),
         .package(url: "https://github.com/vapor/fluent.git", from: "4.11.0"),
         .package(url: "https://github.com/vapor/apns.git", from: "4.1.0"),
+        // used in tests
+        .package(url: "https://github.com/vapor/fluent-sqlite-driver.git", from: "4.7.4"),
     ],
     targets: [
         .target(
@@ -44,6 +46,7 @@ let package = Package(
             dependencies: [
                 .target(name: "Passes"),
                 .product(name: "XCTVapor", package: "vapor"),
+                .product(name: "FluentSQLiteDriver", package: "fluent-sqlite-driver"),
             ],
             swiftSettings: swiftSettings
         ),
@@ -52,6 +55,7 @@ let package = Package(
             dependencies: [
                 .target(name: "Orders"),
                 .product(name: "XCTVapor", package: "vapor"),
+                .product(name: "FluentSQLiteDriver", package: "fluent-sqlite-driver"),
             ],
             swiftSettings: swiftSettings
         ),
