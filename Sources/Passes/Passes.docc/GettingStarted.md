@@ -181,7 +181,7 @@ final class PassDelegate: PassesDelegate {
 
 ### Initialize the Service
 
-Next, initializes the ``PassesService`` inside the `configure.swift` file.
+Next, initialize the ``PassesService`` inside the `configure.swift` file.
 This will implement all of the routes that Apple Wallet expects to exist on your server.
 
 ```swift
