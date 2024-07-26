@@ -4,15 +4,15 @@ import Orders
 import Vapor
 
 final class OrderData: OrderDataModel, @unchecked Sendable {
-    static let schema = OrderData.vddMMyyyy.schemaName
+    static let schema = OrderData.FieldKeys.schemaName
     
     @ID(key: .id)
     var id: UUID?
 
-    @Field(key: OrderData.vddMMyyyy.title)
+    @Field(key: OrderData.FieldKeys.title)
     var title: String
     
-    @Parent(key: OrderData.vddMMyyyy.orderID)
+    @Parent(key: OrderData.FieldKeys.orderID)
     var order: Order
 
     init() { }
@@ -47,20 +47,20 @@ struct OrderDataDTO: Content {
 
 struct CreateOrderData: AsyncMigration {
     func prepare(on database: any Database) async throws {
-        try await database.schema(OrderData.vddMMyyyy.schemaName)
+        try await database.schema(OrderData.FieldKeys.schemaName)
             .id()
-            .field(OrderData.vddMMyyyy.title, .string, .required)
-            .field(OrderData.vddMMyyyy.orderID, .uuid, .required, .references(Order.schema, .id, onDelete: .cascade))
+            .field(OrderData.FieldKeys.title, .string, .required)
+            .field(OrderData.FieldKeys.orderID, .uuid, .required, .references(Order.schema, .id, onDelete: .cascade))
             .create()
     }
 
     func revert(on database: any Database) async throws {
-        try await database.schema(OrderData.vddMMyyyy.schemaName).delete()
+        try await database.schema(OrderData.FieldKeys.schemaName).delete()
     }
 }
 
 extension OrderData {
-    enum vddMMyyyy {
+    enum FieldKeys {
         static let schemaName = "order_data"
         static let title = FieldKey(stringLiteral: "title")
         static let orderID = FieldKey(stringLiteral: "order_id")

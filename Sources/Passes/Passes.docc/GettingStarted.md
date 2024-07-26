@@ -44,7 +44,7 @@ final class PassData: PassDataModel, @unchecked Sendable {
 
 struct CreatePassData: AsyncMigration {
     public func prepare(on database: Database) async throws {
-        try await database.schema(Self.schema)
+        try await database.schema(PassData.schema)
             .id()
             .field("pass_id", .uuid, .required, .references(PKPass.schema, .id, onDelete: .cascade))
             .field("punches", .int, .required)
@@ -53,7 +53,7 @@ struct CreatePassData: AsyncMigration {
     }
     
     public func revert(on database: Database) async throws {
-        try await database.schema(Self.schema).delete()
+        try await database.schema(PassData.schema).delete()
     }
 }
 ```

@@ -13,15 +13,9 @@ final class PassesTests: XCTestCase {
         app.databases.use(.sqlite(.memory), as: .sqlite)
         PassesService.register(migrations: app.migrations)
         app.migrations.add(CreatePassData())
-        let passesService = try PassesService(app: app, delegate: passDelegate)
-        app.databases.middleware.use(PassDataMiddleware(service: passesService), on: .sqlite)
+//        let passesService = try PassesService(app: app, delegate: passDelegate)
+//        app.databases.middleware.use(PassDataMiddleware(service: passesService), on: .sqlite)
 
         try await app.autoMigrate()
-    }
-    
-    override func tearDown() async throws { 
-        try await app.autoRevert()
-        try await self.app.asyncShutdown()
-        self.app = nil
     }
 }

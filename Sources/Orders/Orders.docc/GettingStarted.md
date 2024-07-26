@@ -41,7 +41,7 @@ final class OrderData: OrderDataModel, @unchecked Sendable {
 
 struct CreateOrderData: AsyncMigration {
     public func prepare(on database: Database) async throws {
-        try await database.schema(Self.schema)
+        try await database.schema(OrderData.schema)
             .id()
             .field("order_id", .uuid, .required, .references(Order.schema, .id, onDelete: .cascade))
             .field("merchant_name", .string, .required)
@@ -49,7 +49,7 @@ struct CreateOrderData: AsyncMigration {
     }
     
     public func revert(on database: Database) async throws {
-        try await database.schema(Self.schema).delete()
+        try await database.schema(OrderData.schema).delete()
     }
 }
 ```
@@ -157,7 +157,7 @@ final class OrderDelegate: OrdersDelegate {
 
 ### Initialize the Service
 
-Next, initializes the ``OrdersService`` inside the `configure.swift` file.
+Next, initialize the ``OrdersService`` inside the `configure.swift` file.
 This will implement all of the routes that Apple Wallet expects to exist on your server.
 
 ```swift

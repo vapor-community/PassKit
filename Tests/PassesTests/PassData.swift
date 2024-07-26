@@ -4,15 +4,15 @@ import Passes
 import Vapor
 
 final class PassData: PassDataModel, @unchecked Sendable {
-    static let schema = PassData.vddMMyyyy.schemaName
+    static let schema = PassData.FieldKeys.schemaName
     
     @ID(key: .id)
     var id: UUID?
 
-    @Field(key: PassData.vddMMyyyy.title)
+    @Field(key: PassData.FieldKeys.title)
     var title: String
     
-    @Parent(key: PassData.vddMMyyyy.passID)
+    @Parent(key: PassData.FieldKeys.passID)
     var pass: PKPass
 
     init() { }
@@ -47,20 +47,20 @@ struct PassDataDTO: Content {
 
 struct CreatePassData: AsyncMigration {
     func prepare(on database: any Database) async throws {
-        try await database.schema(PassData.vddMMyyyy.schemaName)
+        try await database.schema(PassData.FieldKeys.schemaName)
             .id()
-            .field(PassData.vddMMyyyy.title, .string, .required)
-            .field(PassData.vddMMyyyy.passID, .uuid, .required, .references(PKPass.schema, .id, onDelete: .cascade))
+            .field(PassData.FieldKeys.title, .string, .required)
+            .field(PassData.FieldKeys.passID, .uuid, .required, .references(PKPass.schema, .id, onDelete: .cascade))
             .create()
     }
 
     func revert(on database: any Database) async throws {
-        try await database.schema(PassData.vddMMyyyy.schemaName).delete()
+        try await database.schema(PassData.FieldKeys.schemaName).delete()
     }
 }
 
 extension PassData {
-    enum vddMMyyyy {
+    enum FieldKeys {
         static let schemaName = "pass_data"
         static let title = FieldKey(stringLiteral: "title")
         static let passID = FieldKey(stringLiteral: "pass_id")
@@ -71,13 +71,13 @@ struct PassJSONData: PassJSON.Properties {
     let description: String
     let formatVersion = PassJSON.FormatVersion.v1
     let organizationName = "vapor-community"
-    let passTypeIdentifier = "pass.com.vapor-community.pass"
+    let passTypeIdentifier = "pass.com.vapor-community.PassKit"
     let serialNumber: String
     let teamIdentifier = "ABCD1234"
 
     private let webServiceURL = "https://www.example.com/api/passes/"
     private let authenticationToken: String
-    private let logoText = "Vapor"
+    private let logoText = "Vapor Community"
     private let sharingProhibited = true
     let backgroundColor = "rgb(207, 77, 243)"
     let foregroundColor = "rgb(255, 255, 255)"
@@ -140,7 +140,7 @@ struct PassDataMiddleware: AsyncModelMiddleware {
 
     func create(model: PassData, on db: any Database, next: any AnyAsyncModelResponder) async throws {
         let pkPass = PKPass(
-            passTypeIdentifier: "pass.com.vapor-community.pass",
+            passTypeIdentifier: "pass.com.vapor-community.PassKit",
             authenticationToken: Data([UInt8].random(count: 12)).base64EncodedString())
         try await pkPass.save(on: db)
         model.$pass.id = try pkPass.requireID()
