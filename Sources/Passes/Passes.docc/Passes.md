@@ -32,7 +32,7 @@ For information on Apple Wallet passes, see the [Apple Developer Documentation](
 
 ### Concrete Models
 
-- ``PKPass``
+- ``Pass``
 - ``PassesRegistration``
 - ``PassesDevice``
 - ``PassesErrorLog``

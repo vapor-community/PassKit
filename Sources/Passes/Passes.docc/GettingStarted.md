@@ -14,7 +14,7 @@ The ``PassesService`` class also provides methods to send push notifications to 
 
 ### Implement the Pass Data Model
 
-Your data model should contain all the fields that you store for your pass, as well as a foreign key to ``PKPass``, the pass model offered by the Passes framework.
+Your data model should contain all the fields that you store for your pass, as well as a foreign key to ``Pass``, the pass model offered by the Passes framework.
 
 ```swift
 import Fluent
@@ -28,7 +28,7 @@ final class PassData: PassDataModel, @unchecked Sendable {
     var id: UUID?
 
     @Parent(key: "pass_id")
-    var pass: PKPass
+    var pass: Pass
 
     // Examples of other extra fields:
     @Field(key: "punches")
@@ -46,7 +46,7 @@ struct CreatePassData: AsyncMigration {
     public func prepare(on database: Database) async throws {
         try await database.schema(PassData.schema)
             .id()
-            .field("pass_id", .uuid, .required, .references(PKPass.schema, .id, onDelete: .cascade))
+            .field("pass_id", .uuid, .required, .references(Pass.schema, .id, onDelete: .cascade))
             .field("punches", .int, .required)
             .field("title", .string, .required)
             .create()
@@ -68,7 +68,7 @@ The implementation will be based on your type of SQL database, as there's not ye
 ### Model the pass.json contents
 
 Create a `struct` that implements ``PassJSON/Properties`` which will contain all the fields for the generated `pass.json` file.
-Create an initializer that takes your custom pass data, the ``PKPass`` and everything else you may need.
+Create an initializer that takes your custom pass data, the ``Pass`` and everything else you may need.
 
 > Tip: For information on the various keys available see the [documentation](https://developer.apple.com/documentation/walletpasses/pass). See also [this guide](https://developer.apple.com/library/archive/documentation/UserExperience/Conceptual/PassKit_PG/index.html#//apple_ref/doc/uid/TP40012195-CH1-SW1) for some help.
 
@@ -122,7 +122,7 @@ struct PassJSONData: PassJSON.Properties {
         }
     }
 
-    init(data: PassData, pass: PKPass) {
+    init(data: PassData, pass: Pass) {
         self.description = data.title
         self.serialNumber = pass.id!.uuidString
         self.authenticationToken = pass.authenticationToken
@@ -142,7 +142,7 @@ If they are named like that you're good to go, otherwise you have to specify the
 
 There are other fields available which have reasonable default values. See ``PassesDelegate``'s documentation.
 
-Because the files for your pass' template and the method of encoding might vary by pass type, you'll be provided the ``PKPass`` for those methods.
+Because the files for your pass' template and the method of encoding might vary by pass type, you'll be provided the ``Pass`` for those methods.
 In the ``PassesDelegate/encode(pass:db:encoder:)`` method, you'll want to encode a `struct` that conforms to ``PassJSON``.
 
 ```swift
@@ -240,8 +240,8 @@ PassesService.register(migrations: app.migrations)
 ### Pass Data Model Middleware
 
 You'll want to create a model middleware to handle the creation and update of the pass data model.
-This middleware could be responsible for creating and linking a ``PKPass`` to the pass data model, depending on your requirements.
-When your pass data changes, it should also update the ``PKPass/updatedAt`` field of the ``PKPass`` and send a push notification to all devices registered to that pass. 
+This middleware could be responsible for creating and linking a ``Pass`` to the pass data model, depending on your requirements.
+When your pass data changes, it should also update the ``Pass/updatedAt`` field of the ``Pass`` and send a push notification to all devices registered to that pass. 
 
 ```swift
 import Vapor
@@ -255,22 +255,22 @@ struct PassDataMiddleware: AsyncModelMiddleware {
         self.service = service
     }
 
-    // Create the `PKPass` and add it to the `PassData` automatically at creation
+    // Create the `Pass` and add it to the `PassData` automatically at creation
     func create(model: PassData, on db: Database, next: AnyAsyncModelResponder) async throws {
-        let pkPass = PKPass(
+        let pass = Pass(
             passTypeIdentifier: "pass.com.yoursite.passType",
             authenticationToken: Data([UInt8].random(count: 12)).base64EncodedString())
-        try await pkPass.save(on: db)
-        model.$pass.id = try pkPass.requireID()
+        try await pass.save(on: db)
+        model.$pass.id = try pass.requireID()
         try await next.create(model, on: db)
     }
 
     func update(model: PassData, on db: Database, next: AnyAsyncModelResponder) async throws {
-        let pkPass = try await model.$pass.get(on: db)
-        pkPass.updatedAt = Date()
-        try await pkPass.save(on: db)
+        let pass = try await model.$pass.get(on: db)
+        pass.updatedAt = Date()
+        try await pass.save(on: db)
         try await next.update(model, on: db)
-        try await service.sendPushNotifications(for: pkPass, on: db)
+        try await service.sendPushNotifications(for: pass, on: db)
     }
 }
 ```
@@ -281,7 +281,7 @@ You could register it in the `configure.swift` file.
 app.databases.middleware.use(PassDataMiddleware(service: passesService), on: .psql)
 ```
 
-> Important: Whenever your pass data changes, you must update the ``PKPass/updatedAt`` time of the linked ``PKPass`` so that Wallet knows to retrieve a new pass.
+> Important: Whenever your pass data changes, you must update the ``Pass/updatedAt`` time of the linked ``Pass`` so that Wallet knows to retrieve a new pass.
 
 ### Generate the Pass Content
 

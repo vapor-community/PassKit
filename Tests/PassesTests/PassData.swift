@@ -13,7 +13,7 @@ final class PassData: PassDataModel, @unchecked Sendable {
     var title: String
     
     @Parent(key: PassData.FieldKeys.passID)
-    var pass: PKPass
+    var pass: Pass
 
     init() { }
 
@@ -50,7 +50,7 @@ struct CreatePassData: AsyncMigration {
         try await database.schema(PassData.FieldKeys.schemaName)
             .id()
             .field(PassData.FieldKeys.title, .string, .required)
-            .field(PassData.FieldKeys.passID, .uuid, .required, .references(PKPass.schema, .id, onDelete: .cascade))
+            .field(PassData.FieldKeys.passID, .uuid, .required, .references(Pass.schema, .id, onDelete: .cascade))
             .create()
     }
 
@@ -114,7 +114,7 @@ struct PassJSONData: PassJSON.Properties {
         }
     }
 
-    init(data: PassData, pass: PKPass) {
+    init(data: PassData, pass: Pass) {
         self.description = data.title
         self.serialNumber = pass.id!.uuidString
         self.authenticationToken = pass.authenticationToken
@@ -139,19 +139,19 @@ struct PassDataMiddleware: AsyncModelMiddleware {
     }
 
     func create(model: PassData, on db: any Database, next: any AnyAsyncModelResponder) async throws {
-        let pkPass = PKPass(
+        let pass = Pass(
             passTypeIdentifier: "pass.com.vapor-community.PassKit",
             authenticationToken: Data([UInt8].random(count: 12)).base64EncodedString())
-        try await pkPass.save(on: db)
-        model.$pass.id = try pkPass.requireID()
+        try await pass.save(on: db)
+        model.$pass.id = try pass.requireID()
         try await next.create(model, on: db)
     }
 
     func update(model: PassData, on db: any Database, next: any AnyAsyncModelResponder) async throws {
-        let pkPass = try await model.$pass.get(on: db)
-        pkPass.updatedAt = Date()
-        try await pkPass.save(on: db)
+        let pass = try await model.$pass.get(on: db)
+        pass.updatedAt = Date()
+        try await pass.save(on: db)
         try await next.update(model, on: db)
-        try await service.sendPushNotifications(for: pkPass, on: db)
+        try await service.sendPushNotifications(for: pass, on: db)
     }
 }

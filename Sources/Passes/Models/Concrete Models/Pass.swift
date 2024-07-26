@@ -1,5 +1,5 @@
 //
-//  PKPass.swift
+//  Pass.swift
 //  PassKit
 //
 //  Created by Francesco Paolo Severino on 29/06/24.
@@ -11,11 +11,11 @@ import FluentKit
 /// The `Model` that stores PassKit passes.
 ///
 /// Uses a UUID so people can't easily guess pass serial numbers.
-final public class PKPass: PassModel, @unchecked Sendable {
+final public class Pass: PassModel, @unchecked Sendable {
     public typealias UserPersonalizationType = UserPersonalization
 
     /// The schema name of the pass model.
-    public static let schema = PKPass.FieldKeys.schemaName
+    public static let schema = Pass.FieldKeys.schemaName
 
     /// The pass alphanumeric serial number.
     ///
@@ -25,19 +25,19 @@ final public class PKPass: PassModel, @unchecked Sendable {
     public var id: UUID?
 
     /// The last time the pass was modified.
-    @Timestamp(key: PKPass.FieldKeys.updatedAt, on: .update)
+    @Timestamp(key: Pass.FieldKeys.updatedAt, on: .update)
     public var updatedAt: Date?
 
     /// The pass type identifier that’s registered with Apple.
-    @Field(key: PKPass.FieldKeys.passTypeIdentifier)
+    @Field(key: Pass.FieldKeys.passTypeIdentifier)
     public var passTypeIdentifier: String
 
     /// The authentication token to use with the web service in the `webServiceURL` key.
-    @Field(key: PKPass.FieldKeys.authenticationToken)
+    @Field(key: Pass.FieldKeys.authenticationToken)
     public var authenticationToken: String
 
     /// The user personalization info.
-    @OptionalParent(key: PKPass.FieldKeys.userPersonalizationID)
+    @OptionalParent(key: Pass.FieldKeys.userPersonalizationID)
     public var userPersonalization: UserPersonalizationType?
     
     public required init() { }
@@ -48,15 +48,15 @@ final public class PKPass: PassModel, @unchecked Sendable {
     }
 }
 
-extension PKPass: AsyncMigration {
+extension Pass: AsyncMigration {
     public func prepare(on database: any Database) async throws {
         try await database.schema(Self.schema)
             .id()
-            .field(PKPass.FieldKeys.updatedAt, .datetime, .required)
-            .field(PKPass.FieldKeys.passTypeIdentifier, .string, .required)
-            .field(PKPass.FieldKeys.authenticationToken, .string, .required)
-            .field(PKPass.FieldKeys.userPersonalizationID, .int, .references(UserPersonalizationType.schema, .id))
-            .unique(on: PKPass.FieldKeys.userPersonalizationID)
+            .field(Pass.FieldKeys.updatedAt, .datetime, .required)
+            .field(Pass.FieldKeys.passTypeIdentifier, .string, .required)
+            .field(Pass.FieldKeys.authenticationToken, .string, .required)
+            .field(Pass.FieldKeys.userPersonalizationID, .int, .references(UserPersonalizationType.schema, .id))
+            .unique(on: Pass.FieldKeys.userPersonalizationID)
             .create()
     }
 
@@ -65,7 +65,7 @@ extension PKPass: AsyncMigration {
     }
 }
 
-extension PKPass {
+extension Pass {
     enum FieldKeys {
         static let schemaName = "passes"
         static let updatedAt = FieldKey(stringLiteral: "updated_at")
