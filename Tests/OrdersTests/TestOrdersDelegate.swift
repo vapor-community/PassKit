@@ -2,10 +2,14 @@ import Vapor
 import Fluent
 import Orders
 
-final class OrderDelegate: OrdersDelegate {
-    let sslSigningFilesDirectory = URL(fileURLWithPath: "Certificates/Orders/", isDirectory: true)
+final class TestOrdersDelegate: OrdersDelegate {
+    let sslSigningFilesDirectory = URL(
+        fileURLWithPath: "\(FileManager.default.currentDirectoryPath)/Tests/Certificates/",
+        isDirectory: true
+    )
 
-    let pemPrivateKeyPassword: String? = "password"
+    let pemCertificate = "certificate.pem"
+    let pemPrivateKey = "key.pem"
     
     func encode<O: OrderModel>(order: O, db: any Database, encoder: JSONEncoder) async throws -> Data {
         guard let orderData = try await OrderData.query(on: db)
@@ -22,6 +26,9 @@ final class OrderDelegate: OrdersDelegate {
     }
 
     func template<O: OrderModel>(for: O, db: any Database) async throws -> URL {
-        return URL(fileURLWithPath: "Templates/Orders/", isDirectory: true)
+        URL(
+            fileURLWithPath: "\(FileManager.default.currentDirectoryPath)/Tests/OrdersTests/Templates/",
+            isDirectory: true
+        )
     }
 }

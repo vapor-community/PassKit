@@ -2,10 +2,14 @@ import Vapor
 import Fluent
 import Passes
 
-final class PassDelegate: PassesDelegate {
-    let sslSigningFilesDirectory = URL(fileURLWithPath: "Certificates/Passes/", isDirectory: true)
+final class TestPassesDelegate: PassesDelegate {
+    let sslSigningFilesDirectory = URL(
+        fileURLWithPath: "\(FileManager.default.currentDirectoryPath)/Tests/Certificates/",
+        isDirectory: true
+    )
 
-    let pemPrivateKeyPassword: String? = "password"
+    let pemCertificate = "certificate.pem"
+    let pemPrivateKey = "key.pem"
 
     func encode<P: PassModel>(pass: P, db: any Database, encoder: JSONEncoder) async throws -> Data {
         guard let passData = try await PassData.query(on: db)
@@ -41,6 +45,9 @@ final class PassDelegate: PassesDelegate {
     */
 
     func template<P: PassModel>(for pass: P, db: any Database) async throws -> URL {
-        return URL(fileURLWithPath: "Templates/Passes/", isDirectory: true)
+        URL(
+            fileURLWithPath: "\(FileManager.default.currentDirectoryPath)/Tests/PassesTests/Templates/",
+            isDirectory: true
+        )
     }
 }

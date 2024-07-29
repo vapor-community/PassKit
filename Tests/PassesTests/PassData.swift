@@ -73,7 +73,7 @@ struct PassJSONData: PassJSON.Properties {
     let organizationName = "vapor-community"
     let passTypeIdentifier = "pass.com.vapor-community.PassKit"
     let serialNumber: String
-    let teamIdentifier = "ABCD1234"
+    let teamIdentifier = "K6512ZA2S5"
 
     private let webServiceURL = "https://www.example.com/api/passes/"
     private let authenticationToken: String
