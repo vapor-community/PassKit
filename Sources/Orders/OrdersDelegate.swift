@@ -64,11 +64,6 @@ public protocol OrdersDelegate: AnyObject, Sendable {
     ///
     /// > Important: Be sure to use the `URL(fileURLWithPath:)` constructor.
     var sslBinary: URL { get }
-
-    /// The full path to the `zip` command as a file URL.
-    /// 
-    /// > Important: Be sure to use the `URL(fileURLWithPath:)` constructor.
-    var zipBinary: URL { get }
     
     /// The name of Apple's WWDR.pem certificate as contained in `sslSigningFiles` path.
     ///
@@ -108,10 +103,6 @@ public extension OrdersDelegate {
 
     var sslBinary: URL {
         get { return URL(fileURLWithPath: "/usr/bin/openssl") }
-    }
-
-    var zipBinary: URL {
-        get { return URL(fileURLWithPath: "/usr/bin/zip") }
     }
     
     func generateSignatureFile(in root: URL) -> Bool {

@@ -7,17 +7,5 @@ on:
   push: { branches: [ main ] }
 
 jobs:
-  linux-integration:
-    if: ${{ !(github.event.pull_request.draft || false) }}
-    runs-on: ubuntu-latest
-    container: swift:5.10-jammy
-    steps:
-      - name: Check out PassKit
-        uses: actions/checkout@v4
-        with:
-          path: PassKit
-      - name: Run tests
-        run: swift test --package-path PassKit --sanitize=thread
-
   unit-tests:
      uses: vapor/ci/.github/workflows/run-unit-tests.yml@main

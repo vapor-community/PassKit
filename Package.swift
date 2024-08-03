@@ -14,6 +14,7 @@ let package = Package(
         .package(url: "https://github.com/vapor/vapor.git", from: "4.102.0"),
         .package(url: "https://github.com/vapor/fluent.git", from: "4.11.0"),
         .package(url: "https://github.com/vapor/apns.git", from: "4.1.0"),
+        .package(url: "https://github.com/marmelroy/Zip.git", from: "2.1.2"),
         // used in tests
         .package(url: "https://github.com/vapor/fluent-sqlite-driver.git", from: "4.7.4"),
     ],
@@ -24,6 +25,7 @@ let package = Package(
                 .product(name: "Fluent", package: "fluent"),
                 .product(name: "Vapor", package: "vapor"),
                 .product(name: "VaporAPNS", package: "apns"),
+                .product(name: "Zip", package: "zip"),
             ],
             swiftSettings: swiftSettings
         ),

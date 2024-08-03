@@ -12,6 +12,7 @@ import APNSCore
 import Fluent
 import NIOSSL
 import PassKit
+import Zip
 
 /// Class to handle ``OrdersService``.
 ///
@@ -101,10 +102,6 @@ public final class OrdersServiceCustom<O, D, R: OrdersRegistrationModel, E: Erro
 extension OrdersServiceCustom {
     func latestVersionOfOrder(req: Request) async throws -> Response {
         logger?.debug("Called latestVersionOfOrder")
-
-        guard FileManager.default.fileExists(atPath: delegate.zipBinary.unixPath()) else {
-            throw Abort(.internalServerError, suggestedFixes: ["Provide full path to zip command"])
-        }
         
         let dateFormatter = ISO8601DateFormatter()
         dateFormatter.formatOptions = .withInternetDateTime
@@ -397,20 +394,6 @@ extension OrdersServiceCustom {
         proc.waitUntilExit()
     }
 
-    private func zip(directory: URL, to: URL) throws {
-        let zipBinary = delegate.zipBinary
-        guard FileManager.default.fileExists(atPath: zipBinary.unixPath()) else {
-            throw OrdersError.zipBinaryMissing
-        }
-
-        let proc = Process()
-        proc.currentDirectoryURL = directory
-        proc.executableURL = zipBinary
-        proc.arguments = [ to.unixPath(), "-r", "-q", "." ]
-        try proc.run()
-        proc.waitUntilExit()
-    }
-
     /// Generates the order content bundle for a given order.
     ///
     /// - Parameters:
@@ -435,11 +418,6 @@ extension OrdersServiceCustom {
 
         try Self.generateManifestFile(using: encoder, in: root)
         try self.generateSignatureFile(in: root)
-
-        let zipFile = tmp.appendingPathComponent("\(UUID().uuidString).zip")
-        try self.zip(directory: root, to: zipFile)
-        defer { _ = try? FileManager.default.removeItem(at: zipFile) }
-
-        return try Data(contentsOf: zipFile)
+        return try Data(contentsOf: Zip.quickZipFiles([root], fileName: "\(UUID().uuidString).order"))
     }
 }

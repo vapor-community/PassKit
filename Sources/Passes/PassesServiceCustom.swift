@@ -12,6 +12,7 @@ import APNSCore
 import Fluent
 import NIOSSL
 import PassKit
+import Zip
 
 /// Class to handle ``PassesService``.
 ///
@@ -183,10 +184,6 @@ extension PassesServiceCustom {
     
     func latestVersionOfPass(req: Request) async throws -> Response {
         logger?.debug("Called latestVersionOfPass")
-
-        guard FileManager.default.fileExists(atPath: delegate.zipBinary.unixPath()) else {
-            throw Abort(.internalServerError, suggestedFixes: ["Provide full path to zip command"])
-        }
         
         var ifModifiedSince: TimeInterval = 0
         if let header = req.headers[.ifModifiedSince].first, let ims = TimeInterval(header) {
@@ -468,20 +465,6 @@ extension PassesServiceCustom {
         proc.waitUntilExit()
     }
     
-    private func zip(directory: URL, to: URL) throws {
-        let zipBinary = delegate.zipBinary
-        guard FileManager.default.fileExists(atPath: zipBinary.unixPath()) else {
-            throw PassesError.zipBinaryMissing
-        }
-
-        let proc = Process()
-        proc.currentDirectoryURL = directory
-        proc.executableURL = zipBinary
-        proc.arguments = [ to.unixPath(), "-r", "-q", "." ]
-        try proc.run()
-        proc.waitUntilExit()
-    }
-    
     /// Generates the pass content bundle for a given pass.
     ///
     /// - Parameters:
@@ -511,12 +494,7 @@ extension PassesServiceCustom {
         
         try Self.generateManifestFile(using: encoder, in: root)
         try self.generateSignatureFile(in: root)
-
-        let zipFile = tmp.appendingPathComponent("\(UUID().uuidString).zip")
-        try self.zip(directory: root, to: zipFile)
-        defer { _ = try? FileManager.default.removeItem(at: zipFile) }
-
-        return try Data(contentsOf: zipFile)
+        return try Data(contentsOf: Zip.quickZipFiles([root], fileName: "\(UUID().uuidString).pkpass"))
     }
 
     /// Generates a bundle of passes to enable your user to download multiple passes at once.
@@ -544,10 +522,6 @@ extension PassesServiceCustom {
                 .write(to: root.appendingPathComponent("pass\(i).pkpass"))
         }
 
-        let zipFile = tmp.appendingPathComponent("\(UUID().uuidString).zip")
-        try self.zip(directory: root, to: zipFile)
-        defer { _ = try? FileManager.default.removeItem(at: zipFile) }
-
-        return try Data(contentsOf: zipFile)
+        return try Data(contentsOf: Zip.quickZipFiles([root], fileName: "\(UUID().uuidString).pkpasses"))
     }
 }
