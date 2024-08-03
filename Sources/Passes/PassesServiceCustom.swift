@@ -12,7 +12,7 @@ import APNSCore
 import Fluent
 import NIOSSL
 import PassKit
-import ZIPFoundation
+import Zip
 
 /// Class to handle ``PassesService``.
 ///
@@ -494,12 +494,7 @@ extension PassesServiceCustom {
         
         try Self.generateManifestFile(using: encoder, in: root)
         try self.generateSignatureFile(in: root)
-        
-        let zipFile = tmp.appendingPathComponent("\(UUID().uuidString).pkpass")
-        try FileManager.default.zipItem(at: root, to: zipFile, shouldKeepParent: false)
-        defer { _ = try? FileManager.default.removeItem(at: zipFile) }
-
-        return try Data(contentsOf: zipFile)
+        return try Data(contentsOf: Zip.quickZipFiles([root], fileName: "\(UUID().uuidString).pkpass"))
     }
 
     /// Generates a bundle of passes to enable your user to download multiple passes at once.
@@ -527,10 +522,6 @@ extension PassesServiceCustom {
                 .write(to: root.appendingPathComponent("pass\(i).pkpass"))
         }
 
-        let zipFile = tmp.appendingPathComponent("\(UUID().uuidString).pkpasses")
-        try FileManager.default.zipItem(at: root, to: zipFile, shouldKeepParent: false)
-        defer { _ = try? FileManager.default.removeItem(at: zipFile) }
-
-        return try Data(contentsOf: zipFile)
+        return try Data(contentsOf: Zip.quickZipFiles([root], fileName: "\(UUID().uuidString).pkpasses"))
     }
 }

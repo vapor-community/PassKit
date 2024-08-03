@@ -12,7 +12,7 @@ import APNSCore
 import Fluent
 import NIOSSL
 import PassKit
-import ZIPFoundation
+import Zip
 
 /// Class to handle ``OrdersService``.
 ///
@@ -418,11 +418,6 @@ extension OrdersServiceCustom {
 
         try Self.generateManifestFile(using: encoder, in: root)
         try self.generateSignatureFile(in: root)
-        
-        let zipFile = tmp.appendingPathComponent("\(UUID().uuidString).order")
-        try FileManager.default.zipItem(at: root, to: zipFile, shouldKeepParent: false)
-        defer { _ = try? FileManager.default.removeItem(at: zipFile) }
-
-        return try Data(contentsOf: zipFile)
+        return try Data(contentsOf: Zip.quickZipFiles([root], fileName: "\(UUID().uuidString).order"))
     }
 }
