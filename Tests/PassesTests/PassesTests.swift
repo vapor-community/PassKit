@@ -27,4 +27,17 @@ final class PassesTests: XCTestCase {
         let data = try await passesService.generatePassContent(for: pass, on: app.db)
         XCTAssertNotNil(data)
     }
+
+    func testPassesGeneration() async throws {
+        let passData1 = PassData(title: "Test Pass 1")
+        try await passData1.create(on: app.db)
+        let pass1 = try await passData1.$pass.get(on: app.db)
+
+        let passData2 = PassData(title: "Test Pass 2")
+        try await passData2.create(on: app.db)
+        let pass2 = try await passData2.$pass.get(on: app.db)
+
+        let data = try await passesService.generatePassesContent(for: [pass1, pass2], on: app.db)
+        XCTAssertNotNil(data)
+    }
 }
