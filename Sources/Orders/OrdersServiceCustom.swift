@@ -392,7 +392,6 @@ extension OrdersServiceCustom {
                 "-outform", "DER",
                 "-passin", "pass:\(password)"
             ]
-
             try proc.run()
             proc.waitUntilExit()
             return
@@ -405,25 +404,24 @@ extension OrdersServiceCustom {
                 Certificate(
                     pemEncoded: String(
                         contentsOf: delegate.sslSigningFilesDirectory
-                            .appending(path: delegate.wwdrCertificate)
+                            .appendingPathComponent(delegate.wwdrCertificate)
                     )
                 )
             ],
             certificate: Certificate(
                 pemEncoded: String(
                     contentsOf: delegate.sslSigningFilesDirectory
-                        .appending(path: delegate.pemCertificate)
+                        .appendingPathComponent(delegate.pemCertificate)
                 )
             ),
             privateKey: .init(
                 pemEncoded: String(
                     contentsOf: delegate.sslSigningFilesDirectory
-                        .appending(path: delegate.pemPrivateKey)
+                        .appendingPathComponent(delegate.pemPrivateKey)
                 )
             ),
             signingTime: Date()
         )
-        
         try Data(signature).write(to: root.appendingPathComponent("signature"))
     }
 

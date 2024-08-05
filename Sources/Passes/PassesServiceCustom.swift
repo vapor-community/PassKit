@@ -293,39 +293,65 @@ extension PassesServiceCustom {
         guard let token = userInfo.personalizationToken.data(using: .utf8) else {
             throw Abort(.internalServerError)
         }
-        try token.write(to: root.appendingPathComponent("personalizationToken"))
+        let signature: Data
+        if let password = delegate.pemPrivateKeyPassword {
+            let sslBinary = delegate.sslBinary
+            guard FileManager.default.fileExists(atPath: sslBinary.unixPath()) else {
+                throw PassesError.opensslBinaryMissing
+            }
 
-        let sslBinary = delegate.sslBinary
-        guard FileManager.default.fileExists(atPath: sslBinary.unixPath()) else {
-            throw PassesError.opensslBinaryMissing
-        }
+            let tokenURL = root.appendingPathComponent("personalizationToken")
+            try token.write(to: tokenURL)
 
-        let proc = Process()
-        proc.currentDirectoryURL = delegate.sslSigningFilesDirectory
-        proc.executableURL = sslBinary
-        proc.arguments = [
-            "smime", "-binary", "-sign",
-            "-certfile", delegate.wwdrCertificate,
-            "-signer", delegate.pemCertificate,
-            "-inkey", delegate.pemPrivateKey,
-            "-in", root.appendingPathComponent("personalizationToken").unixPath(),
-            "-out", root.appendingPathComponent("signature").unixPath(),
-            "-outform", "DER"
-        ]
-        if let pwd = delegate.pemPrivateKeyPassword {
-            proc.arguments!.append(contentsOf: ["-passin", "pass:\(pwd)"])
+            let proc = Process()
+            proc.currentDirectoryURL = delegate.sslSigningFilesDirectory
+            proc.executableURL = sslBinary
+            proc.arguments = [
+                "smime", "-binary", "-sign",
+                "-certfile", delegate.wwdrCertificate,
+                "-signer", delegate.pemCertificate,
+                "-inkey", delegate.pemPrivateKey,
+                "-in", tokenURL.unixPath(),
+                "-out", root.appendingPathComponent("signature").unixPath(),
+                "-outform", "DER",
+                "-passin", "pass:\(password)"
+            ]
+            try proc.run()
+            proc.waitUntilExit()
+            signature = try Data(contentsOf: root.appendingPathComponent("signature"))
+        } else {
+            let signatureBytes = try CMS.sign(
+                token,
+                signatureAlgorithm: .sha256WithRSAEncryption,
+                additionalIntermediateCertificates: [
+                    Certificate(
+                        pemEncoded: String(
+                            contentsOf: delegate.sslSigningFilesDirectory
+                                .appendingPathComponent(delegate.wwdrCertificate)
+                        )
+                    )
+                ],
+                certificate: Certificate(
+                    pemEncoded: String(
+                        contentsOf: delegate.sslSigningFilesDirectory
+                            .appendingPathComponent(delegate.pemCertificate)
+                    )
+                ),
+                privateKey: .init(
+                    pemEncoded: String(
+                        contentsOf: delegate.sslSigningFilesDirectory
+                            .appendingPathComponent(delegate.pemPrivateKey)
+                    )
+                ),
+                signingTime: Date()
+            )
+            signature = Data(signatureBytes)
         }
-        try proc.run()
-        proc.waitUntilExit()
 
         var headers = HTTPHeaders()
         headers.add(name: .contentType, value: "application/octet-stream")
         headers.add(name: .contentTransferEncoding, value: "binary")
-        return try Response(
-            status: .ok,
-            headers: headers,
-            body: Response.Body(data: Data(contentsOf: root.appendingPathComponent("signature")))
-        )
+        return Response(status: .ok, headers: headers, body: Response.Body(data: signature))
     }
     
     // MARK: - Push Routes
@@ -463,7 +489,6 @@ extension PassesServiceCustom {
                 "-outform", "DER",
                 "-passin", "pass:\(password)"
             ]
-
             try proc.run()
             proc.waitUntilExit()
             return
@@ -476,25 +501,24 @@ extension PassesServiceCustom {
                 Certificate(
                     pemEncoded: String(
                         contentsOf: delegate.sslSigningFilesDirectory
-                            .appending(path: delegate.wwdrCertificate)
+                            .appendingPathComponent(delegate.wwdrCertificate)
                     )
                 )
             ],
             certificate: Certificate(
                 pemEncoded: String(
                     contentsOf: delegate.sslSigningFilesDirectory
-                        .appending(path: delegate.pemCertificate)
+                        .appendingPathComponent(delegate.pemCertificate)
                 )
             ),
             privateKey: .init(
                 pemEncoded: String(
                     contentsOf: delegate.sslSigningFilesDirectory
-                        .appending(path: delegate.pemPrivateKey)
+                        .appendingPathComponent(delegate.pemPrivateKey)
                 )
             ),
             signingTime: Date()
         )
-        
         try Data(signature).write(to: root.appendingPathComponent("signature"))
     }
     
