@@ -177,7 +177,7 @@ final class PassDelegate: PassesDelegate {
 }
 ```
 
-> Important: You **must** explicitly declare ``PassesDelegate/pemPrivateKeyPassword`` as a `String?` or Swift will ignore it as it'll think it's a `String` instead.
+> Important: If you have an encrypted PEM private key, you **must** explicitly declare ``PassesDelegate/pemPrivateKeyPassword`` as a `String?` or Swift will ignore it as it'll think it's a `String` instead.
 
 ### Initialize the Service
 

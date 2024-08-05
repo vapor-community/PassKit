@@ -12,7 +12,8 @@ import APNSCore
 import Fluent
 import NIOSSL
 import PassKit
-import Zip
+import ZIPFoundation
+@_spi(CMS) import X509
 
 /// Class to handle ``OrdersService``.
 ///
@@ -350,7 +351,7 @@ extension OrdersServiceCustom {
 
 // MARK: - order file generation
 extension OrdersServiceCustom {
-    private static func generateManifestFile(using encoder: JSONEncoder, in root: URL) throws {
+    private static func generateManifestFile(using encoder: JSONEncoder, in root: URL) throws -> Data {
         var manifest: [String: String] = [:]
 
         let paths = try FileManager.default.subpathsOfDirectory(atPath: root.unixPath())
@@ -362,36 +363,68 @@ extension OrdersServiceCustom {
             manifest[relativePath] = hash.map { "0\(String($0, radix: 16))".suffix(2) }.joined()
         }
 
-        try encoder.encode(manifest)
-            .write(to: root.appendingPathComponent("manifest.json"))
+        let data = try encoder.encode(manifest)
+        try data.write(to: root.appendingPathComponent("manifest.json"))
+        return data
     }
 
-    private func generateSignatureFile(in root: URL) throws {
+    private func generateSignatureFile(for manifest: Data, in root: URL) throws {
         // If the caller's delegate generated a file we don't have to do it.
         if delegate.generateSignatureFile(in: root) { return }
 
-        let sslBinary = delegate.sslBinary
-        guard FileManager.default.fileExists(atPath: sslBinary.unixPath()) else {
-            throw OrdersError.opensslBinaryMissing
-        }
+        // Swift Crypto doesn't support encrypted PEM private keys, so we have to use OpenSSL for that.
+        if let password = delegate.pemPrivateKeyPassword {
+            let sslBinary = delegate.sslBinary
+            guard FileManager.default.fileExists(atPath: sslBinary.unixPath()) else {
+                throw OrdersError.opensslBinaryMissing
+            }
 
-        let proc = Process()
-        proc.currentDirectoryURL = delegate.sslSigningFilesDirectory
-        proc.executableURL = sslBinary
-        proc.arguments = [
-            "smime", "-binary", "-sign",
-            "-certfile", delegate.wwdrCertificate,
-            "-signer", delegate.pemCertificate,
-            "-inkey", delegate.pemPrivateKey,
-            "-in", root.appendingPathComponent("manifest.json").unixPath(),
-            "-out", root.appendingPathComponent("signature").unixPath(),
-            "-outform", "DER"
-        ]
-        if let pwd = delegate.pemPrivateKeyPassword {
-            proc.arguments!.append(contentsOf: ["-passin", "pass:\(pwd)"])
+            let proc = Process()
+            proc.currentDirectoryURL = delegate.sslSigningFilesDirectory
+            proc.executableURL = sslBinary
+            proc.arguments = [
+                "smime", "-binary", "-sign",
+                "-certfile", delegate.wwdrCertificate,
+                "-signer", delegate.pemCertificate,
+                "-inkey", delegate.pemPrivateKey,
+                "-in", root.appendingPathComponent("manifest.json").unixPath(),
+                "-out", root.appendingPathComponent("signature").unixPath(),
+                "-outform", "DER",
+                "-passin", "pass:\(password)"
+            ]
+
+            try proc.run()
+            proc.waitUntilExit()
+            return
         }
-        try proc.run()
-        proc.waitUntilExit()
+        
+        let signature = try CMS.sign(
+            manifest,
+            signatureAlgorithm: .sha256WithRSAEncryption,
+            additionalIntermediateCertificates: [
+                Certificate(
+                    pemEncoded: String(
+                        contentsOf: delegate.sslSigningFilesDirectory
+                            .appending(path: delegate.wwdrCertificate)
+                    )
+                )
+            ],
+            certificate: Certificate(
+                pemEncoded: String(
+                    contentsOf: delegate.sslSigningFilesDirectory
+                        .appending(path: delegate.pemCertificate)
+                )
+            ),
+            privateKey: .init(
+                pemEncoded: String(
+                    contentsOf: delegate.sslSigningFilesDirectory
+                        .appending(path: delegate.pemPrivateKey)
+                )
+            ),
+            signingTime: Date()
+        )
+        
+        try Data(signature).write(to: root.appendingPathComponent("signature"))
     }
 
     /// Generates the order content bundle for a given order.
@@ -415,9 +448,16 @@ extension OrdersServiceCustom {
         let encoder = JSONEncoder()
         try await self.delegate.encode(order: order, db: db, encoder: encoder)
             .write(to: root.appendingPathComponent("order.json"))
-
-        try Self.generateManifestFile(using: encoder, in: root)
-        try self.generateSignatureFile(in: root)
-        return try Data(contentsOf: Zip.quickZipFiles([root], fileName: "\(UUID().uuidString).order"))
+        
+        try self.generateSignatureFile(
+            for: Self.generateManifestFile(using: encoder, in: root),
+            in: root
+        )
+        
+        let zipFile = tmp.appendingPathComponent("\(UUID().uuidString).order")
+        try FileManager.default.zipItem(at: root, to: zipFile, shouldKeepParent: false)
+        defer { _ = try? FileManager.default.removeItem(at: zipFile) }
+        
+        return try Data(contentsOf: zipFile)
     }
 }
