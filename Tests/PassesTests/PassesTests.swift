@@ -40,4 +40,18 @@ final class PassesTests: XCTestCase {
         let data = try await passesService.generatePassesContent(for: [pass1, pass2], on: app.db)
         XCTAssertNotNil(data)
     }
+
+    func testPersonalization() async throws {
+        let passDataPersonalize = PassData(title: "Personalize")
+        try await passDataPersonalize.create(on: app.db)
+        let passPersonalize = try await passDataPersonalize.$pass.get(on: app.db)
+        let dataPersonalize = try await passesService.generatePassContent(for: passPersonalize, on: app.db)
+
+        let passData = PassData(title: "Test Pass")
+        try await passData.create(on: app.db)
+        let pass = try await passData.$pass.get(on: app.db)
+        let data = try await passesService.generatePassContent(for: pass, on: app.db)
+
+        XCTAssertGreaterThan(dataPersonalize.count, data.count)
+    }
 }

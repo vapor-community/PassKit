@@ -25,7 +25,6 @@ final class TestPassesDelegate: PassesDelegate {
         return data
     }
     
-    /*
     func encodePersonalization<P: PassModel>(for pass: P, db: any Database, encoder: JSONEncoder) async throws -> Data? {
         guard let passData = try await PassData.query(on: db)
             .filter(\.$pass.$id == pass.id!)
@@ -34,6 +33,8 @@ final class TestPassesDelegate: PassesDelegate {
         else {
             throw Abort(.internalServerError)
         }
+
+        if passData.title != "Personalize" { return nil }
         
         if try await passData.pass.$userPersonalization.get(on: db) == nil {
             guard let data = try? encoder.encode(PersonalizationJSONData()) else {
@@ -42,7 +43,6 @@ final class TestPassesDelegate: PassesDelegate {
             return data
         } else { return nil }
     }
-    */
 
     func template<P: PassModel>(for pass: P, db: any Database) async throws -> URL {
         URL(
