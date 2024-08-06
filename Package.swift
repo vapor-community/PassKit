@@ -15,7 +15,7 @@ let package = Package(
         .package(url: "https://github.com/vapor/fluent.git", from: "4.11.0"),
         .package(url: "https://github.com/vapor/apns.git", from: "4.1.0"),
         .package(url: "https://github.com/weichsel/ZIPFoundation.git", branch: "chore/swift6"),
-        .package(url: "https://github.com/apple/swift-certificates.git", branch: "main"),
+        .package(url: "https://github.com/apple/swift-certificates.git", from: "1.5.0"),
         // used in tests
         .package(url: "https://github.com/vapor/fluent-sqlite-driver.git", from: "4.7.4"),
     ],

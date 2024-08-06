@@ -297,7 +297,7 @@ extension OrdersServiceCustom {
             let backgroundNotification = APNSBackgroundNotification(
                 expiration: .immediately,
                 topic: reg.order.orderTypeIdentifier,
-                payload: PassKit.Payload()
+                payload: EmptyPayload()
             )
             do {
                 try await app.apns.client(.init(string: "orders")).sendBackgroundNotification(

@@ -394,7 +394,7 @@ extension PassesServiceCustom {
             let backgroundNotification = APNSBackgroundNotification(
                 expiration: .immediately,
                 topic: reg.pass.passTypeIdentifier,
-                payload: PassKit.Payload()
+                payload: EmptyPayload()
             )
             do {
                 try await app.apns.client(.init(string: "passes")).sendBackgroundNotification(
