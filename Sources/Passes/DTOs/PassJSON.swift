@@ -87,6 +87,37 @@ extension PassJSON {
 }
 
 extension PassJSON {
+    /// A protocol that represents a location that the system uses to show a relevant pass.
+    ///
+    /// > Tip: See the [`Pass.Locations`](https://developer.apple.com/documentation/walletpasses/pass/locations) object to understand the keys.
+    public protocol Locations: Encodable {
+        /// The latitude, in degrees, of the location.
+        var latitude: Double { get }
+        
+        /// (Required) 
+        var longitude: Double { get }
+    }
+}
+
+extension PassJSON {
+    /// An object that represents the near-field communication (NFC) payload the device passes to an Apple Pay terminal.
+    ///
+    /// > Tip: See the [`Pass.NFC`](https://developer.apple.com/documentation/walletpasses/pass/nfc) object to understand the keys.
+    public protocol NFC: Encodable {
+        /// The payload the device transmits to the Apple Pay terminal.
+        ///
+        /// The size must be no more than 64 bytes.
+        /// The system truncates messages longer than 64 bytes.
+        var message: String { get }
+
+        /// The public encryption key the Value Added Services protocol uses.
+        ///
+        /// Use a Base64-encoded X.509 SubjectPublicKeyInfo structure that contains an ECDH public key for group P256.
+        var encryptionPublicKey: String { get }
+    }
+}
+
+extension PassJSON {
     /// The version of the file format.
     public enum FormatVersion: Int, Encodable {
         /// The value must be `1`.

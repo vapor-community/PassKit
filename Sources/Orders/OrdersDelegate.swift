@@ -18,13 +18,13 @@ public protocol OrdersDelegate: AnyObject, Sendable {
     ///  - `signature`
     ///
     /// - Parameters:
-    ///   - for: The order data from the SQL server.
+    ///   - order: The order data from the SQL server.
     ///   - db: The SQL database to query against.
     ///
     /// - Returns: A `URL` which points to the template data for the order.
     ///
     /// > Important: Be sure to use the `URL(fileURLWithPath:isDirectory:)` constructor.
-    func template<O: OrderModel>(for: O, db: any Database) async throws -> URL
+    func template<O: OrderModel>(for order: O, db: any Database) async throws -> URL
 
     /// Generates the SSL `signature` file.
     ///
@@ -64,11 +64,6 @@ public protocol OrdersDelegate: AnyObject, Sendable {
     ///
     /// > Important: Be sure to use the `URL(fileURLWithPath:)` constructor.
     var sslBinary: URL { get }
-
-    /// The full path to the `zip` command as a file URL.
-    /// 
-    /// > Important: Be sure to use the `URL(fileURLWithPath:)` constructor.
-    var zipBinary: URL { get }
     
     /// The name of Apple's WWDR.pem certificate as contained in `sslSigningFiles` path.
     ///
@@ -108,10 +103,6 @@ public extension OrdersDelegate {
 
     var sslBinary: URL {
         get { return URL(fileURLWithPath: "/usr/bin/openssl") }
-    }
-
-    var zipBinary: URL {
-        get { return URL(fileURLWithPath: "/usr/bin/zip") }
     }
     
     func generateSignatureFile(in root: URL) -> Bool {

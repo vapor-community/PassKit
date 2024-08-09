@@ -9,7 +9,7 @@ import FluentKit
 
 /// The `Model` that stores passes registrations.
 final public class PassesRegistration: PassesRegistrationModel, @unchecked Sendable {
-    public typealias PassType = PKPass
+    public typealias PassType = Pass
     public typealias DeviceType = PassesDevice
 
     /// The schema name of the passes registration model.

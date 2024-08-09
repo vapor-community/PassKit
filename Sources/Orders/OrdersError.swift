@@ -13,7 +13,6 @@ public struct OrdersError: Error, Sendable {
             case templateNotDirectory
             case pemCertificateMissing
             case pemPrivateKeyMissing
-            case zipBinaryMissing
             case opensslBinaryMissing
         }
         
@@ -29,8 +28,6 @@ public struct OrdersError: Error, Sendable {
         public static let pemCertificateMissing = Self(.pemCertificateMissing)
         /// The `pemPrivateKey` file is missing.
         public static let pemPrivateKeyMissing = Self(.pemPrivateKeyMissing)
-        /// The path to the `zip` binary is incorrect.
-        public static let zipBinaryMissing = Self(.zipBinaryMissing)
         /// The path to the `openssl` binary is incorrect.
         public static let opensslBinaryMissing = Self(.opensslBinaryMissing)
 
@@ -65,9 +62,6 @@ public struct OrdersError: Error, Sendable {
 
     /// The `pemPrivateKey` file is missing.
     public static let pemPrivateKeyMissing = Self(errorType: .pemPrivateKeyMissing)
-
-    /// The path to the `zip` binary is incorrect.
-    public static let zipBinaryMissing = Self(errorType: .zipBinaryMissing)
 
     /// The path to the `openssl` binary is incorrect.
     public static let opensslBinaryMissing = Self(errorType: .opensslBinaryMissing)

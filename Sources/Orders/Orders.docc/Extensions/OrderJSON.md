@@ -12,3 +12,8 @@
 ### Merchants
 
 - ``Merchant``
+
+### Barcode
+
+- ``Barcode``
+- ``BarcodeFormat``

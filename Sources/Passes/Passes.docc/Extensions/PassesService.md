@@ -7,11 +7,9 @@
 - ``generatePassContent(for:on:)``
 - ``generatePassesContent(for:on:)``
 - ``register(migrations:)``
-- ``registerRoutes()``
 
 ### Push Notifications
 
-- ``registerPushRoutes(middleware:)``
-- ``sendPushNotifications(for:on:app:)-2em82``
-- ``sendPushNotifications(for:on:app:)-487hq``
-- ``sendPushNotificationsForPass(id:of:on:app:)``
+- ``sendPushNotifications(for:on:)-79w98``
+- ``sendPushNotifications(for:on:)-69wue``
+- ``sendPushNotificationsForPass(id:of:on:)``
