@@ -16,7 +16,7 @@ final class PassesTests: XCTestCase {
         
         PassesService.register(migrations: app.migrations)
         app.migrations.add(CreatePassData())
-        passesService = try PassesService(app: app, delegate: passDelegate)
+        passesService = try PassesService(app: app, delegate: passDelegate, pushRoutesMiddleware: SecretMiddleware(secret: "foo"))
         app.databases.middleware.use(PassDataMiddleware(service: passesService), on: .sqlite)
 
         try await app.autoMigrate()
@@ -62,13 +62,14 @@ final class PassesTests: XCTestCase {
         try await passData.create(on: app.db)
         let pass = try await passData.$pass.get(on: app.db)
         let deviceLibraryIdentifier = "abcdefg"
+        let pushToken = "1234567890"
 
         try await app.test(
             .POST,
             "\(passesURI)devices/\(deviceLibraryIdentifier)/registrations/\(pass.passTypeIdentifier)/\(pass.requireID())",
             headers: ["Authorization": "ApplePass \(pass.authenticationToken)"],
             beforeRequest: { req async throws in
-                try req.content.encode(RegistrationDTO(pushToken: "1234567890"))
+                try req.content.encode(RegistrationDTO(pushToken: pushToken))
             },
             afterResponse: { res async throws in
                 XCTAssertEqual(res.status, .created)
@@ -80,10 +81,33 @@ final class PassesTests: XCTestCase {
             "\(passesURI)devices/\(deviceLibraryIdentifier)/registrations/\(pass.passTypeIdentifier)/\(pass.requireID())",
             headers: ["Authorization": "ApplePass \(pass.authenticationToken)"],
             beforeRequest: { req async throws in
-                try req.content.encode(RegistrationDTO(pushToken: "1234567890"))
+                try req.content.encode(RegistrationDTO(pushToken: pushToken))
             },
             afterResponse: { res async throws in
                 XCTAssertEqual(res.status, .ok)
+            }
+        )
+
+        try await app.test(
+            .GET,
+            "\(passesURI)devices/\(deviceLibraryIdentifier)/registrations/\(pass.passTypeIdentifier)?passesUpdatedSince=0",
+            afterResponse: { res async throws in
+                let passes = try res.content.decode(PassesForDeviceDTO.self)
+                XCTAssertEqual(passes.serialNumbers.count, 1)
+                let passID = try pass.requireID()
+                XCTAssertEqual(passes.serialNumbers[0], passID.uuidString)
+                XCTAssertEqual(passes.lastUpdated, String(pass.updatedAt!.timeIntervalSince1970))
+            }
+        )
+
+        try await app.test(
+            .GET,
+            "\(passesURI)push/\(pass.passTypeIdentifier)/\(pass.requireID())",
+            headers: ["X-Secret": "foo"],
+            afterResponse: { res async throws in
+                let pushTokens = try res.content.decode([String].self)
+                XCTAssertEqual(pushTokens.count, 1)
+                XCTAssertEqual(pushTokens[0], pushToken)
             }
         )
 
@@ -95,5 +119,26 @@ final class PassesTests: XCTestCase {
                 XCTAssertEqual(res.status, .ok)
             }
         )
+    }
+
+    func testErrorLog() async throws {
+        let log1 = "Error 1"
+        let log2 = "Error 2"
+
+        try await app.test(
+            .POST,
+            "\(passesURI)log",
+            beforeRequest: { req async throws in
+                try req.content.encode(ErrorLogDTO(logs: [log1, log2]))
+            },
+            afterResponse: { res async throws in
+                XCTAssertEqual(res.status, .ok)
+            }
+        )
+
+        let logs = try await PassesErrorLog.query(on: app.db).all()
+        XCTAssertEqual(logs.count, 2)
+        XCTAssertEqual(logs[0].message, log1)
+        XCTAssertEqual(logs[1].message, log2)
     }
 }
