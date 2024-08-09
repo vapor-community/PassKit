@@ -555,7 +555,7 @@ extension PassesServiceCustom {
         )
         
         let zipFile = tmp.appendingPathComponent("\(UUID().uuidString).pkpass")
-        try await FileManager.default.zipItem(at: root, to: zipFile, shouldKeepParent: false)
+        try FileManager.default.zipItem(at: root, to: zipFile, shouldKeepParent: false)
         defer { _ = try? FileManager.default.removeItem(at: zipFile) }
         
         return try Data(contentsOf: zipFile)
@@ -587,7 +587,7 @@ extension PassesServiceCustom {
         }
         
         let zipFile = tmp.appendingPathComponent("\(UUID().uuidString).pkpasses")
-        try await FileManager.default.zipItem(at: root, to: zipFile, shouldKeepParent: false)
+        try FileManager.default.zipItem(at: root, to: zipFile, shouldKeepParent: false)
         defer { _ = try? FileManager.default.removeItem(at: zipFile) }
         
         return try Data(contentsOf: zipFile)

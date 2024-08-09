@@ -2,11 +2,13 @@ import XCTVapor
 import Fluent
 import FluentSQLiteDriver
 @testable import Passes
+@testable import PassKit
 
 final class PassesTests: XCTestCase {
-    var app: Application!
     let passDelegate = TestPassesDelegate()
+    let passesURI = "/api/passes/v1/"
     var passesService: PassesService!
+    var app: Application!
     
     override func setUp() async throws {
         self.app = try await Application.make(.testing)
@@ -53,5 +55,45 @@ final class PassesTests: XCTestCase {
         let data = try await passesService.generatePassContent(for: pass, on: app.db)
 
         XCTAssertGreaterThan(dataPersonalize.count, data.count)
+    }
+
+    func testAPIDeviceRegistration() async throws {
+        let passData = PassData(title: "Test Pass")
+        try await passData.create(on: app.db)
+        let pass = try await passData.$pass.get(on: app.db)
+        let deviceLibraryIdentifier = "abcdefg"
+
+        try await app.test(
+            .POST,
+            "\(passesURI)devices/\(deviceLibraryIdentifier)/registrations/\(pass.passTypeIdentifier)/\(pass.requireID())",
+            headers: ["Authorization": "ApplePass \(pass.authenticationToken)"],
+            beforeRequest: { req async throws in
+                try req.content.encode(RegistrationDTO(pushToken: "1234567890"))
+            },
+            afterResponse: { res async throws in
+                XCTAssertEqual(res.status, .created)
+            }
+        )
+
+        try await app.test(
+            .POST,
+            "\(passesURI)devices/\(deviceLibraryIdentifier)/registrations/\(pass.passTypeIdentifier)/\(pass.requireID())",
+            headers: ["Authorization": "ApplePass \(pass.authenticationToken)"],
+            beforeRequest: { req async throws in
+                try req.content.encode(RegistrationDTO(pushToken: "1234567890"))
+            },
+            afterResponse: { res async throws in
+                XCTAssertEqual(res.status, .ok)
+            }
+        )
+
+        try await app.test(
+            .DELETE,
+            "\(passesURI)devices/\(deviceLibraryIdentifier)/registrations/\(pass.passTypeIdentifier)/\(pass.requireID())",
+            headers: ["Authorization": "ApplePass \(pass.authenticationToken)"],
+            afterResponse: { res async throws in
+                XCTAssertEqual(res.status, .ok)
+            }
+        )
     }
 }
