@@ -54,12 +54,12 @@ public final class PassesServiceCustom<P, U, D, R: PassesRegistrationModel, E: E
             throw PassesError.pemCertificateMissing
         }
         let apnsConfig: APNSClientConfiguration
-        if let pwd = delegate.pemPrivateKeyPassword {
+        if let password = delegate.pemPrivateKeyPassword {
             apnsConfig = APNSClientConfiguration(
                 authenticationMethod: try .tls(
                     privateKey: .privateKey(
                         NIOSSLPrivateKey(file: privateKeyPath, format: .pem) { closure in
-                            closure(pwd.utf8)
+                            closure(password.utf8)
                         }),
                     certificateChain: NIOSSLCertificate.fromPEMFile(pemPath).map { .certificate($0) }
                 ),
