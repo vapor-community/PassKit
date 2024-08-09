@@ -45,6 +45,7 @@ final class OrdersTests: XCTestCase {
                 try req.content.encode(RegistrationDTO(pushToken: pushToken))
             },
             afterResponse: { res async throws in
+                XCTAssertNotEqual(res.status, .unauthorized)
                 XCTAssertEqual(res.status, .created)
             }
         )
@@ -57,6 +58,7 @@ final class OrdersTests: XCTestCase {
                 try req.content.encode(RegistrationDTO(pushToken: pushToken))
             },
             afterResponse: { res async throws in
+                XCTAssertNotEqual(res.status, .unauthorized)
                 XCTAssertEqual(res.status, .ok)
             }
         )
@@ -91,6 +93,7 @@ final class OrdersTests: XCTestCase {
             "\(ordersURI)devices/\(deviceLibraryIdentifier)/registrations/\(order.orderTypeIdentifier)/\(order.requireID())",
             headers: ["Authorization": "AppleOrder \(order.authenticationToken)"],
             afterResponse: { res async throws in
+                XCTAssertNotEqual(res.status, .unauthorized)
                 XCTAssertEqual(res.status, .ok)
             }
         )
@@ -115,5 +118,13 @@ final class OrdersTests: XCTestCase {
         XCTAssertEqual(logs.count, 2)
         XCTAssertEqual(logs[0].message, log1)
         XCTAssertEqual(logs[1].message, log2)
+    }
+
+    func testAPNSClient() async throws {
+        XCTAssertNotNil(app.apns.client(.init(string: "orders")))
+        let orderData = OrderData(title: "Test Order")
+        try await orderData.create(on: app.db)
+        let order = try await orderData.$order.get(on: app.db)
+        try await ordersService.sendPushNotifications(for: order, on: app.db)
     }
 }

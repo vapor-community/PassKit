@@ -72,6 +72,7 @@ final class PassesTests: XCTestCase {
                 try req.content.encode(RegistrationDTO(pushToken: pushToken))
             },
             afterResponse: { res async throws in
+                XCTAssertNotEqual(res.status, .unauthorized)
                 XCTAssertEqual(res.status, .created)
             }
         )
@@ -84,6 +85,7 @@ final class PassesTests: XCTestCase {
                 try req.content.encode(RegistrationDTO(pushToken: pushToken))
             },
             afterResponse: { res async throws in
+                XCTAssertNotEqual(res.status, .unauthorized)
                 XCTAssertEqual(res.status, .ok)
             }
         )
@@ -116,6 +118,7 @@ final class PassesTests: XCTestCase {
             "\(passesURI)devices/\(deviceLibraryIdentifier)/registrations/\(pass.passTypeIdentifier)/\(pass.requireID())",
             headers: ["Authorization": "ApplePass \(pass.authenticationToken)"],
             afterResponse: { res async throws in
+                XCTAssertNotEqual(res.status, .unauthorized)
                 XCTAssertEqual(res.status, .ok)
             }
         )
@@ -140,5 +143,13 @@ final class PassesTests: XCTestCase {
         XCTAssertEqual(logs.count, 2)
         XCTAssertEqual(logs[0].message, log1)
         XCTAssertEqual(logs[1].message, log2)
+    }
+
+    func testAPNSClient() async throws {
+        XCTAssertNotNil(app.apns.client(.init(string: "passes")))
+        let passData = PassData(title: "Test Pass")
+        try await passData.create(on: app.db)
+        let pass = try await passData.$pass.get(on: app.db)
+        try await passesService.sendPushNotifications(for: pass, on: app.db)
     }
 }
