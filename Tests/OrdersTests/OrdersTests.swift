@@ -47,10 +47,18 @@ final class OrdersTests: XCTestCase {
         try await orderData.create(on: app.db)
         let order = try await orderData.$order.get(on: app.db)
 
+        let dateFormatter = DateFormatter()
+        dateFormatter.locale = Locale(identifier: "en_US_POSIX")
+        dateFormatter.timeZone = TimeZone(secondsFromGMT: 0)
+        dateFormatter.dateFormat = "EEE, dd MMM yyyy HH:mm:ss zzz"
+
         try await app.test(
             .GET,
             "\(ordersURI)orders/\(order.orderTypeIdentifier)/\(order.requireID())",
-            headers: ["Authorization": "AppleOrder \(order.authenticationToken)", "If-Modified-Since": "0"],
+            headers: [
+                "Authorization": "AppleOrder \(order.authenticationToken)",
+                "If-Modified-Since": dateFormatter.string(from: Date.distantPast)
+            ],
             afterResponse: { res async throws in
                 XCTAssertEqual(res.status, .ok)
                 XCTAssertNotNil(res.body)

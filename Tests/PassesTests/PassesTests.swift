@@ -74,10 +74,18 @@ final class PassesTests: XCTestCase {
         try await passData.create(on: app.db)
         let pass = try await passData.$pass.get(on: app.db)
 
+        let dateFormatter = DateFormatter()
+        dateFormatter.locale = Locale(identifier: "en_US_POSIX")
+        dateFormatter.timeZone = TimeZone(secondsFromGMT: 0)
+        dateFormatter.dateFormat = "EEE, dd MMM yyyy HH:mm:ss zzz"
+
         try await app.test(
             .GET,
             "\(passesURI)passes/\(pass.passTypeIdentifier)/\(pass.requireID())",
-            headers: ["Authorization": "ApplePass \(pass.authenticationToken)", "If-Modified-Since": "0"],
+            headers: [
+                "Authorization": "ApplePass \(pass.authenticationToken)",
+                "If-Modified-Since": dateFormatter.string(from: Date.distantPast)
+            ],
             afterResponse: { res async throws in
                 XCTAssertEqual(res.status, .ok)
                 XCTAssertNotNil(res.body)
@@ -120,6 +128,10 @@ final class PassesTests: XCTestCase {
 
         let personalizationQuery = try await UserPersonalization.query(on: app.db).all()
         XCTAssertEqual(personalizationQuery.count, 1)
+        let passPersonalizationID = try await Pass.query(on: app.db).first()?
+            ._$userPersonalization.get(on: app.db)?
+            .requireID()
+        XCTAssertEqual(personalizationQuery[0]._$id.value, passPersonalizationID)
         XCTAssertEqual(personalizationQuery[0]._$emailAddress.value, personalizationDict.requiredPersonalizationInfo.emailAddress)
         XCTAssertEqual(personalizationQuery[0]._$familyName.value, personalizationDict.requiredPersonalizationInfo.familyName)
         XCTAssertEqual(personalizationQuery[0]._$fullName.value, personalizationDict.requiredPersonalizationInfo.fullName)
