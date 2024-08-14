@@ -186,8 +186,12 @@ extension PassesServiceCustom {
     func latestVersionOfPass(req: Request) async throws -> Response {
         logger?.debug("Called latestVersionOfPass")
         
-        var ifModifiedSince: TimeInterval = 0
-        if let header = req.headers[.ifModifiedSince].first, let ims = TimeInterval(header) {
+        let dateFormatter = DateFormatter()
+        dateFormatter.locale = Locale(identifier: "en_US_POSIX")
+        dateFormatter.timeZone = TimeZone(secondsFromGMT: 0)
+        dateFormatter.dateFormat = "EEE, dd MMM yyyy HH:mm:ss zzz"
+        var ifModifiedSince = Date.distantPast
+        if let header = req.headers[.ifModifiedSince].first, let ims = dateFormatter.date(from: header) {
             ifModifiedSince = ims
         }
         
@@ -203,13 +207,13 @@ extension PassesServiceCustom {
             throw Abort(.notFound)
         }
         
-        guard ifModifiedSince < pass.updatedAt?.timeIntervalSince1970 ?? 0 else {
+        guard ifModifiedSince < pass.updatedAt ?? Date.distantPast else {
             throw Abort(.notModified)
         }
         
         var headers = HTTPHeaders()
         headers.add(name: .contentType, value: "application/vnd.apple.pkpass")
-        headers.add(name: .lastModified, value: String(pass.updatedAt?.timeIntervalSince1970 ?? 0))
+        headers.add(name: .lastModified, value: dateFormatter.string(from: pass.updatedAt ?? Date.distantPast))
         headers.add(name: .contentTransferEncoding, value: "binary")
         return try await Response(
             status: .ok,
@@ -450,7 +454,6 @@ extension PassesServiceCustom {
 extension PassesServiceCustom {
     private static func generateManifestFile(using encoder: JSONEncoder, in root: URL) throws -> Data {
         var manifest: [String: String] = [:]
-
         let paths = try FileManager.default.subpathsOfDirectory(atPath: root.unixPath())
         try paths.forEach { relativePath in
             let file = URL(fileURLWithPath: relativePath, relativeTo: root)
@@ -459,7 +462,6 @@ extension PassesServiceCustom {
             let hash = Insecure.SHA1.hash(data: data)
             manifest[relativePath] = hash.map { "0\(String($0, radix: 16))".suffix(2) }.joined()
         }
-        
         let data = try encoder.encode(manifest)
         try data.write(to: root.appendingPathComponent("manifest.json"))
         return data

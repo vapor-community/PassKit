@@ -104,8 +104,10 @@ extension OrdersServiceCustom {
     func latestVersionOfOrder(req: Request) async throws -> Response {
         logger?.debug("Called latestVersionOfOrder")
         
-        let dateFormatter = ISO8601DateFormatter()
-        dateFormatter.formatOptions = .withInternetDateTime
+        let dateFormatter = DateFormatter()
+        dateFormatter.locale = Locale(identifier: "en_US_POSIX")
+        dateFormatter.timeZone = TimeZone(secondsFromGMT: 0)
+        dateFormatter.dateFormat = "EEE, dd MMM yyyy HH:mm:ss zzz"
         var ifModifiedSince = Date.distantPast
         if let header = req.headers[.ifModifiedSince].first, let ims = dateFormatter.date(from: header) {
             ifModifiedSince = ims
@@ -353,7 +355,6 @@ extension OrdersServiceCustom {
 extension OrdersServiceCustom {
     private static func generateManifestFile(using encoder: JSONEncoder, in root: URL) throws -> Data {
         var manifest: [String: String] = [:]
-
         let paths = try FileManager.default.subpathsOfDirectory(atPath: root.unixPath())
         try paths.forEach { relativePath in
             let file = URL(fileURLWithPath: relativePath, relativeTo: root)
@@ -362,7 +363,6 @@ extension OrdersServiceCustom {
             let hash = SHA256.hash(data: data)
             manifest[relativePath] = hash.map { "0\(String($0, radix: 16))".suffix(2) }.joined()
         }
-
         let data = try encoder.encode(manifest)
         try data.write(to: root.appendingPathComponent("manifest.json"))
         return data
@@ -436,11 +436,9 @@ extension OrdersServiceCustom {
         guard (try? templateDirectory.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? false else {
             throw OrdersError.templateNotDirectory
         }
-        var files = try FileManager.default.contentsOfDirectory(at: templateDirectory, includingPropertiesForKeys: nil)
 
         let tmp = FileManager.default.temporaryDirectory
         let root = tmp.appendingPathComponent(UUID().uuidString, isDirectory: true)
-
         try FileManager.default.copyItem(at: templateDirectory, to: root)
         defer { _ = try? FileManager.default.removeItem(at: root) }
 
@@ -453,10 +451,10 @@ extension OrdersServiceCustom {
             in: root
         )
 
+        var files = try FileManager.default.contentsOfDirectory(at: templateDirectory, includingPropertiesForKeys: nil)
         files.append(URL(fileURLWithPath: "order.json", relativeTo: root))
         files.append(URL(fileURLWithPath: "manifest.json", relativeTo: root))
         files.append(URL(fileURLWithPath: "signature", relativeTo: root))
-
         return try Data(contentsOf: Zip.quickZipFiles(files, fileName: UUID().uuidString))
     }
 }

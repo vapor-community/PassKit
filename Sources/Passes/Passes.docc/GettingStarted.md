@@ -316,12 +316,17 @@ fileprivate func passHandler(_ req: Request) async throws -> Response {
         throw Abort(.notFound)
     }
 
+    let dateFormatter = DateFormatter()
+    dateFormatter.locale = Locale(identifier: "en_US_POSIX")
+    dateFormatter.timeZone = TimeZone(secondsFromGMT: 0)
+    dateFormatter.dateFormat = "EEE, dd MMM yyyy HH:mm:ss zzz"
+
     let bundle = try await passesService.generatePassContent(for: passData.pass, on: req.db)
     let body = Response.Body(data: bundle)
     var headers = HTTPHeaders()
     headers.add(name: .contentType, value: "application/vnd.apple.pkpass")
     headers.add(name: .contentDisposition, value: "attachment; filename=name.pkpass")
-    headers.add(name: .lastModified, value: String(passData.pass.updatedAt?.timeIntervalSince1970 ?? 0))
+    headers.add(name: .lastModified, value: dateFormatter.string(from: pass.updatedAt ?? Date.distantPast))
     headers.add(name: .contentTransferEncoding, value: "binary")
     return Response(status: .ok, headers: headers, body: body)
 }
@@ -341,12 +346,17 @@ fileprivate func passesHandler(_ req: Request) async throws -> Response {
     let passesData = try await PassData.query(on: req.db).with(\.$pass).all()
     let passes = passesData.map { $0.pass }
 
+    let dateFormatter = DateFormatter()
+    dateFormatter.locale = Locale(identifier: "en_US_POSIX")
+    dateFormatter.timeZone = TimeZone(secondsFromGMT: 0)
+    dateFormatter.dateFormat = "EEE, dd MMM yyyy HH:mm:ss zzz"
+
     let bundle = try await passesService.generatePassesContent(for: passes, on: req.db)
     let body = Response.Body(data: bundle)
     var headers = HTTPHeaders()
     headers.add(name: .contentType, value: "application/vnd.apple.pkpasses")
     headers.add(name: .contentDisposition, value: "attachment; filename=name.pkpasses")
-    headers.add(name: .lastModified, value: String(Date().timeIntervalSince1970))
+    headers.add(name: .lastModified, value: dateFormatter.string(from: Date()))
     headers.add(name: .contentTransferEncoding, value: "binary")
     return Response(status: .ok, headers: headers, body: body)
 }

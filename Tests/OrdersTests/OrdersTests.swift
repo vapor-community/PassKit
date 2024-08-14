@@ -16,7 +16,12 @@ final class OrdersTests: XCTestCase {
 
         OrdersService.register(migrations: app.migrations)
         app.migrations.add(CreateOrderData())
-        ordersService = try OrdersService(app: app, delegate: orderDelegate, pushRoutesMiddleware: SecretMiddleware(secret: "foo"))
+        ordersService = try OrdersService(
+            app: app,
+            delegate: orderDelegate,
+            pushRoutesMiddleware: SecretMiddleware(secret: "foo"),
+            logger: app.logger
+        )
         app.databases.middleware.use(OrderDataMiddleware(service: ordersService), on: .sqlite)
 
         try await app.autoMigrate()
@@ -28,6 +33,25 @@ final class OrdersTests: XCTestCase {
         let order = try await orderData.$order.get(on: app.db)
         let data = try await ordersService.generateOrderContent(for: order, on: app.db)
         XCTAssertNotNil(data)
+    }
+
+    // Tests the API Apple Wallet calls to get orders
+    func testGetOrderFromAPI() async throws {
+        let orderData = OrderData(title: "Test Order")
+        try await orderData.create(on: app.db)
+        let order = try await orderData.$order.get(on: app.db)
+
+        try await app.test(
+            .GET,
+            "\(ordersURI)orders/\(order.orderTypeIdentifier)/\(order.requireID())",
+            headers: ["Authorization": "AppleOrder \(order.authenticationToken)", "If-Modified-Since": "0"],
+            afterResponse: { res async throws in
+                XCTAssertEqual(res.status, .ok)
+                XCTAssertNotNil(res.body)
+                XCTAssertEqual(res.headers.contentType?.description, "application/vnd.apple.order")
+                XCTAssertNotNil(res.headers.lastModified)
+            }
+        )
     }
 
     func testAPIDeviceRegistration() async throws {
@@ -45,7 +69,6 @@ final class OrdersTests: XCTestCase {
                 try req.content.encode(RegistrationDTO(pushToken: pushToken))
             },
             afterResponse: { res async throws in
-                XCTAssertNotEqual(res.status, .unauthorized)
                 XCTAssertEqual(res.status, .created)
             }
         )
@@ -58,7 +81,6 @@ final class OrdersTests: XCTestCase {
                 try req.content.encode(RegistrationDTO(pushToken: pushToken))
             },
             afterResponse: { res async throws in
-                XCTAssertNotEqual(res.status, .unauthorized)
                 XCTAssertEqual(res.status, .ok)
             }
         )
@@ -93,7 +115,6 @@ final class OrdersTests: XCTestCase {
             "\(ordersURI)devices/\(deviceLibraryIdentifier)/registrations/\(order.orderTypeIdentifier)/\(order.requireID())",
             headers: ["Authorization": "AppleOrder \(order.authenticationToken)"],
             afterResponse: { res async throws in
-                XCTAssertNotEqual(res.status, .unauthorized)
                 XCTAssertEqual(res.status, .ok)
             }
         )
@@ -126,5 +147,14 @@ final class OrdersTests: XCTestCase {
         try await orderData.create(on: app.db)
         let order = try await orderData.$order.get(on: app.db)
         try await ordersService.sendPushNotifications(for: order, on: app.db)
+
+        try await app.test(
+            .POST,
+            "\(ordersURI)push/\(order.orderTypeIdentifier)/\(order.requireID())",
+            headers: ["X-Secret": "foo"],
+            afterResponse: { res async throws in
+                XCTAssertEqual(res.status, .noContent)
+            }
+        )
     }
 }
