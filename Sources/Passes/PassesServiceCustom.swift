@@ -12,7 +12,7 @@ import APNSCore
 import Fluent
 import NIOSSL
 import PassKit
-import ZIPFoundation
+import Zip
 @_spi(CMS) import X509
 
 /// Class to handle ``PassesService``.
@@ -529,15 +529,15 @@ extension PassesServiceCustom {
     ///   - db: The `Database` to use.
     /// - Returns: The generated pass content as `Data`.
     public func generatePassContent(for pass: P, on db: any Database) async throws -> Data {
-        let src = try await delegate.template(for: pass, db: db)
-        guard (try? src.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? false else {
+        let templateDirectory = try await delegate.template(for: pass, db: db)
+        guard (try? templateDirectory.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? false else {
             throw PassesError.templateNotDirectory
         }
+        var files = try FileManager.default.contentsOfDirectory(at: templateDirectory, includingPropertiesForKeys: nil)
 
         let tmp = FileManager.default.temporaryDirectory
         let root = tmp.appendingPathComponent(UUID().uuidString, isDirectory: true)
-
-        try FileManager.default.copyItem(at: src, to: root)
+        try FileManager.default.copyItem(at: templateDirectory, to: root)
         defer { _ = try? FileManager.default.removeItem(at: root) }
         
         let encoder = JSONEncoder()
@@ -547,18 +547,18 @@ extension PassesServiceCustom {
         // Pass Personalization
         if let encodedPersonalization = try await self.delegate.encodePersonalization(for: pass, db: db, encoder: encoder) {
             try encodedPersonalization.write(to: root.appendingPathComponent("personalization.json"))
+            files.append(URL(fileURLWithPath: "personalization.json", relativeTo: root))
         }
         
         try self.generateSignatureFile(
             for: Self.generateManifestFile(using: encoder, in: root),
             in: root
         )
-        
-        let zipFile = tmp.appendingPathComponent("\(UUID().uuidString).pkpass")
-        try FileManager.default.zipItem(at: root, to: zipFile, shouldKeepParent: false)
-        defer { _ = try? FileManager.default.removeItem(at: zipFile) }
-        
-        return try Data(contentsOf: zipFile)
+
+        files.append(URL(fileURLWithPath: "pass.json", relativeTo: root))
+        files.append(URL(fileURLWithPath: "manifest.json", relativeTo: root))
+        files.append(URL(fileURLWithPath: "signature", relativeTo: root))
+        return try Data(contentsOf: Zip.quickZipFiles(files, fileName: UUID().uuidString))
     }
 
     /// Generates a bundle of passes to enable your user to download multiple passes at once.
@@ -581,15 +581,13 @@ extension PassesServiceCustom {
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         defer { _ = try? FileManager.default.removeItem(at: root) }
         
+        var files: [URL] = []
         for (i, pass) in passes.enumerated() {
+            let name = "pass\(i).pkpass"
             try await self.generatePassContent(for: pass, on: db)
-                .write(to: root.appendingPathComponent("pass\(i).pkpass"))
+                .write(to: root.appendingPathComponent(name))
+            files.append(URL(fileURLWithPath: name, relativeTo: root))
         }
-        
-        let zipFile = tmp.appendingPathComponent("\(UUID().uuidString).pkpasses")
-        try FileManager.default.zipItem(at: root, to: zipFile, shouldKeepParent: false)
-        defer { _ = try? FileManager.default.removeItem(at: zipFile) }
-        
-        return try Data(contentsOf: zipFile)
+        return try Data(contentsOf: Zip.quickZipFiles(files, fileName: UUID().uuidString))
     }
 }

@@ -12,7 +12,7 @@ import APNSCore
 import Fluent
 import NIOSSL
 import PassKit
-import ZIPFoundation
+import Zip
 @_spi(CMS) import X509
 
 /// Class to handle ``OrdersService``.
@@ -432,15 +432,16 @@ extension OrdersServiceCustom {
     ///   - db: The `Database` to use.
     /// - Returns: The generated order content as `Data`.
     public func generateOrderContent(for order: O, on db: any Database) async throws -> Data {
-        let src = try await delegate.template(for: order, db: db)
-        guard (try? src.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? false else {
+        let templateDirectory = try await delegate.template(for: order, db: db)
+        guard (try? templateDirectory.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? false else {
             throw OrdersError.templateNotDirectory
         }
+        var files = try FileManager.default.contentsOfDirectory(at: templateDirectory, includingPropertiesForKeys: nil)
 
         let tmp = FileManager.default.temporaryDirectory
         let root = tmp.appendingPathComponent(UUID().uuidString, isDirectory: true)
 
-        try FileManager.default.copyItem(at: src, to: root)
+        try FileManager.default.copyItem(at: templateDirectory, to: root)
         defer { _ = try? FileManager.default.removeItem(at: root) }
 
         let encoder = JSONEncoder()
@@ -451,11 +452,11 @@ extension OrdersServiceCustom {
             for: Self.generateManifestFile(using: encoder, in: root),
             in: root
         )
-        
-        let zipFile = tmp.appendingPathComponent("\(UUID().uuidString).order")
-        try FileManager.default.zipItem(at: root, to: zipFile, shouldKeepParent: false)
-        defer { _ = try? FileManager.default.removeItem(at: zipFile) }
-        
-        return try Data(contentsOf: zipFile)
+
+        files.append(URL(fileURLWithPath: "order.json", relativeTo: root))
+        files.append(URL(fileURLWithPath: "manifest.json", relativeTo: root))
+        files.append(URL(fileURLWithPath: "signature", relativeTo: root))
+
+        return try Data(contentsOf: Zip.quickZipFiles(files, fileName: UUID().uuidString))
     }
 }
