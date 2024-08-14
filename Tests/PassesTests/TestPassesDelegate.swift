@@ -51,3 +51,9 @@ final class TestPassesDelegate: PassesDelegate {
         )
     }
 }
+
+final class DefaultPassesDelegate: PassesDelegate {
+    let sslSigningFilesDirectory = URL(fileURLWithPath: "", isDirectory: true)
+    func template<P: PassModel>(for pass: P, db: any Database) async throws -> URL { URL(fileURLWithPath: "") }
+    func encode<P: PassModel>(pass: P, db: any Database, encoder: JSONEncoder) async throws -> Data { Data() }
+}

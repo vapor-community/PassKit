@@ -1,7 +1,7 @@
 <div align="center">
     <img src="https://avatars.githubusercontent.com/u/26165732?s=200&v=4" width="100" height="100" alt="avatar" />
     <h1>PassKit</h1>
-    <a href="https://swiftpackageindex.com/vapor-community/PassKit/0.6.0/documentation/passkit">
+    <a href="https://swiftpackageindex.com/vapor-community/PassKit/documentation">
         <img src="https://design.vapor.codes/images/readthedocs.svg" alt="Documentation">
     </a>
     <a href="https://discord.gg/vapor"><img src="https://design.vapor.codes/images/discordchat.svg" alt="Team Chat"></a>
@@ -39,7 +39,7 @@ Add the `Passes` product to your target's dependencies:
 .product(name: "Passes", package: "PassKit")
 ```
 
-See the framework's [documentation](https://swiftpackageindex.com/vapor-community/PassKit/0.6.0/documentation/passes) for information and guides on how to use it.
+See the framework's [documentation](https://swiftpackageindex.com/vapor-community/PassKit/documentation/passes) for information and guides on how to use it.
 
 For information on Apple Wallet passes, see the [Apple Developer Documentation](https://developer.apple.com/documentation/walletpasses).
 
@@ -54,6 +54,6 @@ Add the `Orders` product to your target's dependencies:
 .product(name: "Orders", package: "PassKit")
 ```
 
-See the framework's [documentation](https://swiftpackageindex.com/vapor-community/PassKit/0.6.0/documentation/orders) for information and guides on how to use it.
+See the framework's [documentation](https://swiftpackageindex.com/vapor-community/PassKit/documentation/orders) for information and guides on how to use it.
 
 For information on Apple Wallet orders, see the [Apple Developer Documentation](https://developer.apple.com/documentation/walletorders).

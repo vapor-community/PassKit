@@ -27,6 +27,12 @@ final class PassesTests: XCTestCase {
         try await app.autoMigrate()
     }
 
+    override func tearDown() async throws { 
+        try await app.autoRevert()
+        try await self.app.asyncShutdown()
+        self.app = nil
+    }
+
     func testPassGeneration() async throws {
         let passData = PassData(title: "Test Pass")
         try await passData.create(on: app.db)
@@ -42,7 +48,7 @@ final class PassesTests: XCTestCase {
 
         let passData2 = PassData(title: "Test Pass 2")
         try await passData2.create(on: app.db)
-        let pass2 = try await passData2.$pass.get(on: app.db)
+        let pass2 = try await passData2._$pass.get(on: app.db)
 
         let data = try await passesService.generatePassesContent(for: [pass1, pass2], on: app.db)
         XCTAssertNotNil(data)
@@ -114,13 +120,13 @@ final class PassesTests: XCTestCase {
 
         let personalizationQuery = try await UserPersonalization.query(on: app.db).all()
         XCTAssertEqual(personalizationQuery.count, 1)
-        XCTAssertEqual(personalizationQuery[0].emailAddress, personalizationDict.requiredPersonalizationInfo.emailAddress)
-        XCTAssertEqual(personalizationQuery[0].familyName, personalizationDict.requiredPersonalizationInfo.familyName)
-        XCTAssertEqual(personalizationQuery[0].fullName, personalizationDict.requiredPersonalizationInfo.fullName)
-        XCTAssertEqual(personalizationQuery[0].givenName, personalizationDict.requiredPersonalizationInfo.givenName)
-        XCTAssertEqual(personalizationQuery[0].ISOCountryCode, personalizationDict.requiredPersonalizationInfo.ISOCountryCode)
-        XCTAssertEqual(personalizationQuery[0].phoneNumber, personalizationDict.requiredPersonalizationInfo.phoneNumber)
-        XCTAssertEqual(personalizationQuery[0].postalCode, personalizationDict.requiredPersonalizationInfo.postalCode)
+        XCTAssertEqual(personalizationQuery[0]._$emailAddress.value, personalizationDict.requiredPersonalizationInfo.emailAddress)
+        XCTAssertEqual(personalizationQuery[0]._$familyName.value, personalizationDict.requiredPersonalizationInfo.familyName)
+        XCTAssertEqual(personalizationQuery[0]._$fullName.value, personalizationDict.requiredPersonalizationInfo.fullName)
+        XCTAssertEqual(personalizationQuery[0]._$givenName.value, personalizationDict.requiredPersonalizationInfo.givenName)
+        XCTAssertEqual(personalizationQuery[0]._$ISOCountryCode.value, personalizationDict.requiredPersonalizationInfo.ISOCountryCode)
+        XCTAssertEqual(personalizationQuery[0]._$phoneNumber.value, personalizationDict.requiredPersonalizationInfo.phoneNumber)
+        XCTAssertEqual(personalizationQuery[0]._$postalCode.value, personalizationDict.requiredPersonalizationInfo.postalCode)
     }
 
     func testAPIDeviceRegistration() async throws {
@@ -205,14 +211,14 @@ final class PassesTests: XCTestCase {
         let logs = try await PassesErrorLog.query(on: app.db).all()
         XCTAssertEqual(logs.count, 2)
         XCTAssertEqual(logs[0].message, log1)
-        XCTAssertEqual(logs[1].message, log2)
+        XCTAssertEqual(logs[1]._$message.value, log2)
     }
 
     func testAPNSClient() async throws {
         XCTAssertNotNil(app.apns.client(.init(string: "passes")))
         let passData = PassData(title: "Test Pass")
         try await passData.create(on: app.db)
-        let pass = try await passData.$pass.get(on: app.db)
+        let pass = try await passData._$pass.get(on: app.db)
         try await passesService.sendPushNotifications(for: pass, on: app.db)
         try await passesService.sendPushNotificationsForPass(id: pass.requireID(), of: pass.passTypeIdentifier, on: app.db)
 
@@ -224,5 +230,29 @@ final class PassesTests: XCTestCase {
                 XCTAssertEqual(res.status, .noContent)
             }
         )
+    }
+
+    func testPassesError() {
+        XCTAssertEqual(PassesError.templateNotDirectory.description, "PassesError(errorType: templateNotDirectory)")
+        XCTAssertEqual(PassesError.pemCertificateMissing.description, "PassesError(errorType: pemCertificateMissing)")
+        XCTAssertEqual(PassesError.pemPrivateKeyMissing.description, "PassesError(errorType: pemPrivateKeyMissing)")
+        XCTAssertEqual(PassesError.opensslBinaryMissing.description, "PassesError(errorType: opensslBinaryMissing)")
+        XCTAssertEqual(PassesError.invalidNumberOfPasses.description, "PassesError(errorType: invalidNumberOfPasses)")
+    }
+
+    func testDefaultDelegate() async throws {
+        let delegate = DefaultPassesDelegate()
+        XCTAssertEqual(delegate.wwdrCertificate, "WWDR.pem")
+        XCTAssertEqual(delegate.pemCertificate, "passcertificate.pem")
+        XCTAssertEqual(delegate.pemPrivateKey, "passkey.pem")
+        XCTAssertNil(delegate.pemPrivateKeyPassword)
+        XCTAssertEqual(delegate.sslBinary, URL(fileURLWithPath: "/usr/bin/openssl"))
+        XCTAssertFalse(delegate.generateSignatureFile(in: URL(fileURLWithPath: "")))
+
+        let passData = PassData(title: "Test Pass")
+        try await passData.create(on: app.db)
+        let pass = try await passData.$pass.get(on: app.db)
+        let data = try await delegate.encodePersonalization(for: pass, db: app.db, encoder: JSONEncoder())
+        XCTAssertNil(data)
     }
 }

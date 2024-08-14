@@ -48,63 +48,63 @@ internal extension UserPersonalizationModel {
         return id
     }
     
-    var _$fullName: OptionalField<String?> {
+    var _$fullName: OptionalField<String> {
         guard let mirror = Mirror(reflecting: self).descendant("_fullName"),
-            let fullName = mirror as? OptionalField<String?> else {
+            let fullName = mirror as? OptionalField<String> else {
                 fatalError("fullName property must be declared using @OptionalField")
         }
         
         return fullName
     }
     
-    var _$givenName: OptionalField<String?> {
+    var _$givenName: OptionalField<String> {
         guard let mirror = Mirror(reflecting: self).descendant("_givenName"),
-            let givenName = mirror as? OptionalField<String?> else {
+            let givenName = mirror as? OptionalField<String> else {
                 fatalError("givenName property must be declared using @OptionalField")
         }
         
         return givenName
     }
     
-    var _$familyName: OptionalField<String?> {
+    var _$familyName: OptionalField<String> {
         guard let mirror = Mirror(reflecting: self).descendant("_familyName"),
-            let familyName = mirror as? OptionalField<String?> else {
+            let familyName = mirror as? OptionalField<String> else {
                 fatalError("familyName property must be declared using @OptionalField")
         }
         
         return familyName
     }
     
-    var _$emailAddress: OptionalField<String?> {
+    var _$emailAddress: OptionalField<String> {
         guard let mirror = Mirror(reflecting: self).descendant("_emailAddress"),
-            let emailAddress = mirror as? OptionalField<String?> else {
+            let emailAddress = mirror as? OptionalField<String> else {
                 fatalError("emailAddress property must be declared using @OptionalField")
         }
         
         return emailAddress
     }
     
-    var _$postalCode: OptionalField<String?> {
+    var _$postalCode: OptionalField<String> {
         guard let mirror = Mirror(reflecting: self).descendant("_postalCode"),
-            let postalCode = mirror as? OptionalField<String?> else {
+            let postalCode = mirror as? OptionalField<String> else {
                 fatalError("postalCode property must be declared using @OptionalField")
         }
         
         return postalCode
     }
     
-    var _$ISOCountryCode: OptionalField<String?> {
+    var _$ISOCountryCode: OptionalField<String> {
         guard let mirror = Mirror(reflecting: self).descendant("_ISOCountryCode"),
-            let ISOCountryCode = mirror as? OptionalField<String?> else {
+            let ISOCountryCode = mirror as? OptionalField<String> else {
                 fatalError("ISOCountryCode property must be declared using @OptionalField")
         }
         
         return ISOCountryCode
     }
     
-    var _$phoneNumber: OptionalField<String?> {
+    var _$phoneNumber: OptionalField<String> {
         guard let mirror = Mirror(reflecting: self).descendant("_phoneNumber"),
-            let phoneNumber = mirror as? OptionalField<String?> else {
+            let phoneNumber = mirror as? OptionalField<String> else {
                 fatalError("phoneNumber property must be declared using @OptionalField")
         }
 

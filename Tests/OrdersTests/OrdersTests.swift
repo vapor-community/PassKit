@@ -27,6 +27,12 @@ final class OrdersTests: XCTestCase {
         try await app.autoMigrate()
     }
 
+    override func tearDown() async throws { 
+        try await app.autoRevert()
+        try await self.app.asyncShutdown()
+        self.app = nil
+    }
+
     func testOrderGeneration() async throws {
         let orderData = OrderData(title: "Test Order")
         try await orderData.create(on: app.db)
@@ -138,14 +144,14 @@ final class OrdersTests: XCTestCase {
         let logs = try await OrdersErrorLog.query(on: app.db).all()
         XCTAssertEqual(logs.count, 2)
         XCTAssertEqual(logs[0].message, log1)
-        XCTAssertEqual(logs[1].message, log2)
+        XCTAssertEqual(logs[1]._$message.value, log2)
     }
 
     func testAPNSClient() async throws {
         XCTAssertNotNil(app.apns.client(.init(string: "orders")))
         let orderData = OrderData(title: "Test Order")
         try await orderData.create(on: app.db)
-        let order = try await orderData.$order.get(on: app.db)
+        let order = try await orderData._$order.get(on: app.db)
         try await ordersService.sendPushNotifications(for: order, on: app.db)
         try await ordersService.sendPushNotificationsForOrder(id: order.requireID(), of: order.orderTypeIdentifier, on: app.db)
 
@@ -157,5 +163,22 @@ final class OrdersTests: XCTestCase {
                 XCTAssertEqual(res.status, .noContent)
             }
         )
+    }
+
+    func testOrdersError() {
+        XCTAssertEqual(OrdersError.templateNotDirectory.description, "OrdersError(errorType: templateNotDirectory)")
+        XCTAssertEqual(OrdersError.pemCertificateMissing.description, "OrdersError(errorType: pemCertificateMissing)")
+        XCTAssertEqual(OrdersError.pemPrivateKeyMissing.description, "OrdersError(errorType: pemPrivateKeyMissing)")
+        XCTAssertEqual(OrdersError.opensslBinaryMissing.description, "OrdersError(errorType: opensslBinaryMissing)")
+    }
+
+    func testDefaultDelegate() {
+        let delegate = DefaultOrdersDelegate()
+        XCTAssertEqual(delegate.wwdrCertificate, "WWDR.pem")
+        XCTAssertEqual(delegate.pemCertificate, "ordercertificate.pem")
+        XCTAssertEqual(delegate.pemPrivateKey, "orderkey.pem")
+        XCTAssertNil(delegate.pemPrivateKeyPassword)
+        XCTAssertEqual(delegate.sslBinary, URL(fileURLWithPath: "/usr/bin/openssl"))
+        XCTAssertFalse(delegate.generateSignatureFile(in: URL(fileURLWithPath: "")))
     }
 }
