@@ -10,6 +10,5 @@
 
 ### Push Notifications
 
-- ``sendPushNotifications(for:on:)-79w98``
-- ``sendPushNotifications(for:on:)-69wue``
+- ``sendPushNotifications(for:on:)``
 - ``sendPushNotificationsForPass(id:of:on:)``

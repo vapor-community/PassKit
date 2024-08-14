@@ -321,21 +321,6 @@ extension OrdersServiceCustom {
     public func sendPushNotifications(for order: O, on db: any Database) async throws {
         try await sendPushNotificationsForOrder(id: order.requireID(), of: order.orderTypeIdentifier, on: db)
     }
-    
-    /// Sends push notifications for a given order.
-    /// 
-    /// - Parameters:
-    ///   - order: The order (as the `ParentProperty`) to send the notifications for.
-    ///   - db: The `Database` to use.
-    public func sendPushNotifications(for order: ParentProperty<R, O>, on db: any Database) async throws {
-        let value: O
-        if let eagerLoaded = order.value {
-            value = eagerLoaded
-        } else {
-            value = try await order.get(on: db)
-        }
-        try await sendPushNotifications(for: value, on: db)
-    }
 
     static func registrationsForOrder(id: UUID, of orderTypeIdentifier: String, on db: any Database) async throws -> [R] {
         // This could be done by enforcing the caller to have a Siblings property wrapper,

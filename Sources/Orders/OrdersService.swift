@@ -61,13 +61,4 @@ public final class OrdersService: Sendable {
     public func sendPushNotifications(for order: Order, on db: any Database) async throws {
         try await service.sendPushNotifications(for: order, on: db)
     }
-    
-    /// Sends push notifications for a given order.
-    /// 
-    /// - Parameters:
-    ///   - order: The order (as the `ParentProperty`) to send the notifications for.
-    ///   - db: The `Database` to use.
-    public func sendPushNotifications(for order: ParentProperty<OrdersRegistration, Order>, on db: any Database) async throws {
-        try await service.sendPushNotifications(for: order, on: db)
-    }
 }

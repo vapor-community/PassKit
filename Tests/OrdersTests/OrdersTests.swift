@@ -147,6 +147,7 @@ final class OrdersTests: XCTestCase {
         try await orderData.create(on: app.db)
         let order = try await orderData.$order.get(on: app.db)
         try await ordersService.sendPushNotifications(for: order, on: app.db)
+        try await ordersService.sendPushNotificationsForOrder(id: order.requireID(), of: order.orderTypeIdentifier, on: app.db)
 
         try await app.test(
             .POST,

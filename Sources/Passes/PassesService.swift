@@ -97,13 +97,4 @@ public final class PassesService: Sendable {
     public func sendPushNotifications(for pass: Pass, on db: any Database) async throws {
         try await service.sendPushNotifications(for: pass, on: db)
     }
-    
-    /// Sends push notifications for a given pass.
-    /// 
-    /// - Parameters:
-    ///   - pass: The pass (as the `ParentProperty`) to send the notifications for.
-    ///   - db: The `Database` to use.
-    public func sendPushNotifications(for pass: ParentProperty<PassesRegistration, Pass>, on db: any Database) async throws {
-        try await service.sendPushNotifications(for: pass, on: db)
-    }
 }

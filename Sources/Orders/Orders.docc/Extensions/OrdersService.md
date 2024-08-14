@@ -9,6 +9,5 @@
 
 ### Push Notifications
 
-- ``sendPushNotifications(for:on:)-3l32q``
-- ``sendPushNotifications(for:on:)-53601``
+- ``sendPushNotifications(for:on:)``
 - ``sendPushNotificationsForOrder(id:of:on:)``

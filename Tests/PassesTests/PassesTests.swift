@@ -214,6 +214,7 @@ final class PassesTests: XCTestCase {
         try await passData.create(on: app.db)
         let pass = try await passData.$pass.get(on: app.db)
         try await passesService.sendPushNotifications(for: pass, on: app.db)
+        try await passesService.sendPushNotificationsForPass(id: pass.requireID(), of: pass.passTypeIdentifier, on: app.db)
 
         try await app.test(
             .POST,

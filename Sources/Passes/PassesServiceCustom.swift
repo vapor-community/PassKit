@@ -421,21 +421,6 @@ extension PassesServiceCustom {
         try await sendPushNotificationsForPass(id: pass.requireID(), of: pass.passTypeIdentifier, on: db)
     }
     
-    /// Sends push notifications for a given pass.
-    /// 
-    /// - Parameters:
-    ///   - pass: The pass (as the `ParentProperty`) to send the notifications for.
-    ///   - db: The `Database` to use.
-    public func sendPushNotifications(for pass: ParentProperty<R, P>, on db: any Database) async throws {
-        let value: P
-        if let eagerLoaded = pass.value {
-            value = eagerLoaded
-        } else {
-            value = try await pass.get(on: db)
-        }
-        try await sendPushNotifications(for: value, on: db)
-    }
-    
     static func registrationsForPass(id: UUID, of passTypeIdentifier: String, on db: any Database) async throws -> [R] {
         // This could be done by enforcing the caller to have a Siblings property wrapper,
         // but there's not really any value to forcing that on them when we can just do the query ourselves like this.
