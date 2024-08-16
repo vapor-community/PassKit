@@ -52,6 +52,9 @@ let package = Package(
                 .product(name: "XCTVapor", package: "vapor"),
                 .product(name: "FluentSQLiteDriver", package: "fluent-sqlite-driver"),
             ],
+            resources: [
+                .copy("Templates"),
+            ],
             swiftSettings: swiftSettings
         ),
         .testTarget(
@@ -60,6 +63,9 @@ let package = Package(
                 .target(name: "Orders"),
                 .product(name: "XCTVapor", package: "vapor"),
                 .product(name: "FluentSQLiteDriver", package: "fluent-sqlite-driver"),
+            ],
+            resources: [
+                .copy("Templates"),
             ],
             swiftSettings: swiftSettings
         ),

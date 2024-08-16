@@ -79,7 +79,7 @@ struct PassJSONData: PassJSON.Properties {
     let description: String
     let formatVersion = PassJSON.FormatVersion.v1
     let organizationName = "vapor-community"
-    let passTypeIdentifier = Environment.get("PASSKIT_PASS_TYPE_IDENTIFIER")!
+    let passTypeIdentifier = Environment.get("PASS_TYPE_IDENTIFIER")!
     let serialNumber: String
     let teamIdentifier = Environment.get("APPLE_TEAM_IDENTIFIER")!
 
@@ -153,7 +153,7 @@ import Passes
 final class PassDelegate: PassesDelegate {
     let sslSigningFilesDirectory = URL(fileURLWithPath: "Certificates/Passes/", isDirectory: true)
 
-    let pemPrivateKeyPassword: String? = Environment.get("PEM_PRIVATE_KEY_PASSWORD")!
+    let pemPrivateKeyPassword: String? = Environment.get("PASSES_PEM_PRIVATE_KEY_PASSWORD")!
 
     func encode<P: PassModel>(pass: P, db: Database, encoder: JSONEncoder) async throws -> Data {
         // The specific PassData class you use here may vary based on the `pass.passTypeIdentifier`
@@ -258,7 +258,7 @@ struct PassDataMiddleware: AsyncModelMiddleware {
     // Create the `Pass` and add it to the `PassData` automatically at creation
     func create(model: PassData, on db: Database, next: AnyAsyncModelResponder) async throws {
         let pass = Pass(
-            passTypeIdentifier: "pass.com.yoursite.passType",
+            passTypeIdentifier: Environment.get("PASS_TYPE_IDENTIFIER")!,
             authenticationToken: Data([UInt8].random(count: 12)).base64EncodedString())
         try await pass.save(on: db)
         model.$pass.id = try pass.requireID()

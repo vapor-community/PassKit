@@ -73,7 +73,7 @@ import Orders
 
 struct OrderJSONData: OrderJSON.Properties {
     let schemaVersion = OrderJSON.SchemaVersion.v1
-    let orderTypeIdentifier = Environment.get("PASSKIT_ORDER_TYPE_IDENTIFIER")!
+    let orderTypeIdentifier = Environment.get("ORDER_TYPE_IDENTIFIER")!
     let orderIdentifier: String
     let orderType = OrderJSON.OrderType.ecommerce
     let orderNumber = "HM090772020864"
@@ -129,7 +129,7 @@ import Orders
 final class OrderDelegate: OrdersDelegate {
     let sslSigningFilesDirectory = URL(fileURLWithPath: "Certificates/Orders/", isDirectory: true)
 
-    let pemPrivateKeyPassword: String? = Environment.get("ORDER_PEM_PRIVATE_KEY_PASSWORD")!
+    let pemPrivateKeyPassword: String? = Environment.get("ORDERS_PEM_PRIVATE_KEY_PASSWORD")!
 
     func encode<O: OrderModel>(order: O, db: Database, encoder: JSONEncoder) async throws -> Data {
         // The specific OrderData class you use here may vary based on the `order.orderTypeIdentifier`
@@ -234,7 +234,7 @@ struct OrderDataMiddleware: AsyncModelMiddleware {
     // Create the `Order` and add it to the `OrderData` automatically at creation
     func create(model: OrderData, on db: Database, next: AnyAsyncModelResponder) async throws {
         let order = Order(
-            orderTypeIdentifier: "order.com.yoursite.orderType",
+            orderTypeIdentifier: Environment.get("ORDER_TYPE_IDENTIFIER")!,
             authenticationToken: Data([UInt8].random(count: 12)).base64EncodedString())
         try await order.save(on: db)
         model.$order.id = try order.requireID()
