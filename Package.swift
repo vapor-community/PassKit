@@ -49,6 +49,7 @@ let package = Package(
             name: "PassesTests",
             dependencies: [
                 .target(name: "Passes"),
+                .target(name: "PassKit"),
                 .product(name: "XCTVapor", package: "vapor"),
                 .product(name: "FluentSQLiteDriver", package: "fluent-sqlite-driver"),
             ],
@@ -61,6 +62,7 @@ let package = Package(
             name: "OrdersTests",
             dependencies: [
                 .target(name: "Orders"),
+                .target(name: "PassKit"),
                 .product(name: "XCTVapor", package: "vapor"),
                 .product(name: "FluentSQLiteDriver", package: "fluent-sqlite-driver"),
             ],

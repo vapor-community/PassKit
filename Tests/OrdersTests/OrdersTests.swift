@@ -2,7 +2,7 @@ import XCTVapor
 import Fluent
 import FluentSQLiteDriver
 @testable import Orders
-@testable import PassKit
+import PassKit
 
 final class OrdersTests: XCTestCase {
     let orderDelegate = TestOrdersDelegate()

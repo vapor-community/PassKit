@@ -2,7 +2,7 @@ import XCTVapor
 import Fluent
 import FluentSQLiteDriver
 @testable import Passes
-@testable import PassKit
+import PassKit
 
 final class PassesTests: XCTestCase {
     let passDelegate = TestPassesDelegate()

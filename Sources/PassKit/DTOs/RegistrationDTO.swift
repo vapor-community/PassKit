@@ -30,4 +30,8 @@ import Vapor
 
 package struct RegistrationDTO: Content {
     package let pushToken: String
+
+    package init(pushToken: String) {
+        self.pushToken = pushToken
+    }
 }
