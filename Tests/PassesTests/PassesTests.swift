@@ -287,6 +287,14 @@ final class PassesTests: XCTestCase {
                 XCTAssertEqual(res.status, .internalServerError)
             }
         )
+
+        // Test `PassDataMiddleware` update method
+        passData.title = "Test Pass 2"
+        do {
+            try await passData.update(on: app.db)
+        } catch let error as HTTPClientError {
+            XCTAssertEqual(error.self, .remoteConnectionClosed)  
+        }
     }
 
     func testPassesError() {

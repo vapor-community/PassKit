@@ -201,6 +201,14 @@ final class OrdersTests: XCTestCase {
                 XCTAssertEqual(res.status, .internalServerError)
             }
         )
+
+        // Test `OrderDataMiddleware` update method
+        orderData.title = "Test Order 2"
+        do {
+            try await orderData.update(on: app.db)
+        } catch let error as HTTPClientError {
+            XCTAssertEqual(error.self, .remoteConnectionClosed)
+        }
     }
 
     func testOrdersError() {
