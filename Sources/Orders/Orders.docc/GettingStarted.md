@@ -1,6 +1,6 @@
 # Getting Started with Orders
 
-Create the order data model, build an order and distribute it.
+Create the order data model, build an order for Apple Wallet and distribute it with a Vapor server.
 
 ## Overview
 

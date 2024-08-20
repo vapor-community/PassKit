@@ -1,6 +1,6 @@
 # Setting Up Pass Personalization (⚠️ WIP)
 
-Create and sign a personalized pass, and send it to a device.
+Create and sign a personalized pass for Apple Wallet, and send it to a device with a Vapor server.
 
 ## Overview
 

@@ -1,6 +1,6 @@
 # Getting Started with Passes
 
-Create the pass data model, build a pass and distribute it.
+Create the pass data model, build a pass for Apple Wallet and distribute it with a Vapor server.
 
 ## Overview
 

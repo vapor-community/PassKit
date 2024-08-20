@@ -1,10 +1,3 @@
-//
-//  SecretMiddleware.swift
-//  PassKit
-//
-//  Created by Francesco Paolo Severino on 09/08/24.
-//
-
 import Vapor
 
 struct SecretMiddleware: AsyncMiddleware {
