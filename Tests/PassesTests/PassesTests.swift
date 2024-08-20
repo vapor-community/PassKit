@@ -3,6 +3,7 @@ import Fluent
 import FluentSQLiteDriver
 @testable import Passes
 import PassKit
+import Zip
 
 final class PassesTests: XCTestCase {
     let passDelegate = TestPassesDelegate()
@@ -25,6 +26,8 @@ final class PassesTests: XCTestCase {
         app.databases.middleware.use(PassDataMiddleware(service: passesService), on: .sqlite)
 
         try await app.autoMigrate()
+
+        Zip.addCustomFileExtension("pkpass")
     }
 
     override func tearDown() async throws { 
@@ -38,7 +41,21 @@ final class PassesTests: XCTestCase {
         try await passData.create(on: app.db)
         let pass = try await passData.$pass.get(on: app.db)
         let data = try await passesService.generatePassContent(for: pass, on: app.db)
-        XCTAssertNotNil(data)
+        let passURL = FileManager.default.temporaryDirectory.appendingPathComponent("test.pkpass")
+        try data.write(to: passURL)
+        let passFolder = try Zip.quickUnzipFile(passURL)
+
+        let passJSONData = try String(contentsOfFile: passFolder.path.appending("/pass.json")).data(using: .utf8)
+        let passJSON = try JSONSerialization.jsonObject(with: passJSONData!) as! [String: Any]
+        XCTAssertEqual(passJSON["authenticationToken"] as? String, pass.authenticationToken)
+        try XCTAssertEqual(passJSON["serialNumber"] as? String, pass.requireID().uuidString)
+        XCTAssertEqual(passJSON["description"] as? String, passData.title)
+
+        let manifestJSONData = try String(contentsOfFile: passFolder.path.appending("/manifest.json")).data(using: .utf8)
+        let manifestJSON = try JSONSerialization.jsonObject(with: manifestJSONData!) as! [String: Any]
+        let iconData = try Data(contentsOf: passFolder.appendingPathComponent("/icon.png"))
+        let iconHash = Array(Insecure.SHA1.hash(data: iconData)).hex
+        XCTAssertEqual(manifestJSON["icon.png"] as? String, iconHash)
     }
 
     func testPassesGeneration() async throws {
@@ -55,17 +72,29 @@ final class PassesTests: XCTestCase {
     }
 
     func testPersonalization() async throws {
-        let passDataPersonalize = PassData(title: "Personalize")
-        try await passDataPersonalize.create(on: app.db)
-        let passPersonalize = try await passDataPersonalize.$pass.get(on: app.db)
-        let dataPersonalize = try await passesService.generatePassContent(for: passPersonalize, on: app.db)
-
-        let passData = PassData(title: "Test Pass")
+        let passData = PassData(title: "Personalize")
         try await passData.create(on: app.db)
         let pass = try await passData.$pass.get(on: app.db)
         let data = try await passesService.generatePassContent(for: pass, on: app.db)
+        let passURL = FileManager.default.temporaryDirectory.appendingPathComponent("test.pkpass")
+        try data.write(to: passURL)
+        let passFolder = try Zip.quickUnzipFile(passURL)
 
-        XCTAssertGreaterThan(dataPersonalize.count, data.count)
+        let passJSONData = try String(contentsOfFile: passFolder.path.appending("/pass.json")).data(using: .utf8)
+        let passJSON = try JSONSerialization.jsonObject(with: passJSONData!) as! [String: Any]
+        XCTAssertEqual(passJSON["authenticationToken"] as? String, pass.authenticationToken)
+        try XCTAssertEqual(passJSON["serialNumber"] as? String, pass.requireID().uuidString)
+        XCTAssertEqual(passJSON["description"] as? String, passData.title)
+
+        let personalizationJSONData = try String(contentsOfFile: passFolder.path.appending("/personalization.json")).data(using: .utf8)
+        let personalizationJSON = try JSONSerialization.jsonObject(with: personalizationJSONData!) as! [String: Any]
+        XCTAssertEqual(personalizationJSON["description"] as? String, "Hello, World!")
+
+        let manifestJSONData = try String(contentsOfFile: passFolder.path.appending("/manifest.json")).data(using: .utf8)
+        let manifestJSON = try JSONSerialization.jsonObject(with: manifestJSONData!) as! [String: Any]
+        let iconData = try Data(contentsOf: passFolder.appendingPathComponent("/personalizationLogo.png"))
+        let iconHash = Array(Insecure.SHA1.hash(data: iconData)).hex
+        XCTAssertEqual(manifestJSON["personalizationLogo.png"] as? String, iconHash)
     }
 
     // Tests the API Apple Wallet calls to get passes

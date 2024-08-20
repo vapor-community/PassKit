@@ -3,6 +3,7 @@ import Fluent
 import FluentSQLiteDriver
 @testable import Orders
 import PassKit
+import Zip
 
 final class OrdersTests: XCTestCase {
     let orderDelegate = TestOrdersDelegate()
@@ -25,6 +26,8 @@ final class OrdersTests: XCTestCase {
         app.databases.middleware.use(OrderDataMiddleware(service: ordersService), on: .sqlite)
 
         try await app.autoMigrate()
+
+        Zip.addCustomFileExtension("order")
     }
 
     override func tearDown() async throws { 
@@ -38,7 +41,20 @@ final class OrdersTests: XCTestCase {
         try await orderData.create(on: app.db)
         let order = try await orderData.$order.get(on: app.db)
         let data = try await ordersService.generateOrderContent(for: order, on: app.db)
-        XCTAssertNotNil(data)
+        let orderURL = FileManager.default.temporaryDirectory.appendingPathComponent("test.order")
+        try data.write(to: orderURL)
+        let passFolder = try Zip.quickUnzipFile(orderURL)
+
+        let passJSONData = try String(contentsOfFile: passFolder.path.appending("/order.json")).data(using: .utf8)
+        let passJSON = try JSONSerialization.jsonObject(with: passJSONData!) as! [String: Any]
+        XCTAssertEqual(passJSON["authenticationToken"] as? String, order.authenticationToken)
+        try XCTAssertEqual(passJSON["orderIdentifier"] as? String, order.requireID().uuidString)
+
+        let manifestJSONData = try String(contentsOfFile: passFolder.path.appending("/manifest.json")).data(using: .utf8)
+        let manifestJSON = try JSONSerialization.jsonObject(with: manifestJSONData!) as! [String: Any]
+        let iconData = try Data(contentsOf: passFolder.appendingPathComponent("/icon.png"))
+        let iconHash = Array(SHA256.hash(data: iconData)).hex
+        XCTAssertEqual(manifestJSON["icon.png"] as? String, iconHash)
     }
 
     // Tests the API Apple Wallet calls to get orders
