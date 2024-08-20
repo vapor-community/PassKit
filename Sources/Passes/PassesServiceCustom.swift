@@ -186,8 +186,8 @@ extension PassesServiceCustom {
     func latestVersionOfPass(req: Request) async throws -> Response {
         logger?.debug("Called latestVersionOfPass")
         
-        var ifModifiedSince = Date.distantPast
-        if let header = req.headers[.ifModifiedSince].first, let ims = app.dateFormatters.posix.date(from: header) {
+        var ifModifiedSince: TimeInterval = 0
+        if let header = req.headers[.ifModifiedSince].first, let ims = TimeInterval(header) {
             ifModifiedSince = ims
         }
         
@@ -203,13 +203,13 @@ extension PassesServiceCustom {
             throw Abort(.notFound)
         }
         
-        guard ifModifiedSince < pass.updatedAt ?? Date.distantPast else {
+        guard ifModifiedSince < pass.updatedAt?.timeIntervalSince1970 ?? 0 else {
             throw Abort(.notModified)
         }
         
         var headers = HTTPHeaders()
         headers.add(name: .contentType, value: "application/vnd.apple.pkpass")
-        headers.add(name: .lastModified, value: app.dateFormatters.posix.string(from: pass.updatedAt ?? Date.distantPast))
+        headers.lastModified = HTTPHeaders.LastModified(pass.updatedAt ?? Date.distantPast)
         headers.add(name: .contentTransferEncoding, value: "binary")
         return try await Response(
             status: .ok,

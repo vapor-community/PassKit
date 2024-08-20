@@ -292,17 +292,12 @@ fileprivate func orderHandler(_ req: Request) async throws -> Response {
         throw Abort(.notFound)
     }
 
-    let dateFormatter = DateFormatter()
-    dateFormatter.locale = Locale(identifier: "en_US_POSIX")
-    dateFormatter.timeZone = TimeZone(secondsFromGMT: 0)
-    dateFormatter.dateFormat = "EEE, dd MMM yyyy HH:mm:ss zzz"
-
     let bundle = try await ordersService.generateOrderContent(for: orderData.order, on: req.db)
     let body = Response.Body(data: bundle)
     var headers = HTTPHeaders()
     headers.add(name: .contentType, value: "application/vnd.apple.order")
     headers.add(name: .contentDisposition, value: "attachment; filename=name.order")
-    headers.add(name: .lastModified, value: dateFormatter.string(from: order.updatedAt ?? Date.distantPast))
+    headers.lastModified = HTTPHeaders.LastModified(order.updatedAt ?? Date.distantPast)
     headers.add(name: .contentTransferEncoding, value: "binary")
     return Response(status: .ok, headers: headers, body: body)
 }

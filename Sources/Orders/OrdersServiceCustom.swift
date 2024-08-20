@@ -104,8 +104,8 @@ extension OrdersServiceCustom {
     func latestVersionOfOrder(req: Request) async throws -> Response {
         logger?.debug("Called latestVersionOfOrder")
         
-        var ifModifiedSince = Date.distantPast
-        if let header = req.headers[.ifModifiedSince].first, let ims = app.dateFormatters.posix.date(from: header) {
+        var ifModifiedSince: TimeInterval = 0
+        if let header = req.headers[.ifModifiedSince].first, let ims = TimeInterval(header) {
             ifModifiedSince = ims
         }
 
@@ -121,13 +121,13 @@ extension OrdersServiceCustom {
             throw Abort(.notFound)
         }
 
-        guard ifModifiedSince < order.updatedAt ?? Date.distantPast else {
+        guard ifModifiedSince < order.updatedAt?.timeIntervalSince1970 ?? 0 else {
             throw Abort(.notModified)
         }
 
         var headers = HTTPHeaders()
         headers.add(name: .contentType, value: "application/vnd.apple.order")
-        headers.add(name: .lastModified, value: app.dateFormatters.posix.string(from: order.updatedAt ?? Date.distantPast))
+        headers.lastModified = HTTPHeaders.LastModified(order.updatedAt ?? Date.distantPast)
         headers.add(name: .contentTransferEncoding, value: "binary")
         return try await Response(
             status: .ok,
@@ -193,8 +193,8 @@ extension OrdersServiceCustom {
         let deviceIdentifier = req.parameters.get("deviceIdentifier")!
 
         var query = R.for(deviceLibraryIdentifier: deviceIdentifier, orderTypeIdentifier: orderTypeIdentifier, on: req.db)
-        if let since: String = req.query["ordersModifiedSince"] {
-            let when = app.dateFormatters.iso8601.date(from: since) ?? Date.distantPast
+        if let since: TimeInterval = req.query["ordersModifiedSince"] {
+            let when = Date(timeIntervalSince1970: since)
             query = query.filter(O.self, \._$updatedAt > when)
         }
 

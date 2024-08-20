@@ -108,7 +108,7 @@ final class PassesTests: XCTestCase {
             "\(passesURI)passes/\(pass.passTypeIdentifier)/\(pass.requireID())",
             headers: [
                 "Authorization": "ApplePass \(pass.authenticationToken)",
-                "If-Modified-Since": app.dateFormatters.posix.string(from: Date.distantPast)
+                "If-Modified-Since": "0"
             ],
             afterResponse: { res async throws in
                 XCTAssertEqual(res.status, .ok)
