@@ -67,7 +67,7 @@ public final class OrdersServiceCustom<O, D, R: OrdersRegistrationModel, E: Erro
         } else {
             apnsConfig = APNSClientConfiguration(
                 authenticationMethod: try .tls(
-                    privateKey: .file(privateKeyPath),
+                    privateKey: .privateKey(NIOSSLPrivateKey(file: privateKeyPath, format: .pem)),
                     certificateChain: NIOSSLCertificate.fromPEMFile(pemPath).map { .certificate($0) }
                 ),
                 environment: .production
@@ -104,12 +104,8 @@ extension OrdersServiceCustom {
     func latestVersionOfOrder(req: Request) async throws -> Response {
         logger?.debug("Called latestVersionOfOrder")
         
-        let dateFormatter = DateFormatter()
-        dateFormatter.locale = Locale(identifier: "en_US_POSIX")
-        dateFormatter.timeZone = TimeZone(secondsFromGMT: 0)
-        dateFormatter.dateFormat = "EEE, dd MMM yyyy HH:mm:ss zzz"
         var ifModifiedSince = Date.distantPast
-        if let header = req.headers[.ifModifiedSince].first, let ims = dateFormatter.date(from: header) {
+        if let header = req.headers[.ifModifiedSince].first, let ims = app.dateFormatters.posix.date(from: header) {
             ifModifiedSince = ims
         }
 
@@ -131,7 +127,7 @@ extension OrdersServiceCustom {
 
         var headers = HTTPHeaders()
         headers.add(name: .contentType, value: "application/vnd.apple.order")
-        headers.add(name: .lastModified, value: dateFormatter.string(from: order.updatedAt ?? Date.distantPast))
+        headers.add(name: .lastModified, value: app.dateFormatters.posix.string(from: order.updatedAt ?? Date.distantPast))
         headers.add(name: .contentTransferEncoding, value: "binary")
         return try await Response(
             status: .ok,
@@ -198,9 +194,7 @@ extension OrdersServiceCustom {
 
         var query = R.for(deviceLibraryIdentifier: deviceIdentifier, orderTypeIdentifier: orderTypeIdentifier, on: req.db)
         if let since: String = req.query["ordersModifiedSince"] {
-            let dateFormatter = ISO8601DateFormatter()
-            dateFormatter.formatOptions = .withInternetDateTime
-            let when = dateFormatter.date(from: since) ?? Date.distantPast
+            let when = app.dateFormatters.iso8601.date(from: since) ?? Date.distantPast
             query = query.filter(O.self, \._$updatedAt > when)
         }
 

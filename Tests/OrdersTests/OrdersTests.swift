@@ -63,17 +63,12 @@ final class OrdersTests: XCTestCase {
         try await orderData.create(on: app.db)
         let order = try await orderData.$order.get(on: app.db)
 
-        let dateFormatter = DateFormatter()
-        dateFormatter.locale = Locale(identifier: "en_US_POSIX")
-        dateFormatter.timeZone = TimeZone(secondsFromGMT: 0)
-        dateFormatter.dateFormat = "EEE, dd MMM yyyy HH:mm:ss zzz"
-
         try await app.test(
             .GET,
             "\(ordersURI)orders/\(order.orderTypeIdentifier)/\(order.requireID())",
             headers: [
                 "Authorization": "AppleOrder \(order.authenticationToken)",
-                "If-Modified-Since": dateFormatter.string(from: Date.distantPast)
+                "If-Modified-Since": app.dateFormatters.posix.string(from: Date.distantPast)
             ],
             afterResponse: { res async throws in
                 XCTAssertEqual(res.status, .ok)
@@ -115,17 +110,15 @@ final class OrdersTests: XCTestCase {
             }
         )
 
-        let dateFormatter = ISO8601DateFormatter()
-        dateFormatter.formatOptions = .withInternetDateTime
         try await app.test(
             .GET,
-            "\(ordersURI)devices/\(deviceLibraryIdentifier)/registrations/\(order.orderTypeIdentifier)?ordersModifiedSince=\(dateFormatter.string(from: Date.distantPast))",
+            "\(ordersURI)devices/\(deviceLibraryIdentifier)/registrations/\(order.orderTypeIdentifier)?ordersModifiedSince=\(app.dateFormatters.iso8601.string(from: Date.distantPast))",
             afterResponse: { res async throws in
                 let orders = try res.content.decode(OrdersForDeviceDTO.self)
                 XCTAssertEqual(orders.orderIdentifiers.count, 1)
                 let orderID = try order.requireID()
                 XCTAssertEqual(orders.orderIdentifiers[0], orderID.uuidString)
-                XCTAssertEqual(orders.lastModified, dateFormatter.string(from: order.updatedAt!))
+                XCTAssertEqual(orders.lastModified, app.dateFormatters.iso8601.string(from: order.updatedAt!))
             }
         )
 

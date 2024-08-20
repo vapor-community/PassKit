@@ -68,7 +68,7 @@ public final class PassesServiceCustom<P, U, D, R: PassesRegistrationModel, E: E
         } else {
             apnsConfig = APNSClientConfiguration(
                 authenticationMethod: try .tls(
-                    privateKey: .file(privateKeyPath),
+                    privateKey: .privateKey(NIOSSLPrivateKey(file: privateKeyPath, format: .pem)),
                     certificateChain: NIOSSLCertificate.fromPEMFile(pemPath).map { .certificate($0) }
                 ),
                 environment: .production
@@ -186,12 +186,8 @@ extension PassesServiceCustom {
     func latestVersionOfPass(req: Request) async throws -> Response {
         logger?.debug("Called latestVersionOfPass")
         
-        let dateFormatter = DateFormatter()
-        dateFormatter.locale = Locale(identifier: "en_US_POSIX")
-        dateFormatter.timeZone = TimeZone(secondsFromGMT: 0)
-        dateFormatter.dateFormat = "EEE, dd MMM yyyy HH:mm:ss zzz"
         var ifModifiedSince = Date.distantPast
-        if let header = req.headers[.ifModifiedSince].first, let ims = dateFormatter.date(from: header) {
+        if let header = req.headers[.ifModifiedSince].first, let ims = app.dateFormatters.posix.date(from: header) {
             ifModifiedSince = ims
         }
         
@@ -213,7 +209,7 @@ extension PassesServiceCustom {
         
         var headers = HTTPHeaders()
         headers.add(name: .contentType, value: "application/vnd.apple.pkpass")
-        headers.add(name: .lastModified, value: dateFormatter.string(from: pass.updatedAt ?? Date.distantPast))
+        headers.add(name: .lastModified, value: app.dateFormatters.posix.string(from: pass.updatedAt ?? Date.distantPast))
         headers.add(name: .contentTransferEncoding, value: "binary")
         return try await Response(
             status: .ok,
