@@ -86,6 +86,18 @@ final class OrdersTests: XCTestCase {
         let deviceLibraryIdentifier = "abcdefg"
         let pushToken = "1234567890"
 
+        // Test registration without authentication token
+        try await app.test(
+            .POST,
+            "\(ordersURI)devices/\(deviceLibraryIdentifier)/registrations/\(order.orderTypeIdentifier)/\(order.requireID())",
+            beforeRequest: { req async throws in
+                try req.content.encode(RegistrationDTO(pushToken: pushToken))
+            },
+            afterResponse: { res async throws in
+                XCTAssertEqual(res.status, .unauthorized)
+            }
+        )
+
         try await app.test(
             .POST,
             "\(ordersURI)devices/\(deviceLibraryIdentifier)/registrations/\(order.orderTypeIdentifier)/\(order.requireID())",
@@ -98,6 +110,7 @@ final class OrdersTests: XCTestCase {
             }
         )
 
+        // Test registration of an already registered device
         try await app.test(
             .POST,
             "\(ordersURI)devices/\(deviceLibraryIdentifier)/registrations/\(order.orderTypeIdentifier)/\(order.requireID())",
@@ -169,6 +182,9 @@ final class OrdersTests: XCTestCase {
         let orderData = OrderData(title: "Test Order")
         try await orderData.create(on: app.db)
         let order = try await orderData._$order.get(on: app.db)
+
+        try await ordersService.sendPushNotificationsForOrder(id: order.requireID(), of: order.orderTypeIdentifier, on: app.db)
+
         let deviceLibraryIdentifier = "abcdefg"
         let pushToken = "1234567890"
 

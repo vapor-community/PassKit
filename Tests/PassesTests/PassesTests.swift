@@ -172,6 +172,18 @@ final class PassesTests: XCTestCase {
         let deviceLibraryIdentifier = "abcdefg"
         let pushToken = "1234567890"
 
+        // Test registration without authentication token
+        try await app.test(
+            .POST,
+            "\(passesURI)devices/\(deviceLibraryIdentifier)/registrations/\(pass.passTypeIdentifier)/\(pass.requireID())",
+            beforeRequest: { req async throws in
+                try req.content.encode(RegistrationDTO(pushToken: pushToken))
+            },
+            afterResponse: { res async throws in
+                XCTAssertEqual(res.status, .unauthorized)
+            }
+        )
+
         try await app.test(
             .POST,
             "\(passesURI)devices/\(deviceLibraryIdentifier)/registrations/\(pass.passTypeIdentifier)/\(pass.requireID())",
@@ -184,6 +196,7 @@ final class PassesTests: XCTestCase {
             }
         )
 
+        // Test registration of an already registered device
         try await app.test(
             .POST,
             "\(passesURI)devices/\(deviceLibraryIdentifier)/registrations/\(pass.passTypeIdentifier)/\(pass.requireID())",
@@ -255,6 +268,9 @@ final class PassesTests: XCTestCase {
         let passData = PassData(title: "Test Pass")
         try await passData.create(on: app.db)
         let pass = try await passData._$pass.get(on: app.db)
+
+        try await passesService.sendPushNotificationsForPass(id: pass.requireID(), of: pass.passTypeIdentifier, on: app.db)
+
         let deviceLibraryIdentifier = "abcdefg"
         let pushToken = "1234567890"
 
