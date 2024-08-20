@@ -169,8 +169,8 @@ final class OrdersTests: XCTestCase {
         let orderData = OrderData(title: "Test Order")
         try await orderData.create(on: app.db)
         let order = try await orderData._$order.get(on: app.db)
-        try await ordersService.sendPushNotifications(for: order, on: app.db)
-        try await ordersService.sendPushNotificationsForOrder(id: order.requireID(), of: order.orderTypeIdentifier, on: app.db)
+        let deviceLibraryIdentifier = "abcdefg"
+        let pushToken = "1234567890"
 
         try await app.test(
             .POST,
@@ -178,6 +178,27 @@ final class OrdersTests: XCTestCase {
             headers: ["X-Secret": "foo"],
             afterResponse: { res async throws in
                 XCTAssertEqual(res.status, .noContent)
+            }
+        )
+
+        try await app.test(
+            .POST,
+            "\(ordersURI)devices/\(deviceLibraryIdentifier)/registrations/\(order.orderTypeIdentifier)/\(order.requireID())",
+            headers: ["Authorization": "AppleOrder \(order.authenticationToken)"],
+            beforeRequest: { req async throws in
+                try req.content.encode(RegistrationDTO(pushToken: pushToken))
+            },
+            afterResponse: { res async throws in
+                XCTAssertEqual(res.status, .created)
+            }
+        )
+
+        try await app.test(
+            .POST,
+            "\(ordersURI)push/\(order.orderTypeIdentifier)/\(order.requireID())",
+            headers: ["X-Secret": "foo"],
+            afterResponse: { res async throws in
+                XCTAssertEqual(res.status, .internalServerError)
             }
         )
     }

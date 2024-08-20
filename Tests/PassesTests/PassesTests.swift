@@ -255,8 +255,8 @@ final class PassesTests: XCTestCase {
         let passData = PassData(title: "Test Pass")
         try await passData.create(on: app.db)
         let pass = try await passData._$pass.get(on: app.db)
-        try await passesService.sendPushNotifications(for: pass, on: app.db)
-        try await passesService.sendPushNotificationsForPass(id: pass.requireID(), of: pass.passTypeIdentifier, on: app.db)
+        let deviceLibraryIdentifier = "abcdefg"
+        let pushToken = "1234567890"
 
         try await app.test(
             .POST,
@@ -264,6 +264,27 @@ final class PassesTests: XCTestCase {
             headers: ["X-Secret": "foo"],
             afterResponse: { res async throws in
                 XCTAssertEqual(res.status, .noContent)
+            }
+        )
+
+        try await app.test(
+            .POST,
+            "\(passesURI)devices/\(deviceLibraryIdentifier)/registrations/\(pass.passTypeIdentifier)/\(pass.requireID())",
+            headers: ["Authorization": "ApplePass \(pass.authenticationToken)"],
+            beforeRequest: { req async throws in
+                try req.content.encode(RegistrationDTO(pushToken: pushToken))
+            },
+            afterResponse: { res async throws in
+                XCTAssertEqual(res.status, .created)
+            }
+        )
+
+        try await app.test(
+            .POST,
+            "\(passesURI)push/\(pass.passTypeIdentifier)/\(pass.requireID())",
+            headers: ["X-Secret": "foo"],
+            afterResponse: { res async throws in
+                XCTAssertEqual(res.status, .internalServerError)
             }
         )
     }
