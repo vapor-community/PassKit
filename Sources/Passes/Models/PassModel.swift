@@ -33,6 +33,8 @@ import FluentKit
 ///
 /// Uses a UUID so people can't easily guess pass serial numbers.
 public protocol PassModel: Model where IDValue == UUID {
+    associatedtype UserPersonalizationType: UserPersonalizationModel
+
     /// The pass type identifier that’s registered with Apple.
     var passTypeIdentifier: String { get set }
     
@@ -41,6 +43,15 @@ public protocol PassModel: Model where IDValue == UUID {
 
     /// The authentication token to use with the web service in the `webServiceURL` key.
     var authenticationToken: String { get set }
+
+    /// The user personalization info.
+    var userPersonalization: UserPersonalizationType? { get set }
+
+    /// The designated initializer.
+    /// - Parameters:
+    ///   - passTypeIdentifier: The pass type identifier that’s registered with Apple.
+    ///   - authenticationToken: The authentication token to use with the web service in the `webServiceURL` key.
+    init(passTypeIdentifier: String, authenticationToken: String)
 }
 
 internal extension PassModel {
@@ -78,5 +89,14 @@ internal extension PassModel {
         }
         
         return authenticationToken
+    }
+
+    var _$userPersonalization: OptionalParent<UserPersonalizationType> {
+        guard let mirror = Mirror(reflecting: self).descendant("_userPersonalization"),
+            let userPersonalization = mirror as? OptionalParent<UserPersonalizationType> else {
+                fatalError("userPersonalization property must be declared using @OptionalParent")
+        }
+        
+        return userPersonalization
     }
 }

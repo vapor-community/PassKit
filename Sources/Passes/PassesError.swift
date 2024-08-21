@@ -13,7 +13,6 @@ public struct PassesError: Error, Sendable {
             case templateNotDirectory
             case pemCertificateMissing
             case pemPrivateKeyMissing
-            case zipBinaryMissing
             case opensslBinaryMissing
             case invalidNumberOfPasses
         }
@@ -30,8 +29,6 @@ public struct PassesError: Error, Sendable {
         public static let pemCertificateMissing = Self(.pemCertificateMissing)
         /// The `pemPrivateKey` file is missing.
         public static let pemPrivateKeyMissing = Self(.pemPrivateKeyMissing)
-        /// The path to the `zip` binary is incorrect.
-        public static let zipBinaryMissing = Self(.zipBinaryMissing)
         /// The path to the `openssl` binary is incorrect.
         public static let opensslBinaryMissing = Self(.opensslBinaryMissing)
         /// The number of passes to bundle is invalid.
@@ -68,9 +65,6 @@ public struct PassesError: Error, Sendable {
 
     /// The `pemPrivateKey` file is missing.
     public static let pemPrivateKeyMissing = Self(errorType: .pemPrivateKeyMissing)
-
-    /// The path to the `zip` binary is incorrect.
-    public static let zipBinaryMissing = Self(errorType: .zipBinaryMissing)
 
     /// The path to the `openssl` binary is incorrect.
     public static let opensslBinaryMissing = Self(errorType: .opensslBinaryMissing)

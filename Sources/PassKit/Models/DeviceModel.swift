@@ -44,15 +44,6 @@ public protocol DeviceModel: Model where IDValue == Int {
 }
 
 package extension DeviceModel {
-    var _$id: ID<Int> {
-        guard let mirror = Mirror(reflecting: self).descendant("_id"),
-            let id = mirror as? ID<Int> else {
-                fatalError("id property must be declared using @ID")
-        }
-        
-        return id
-    }
-    
     var _$pushToken: Field<String> {
         guard let mirror = Mirror(reflecting: self).descendant("_pushToken"),
             let pushToken = mirror as? Field<String> else {

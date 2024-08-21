@@ -1,7 +1,7 @@
 <div align="center">
     <img src="https://avatars.githubusercontent.com/u/26165732?s=200&v=4" width="100" height="100" alt="avatar" />
     <h1>PassKit</h1>
-    <a href="https://swiftpackageindex.com/vapor-community/PassKit/0.5.0/documentation/passkit">
+    <a href="https://swiftpackageindex.com/vapor-community/PassKit/documentation">
         <img src="https://design.vapor.codes/images/readthedocs.svg" alt="Documentation">
     </a>
     <a href="https://discord.gg/vapor"><img src="https://design.vapor.codes/images/discordchat.svg" alt="Team Chat"></a>
@@ -20,21 +20,10 @@
 
 🎟️ 📦 Create, distribute, and update passes and orders for the Apple Wallet app with Vapor.
 
-### Major Releases
-
-The table below shows a list of PassKit major releases alongside their compatible Swift versions. 
-
-|Version|Swift|SPM|
-|---|---|---|
-|0.5.0|5.10+|`from: "0.5.0"`|
-|0.4.0|5.10+|`from: "0.4.0"`|
-|0.2.0|5.9+|`from: "0.2.0"`|
-|0.1.0|5.9+|`from: "0.1.0"`|
-
 Use the SPM string to easily include the dependendency in your `Package.swift` file.
 
 ```swift
-.package(url: "https://github.com/vapor-community/PassKit.git", from: "0.5.0")
+.package(url: "https://github.com/vapor-community/PassKit.git", from: "0.6.0")
 ```
 
 > Note: This package is made for Vapor 4.
@@ -50,7 +39,7 @@ Add the `Passes` product to your target's dependencies:
 .product(name: "Passes", package: "PassKit")
 ```
 
-See the framework's [documentation](https://swiftpackageindex.com/vapor-community/PassKit/0.5.0/documentation/passes) for information on how to use it.
+See the framework's [documentation](https://swiftpackageindex.com/vapor-community/PassKit/documentation/passes) for information and guides on how to use it.
 
 For information on Apple Wallet passes, see the [Apple Developer Documentation](https://developer.apple.com/documentation/walletpasses).
 
@@ -65,6 +54,6 @@ Add the `Orders` product to your target's dependencies:
 .product(name: "Orders", package: "PassKit")
 ```
 
-See the framework's [documentation](https://swiftpackageindex.com/vapor-community/PassKit/0.5.0/documentation/orders) for information on how to use it.
+See the framework's [documentation](https://swiftpackageindex.com/vapor-community/PassKit/documentation/orders) for information and guides on how to use it.
 
 For information on Apple Wallet orders, see the [Apple Developer Documentation](https://developer.apple.com/documentation/walletorders).

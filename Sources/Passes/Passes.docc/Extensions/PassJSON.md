@@ -8,12 +8,17 @@
 - ``FormatVersion``
 - ``PassFieldContent``
 
-### Barcodes
+### Barcodes and NFC
 
 - ``Barcodes``
 - ``BarcodeFormat``
+- ``NFC``
 
 ### Boarding Passes
 
 - ``BoardingPass``
 - ``TransitType``
+
+### Miscellaneous
+
+- ``Locations``

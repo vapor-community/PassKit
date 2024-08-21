@@ -30,4 +30,8 @@ import Vapor
 
 package struct ErrorLogDTO: Content {
     package let logs: [String]
+
+    package init(logs: [String]) {
+        self.logs = logs
+    }
 }

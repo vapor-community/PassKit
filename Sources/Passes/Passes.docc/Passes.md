@@ -12,7 +12,8 @@ Create, distribute, and update passes for the Apple Wallet app with Vapor.
     @Column { }
 }
 
-The Passes framework provides a set of tools to help you create, build, and distribute digital passes for the Apple Wallet app using a Vapor server. It also provides a way to update passes after they have been distributed, using APNs, and models to store pass and device data.
+The Passes framework provides a set of tools to help you create, build, and distribute digital passes for the Apple Wallet app using a Vapor server.
+It also provides a way to update passes after they have been distributed, using APNs, and models to store pass and device data.
 
 For information on Apple Wallet passes, see the [Apple Developer Documentation](https://developer.apple.com/documentation/walletpasses).
 
@@ -20,8 +21,7 @@ For information on Apple Wallet passes, see the [Apple Developer Documentation](
 
 ### Essentials
 
-- <doc:PassData>
-- <doc:DistributeUpdate>
+- <doc:GettingStarted>
 - ``PassJSON``
 
 ### Building and Distribution
@@ -32,7 +32,7 @@ For information on Apple Wallet passes, see the [Apple Developer Documentation](
 
 ### Concrete Models
 
-- ``PKPass``
+- ``Pass``
 - ``PassesRegistration``
 - ``PassesDevice``
 - ``PassesErrorLog``
@@ -51,3 +51,5 @@ For information on Apple Wallet passes, see the [Apple Developer Documentation](
 
 - <doc:Personalization>
 - ``PersonalizationJSON``
+- ``UserPersonalization``
+- ``UserPersonalizationModel``
