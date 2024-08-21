@@ -6,7 +6,7 @@ import PassKit
 import Zip
 
 final class PassesTests: XCTestCase {
-    let passDelegate = TestPassesDelegate()
+    let delegate = TestPassesDelegate()
     let passesURI = "/api/passes/v1/"
     var passesService: PassesService!
     var app: Application!
@@ -19,7 +19,7 @@ final class PassesTests: XCTestCase {
         app.migrations.add(CreatePassData())
         passesService = try PassesService(
             app: app,
-            delegate: passDelegate,
+            delegate: delegate,
             pushRoutesMiddleware: SecretMiddleware(secret: "foo"),
             logger: app.logger
         )
@@ -44,6 +44,8 @@ final class PassesTests: XCTestCase {
         let passURL = FileManager.default.temporaryDirectory.appendingPathComponent("test.pkpass")
         try data.write(to: passURL)
         let passFolder = try Zip.quickUnzipFile(passURL)
+
+        XCTAssert(FileManager.default.fileExists(atPath: passFolder.path.appending("/signature")))
 
         let passJSONData = try String(contentsOfFile: passFolder.path.appending("/pass.json")).data(using: .utf8)
         let passJSON = try JSONSerialization.jsonObject(with: passJSONData!) as! [String: Any]
@@ -265,6 +267,7 @@ final class PassesTests: XCTestCase {
 
     func testAPNSClient() async throws {
         XCTAssertNotNil(app.apns.client(.init(string: "passes")))
+        
         let passData = PassData(title: "Test Pass")
         try await passData.create(on: app.db)
         let pass = try await passData._$pass.get(on: app.db)
@@ -336,4 +339,10 @@ final class PassesTests: XCTestCase {
         let data = try await delegate.encodePersonalization(for: pass, db: app.db, encoder: JSONEncoder())
         XCTAssertNil(data)
     }
+}
+
+final class DefaultPassesDelegate: PassesDelegate {
+    let sslSigningFilesDirectory = URL(fileURLWithPath: "", isDirectory: true)
+    func template<P: PassModel>(for pass: P, db: any Database) async throws -> URL { URL(fileURLWithPath: "") }
+    func encode<P: PassModel>(pass: P, db: any Database, encoder: JSONEncoder) async throws -> Data { Data() }
 }

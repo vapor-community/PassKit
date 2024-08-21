@@ -2,14 +2,16 @@ import Vapor
 import FluentKit
 import Passes
 
-final class TestPassesDelegate: PassesDelegate {
+final class EncryptedPassesDelegate: PassesDelegate {
     let sslSigningFilesDirectory = URL(
         fileURLWithPath: "\(FileManager.default.currentDirectoryPath)/Tests/Certificates/",
         isDirectory: true
     )
 
-    let pemCertificate = "certificate.pem"
-    let pemPrivateKey = "key.pem"
+    let pemCertificate = "encryptedcert.pem"
+    let pemPrivateKey = "encryptedkey.pem"
+
+    let pemPrivateKeyPassword: String? = "password"
 
     func encode<P: PassModel>(pass: P, db: any Database, encoder: JSONEncoder) async throws -> Data {
         guard let passData = try await PassData.query(on: db)

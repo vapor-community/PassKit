@@ -6,7 +6,7 @@ import PassKit
 import Zip
 
 final class OrdersTests: XCTestCase {
-    let orderDelegate = TestOrdersDelegate()
+    let delegate = TestOrdersDelegate()
     let ordersURI = "/api/orders/v1/"
     var ordersService: OrdersService!
     var app: Application!
@@ -19,7 +19,7 @@ final class OrdersTests: XCTestCase {
         app.migrations.add(CreateOrderData())
         ordersService = try OrdersService(
             app: app,
-            delegate: orderDelegate,
+            delegate: delegate,
             pushRoutesMiddleware: SecretMiddleware(secret: "foo"),
             logger: app.logger
         )
@@ -43,16 +43,18 @@ final class OrdersTests: XCTestCase {
         let data = try await ordersService.generateOrderContent(for: order, on: app.db)
         let orderURL = FileManager.default.temporaryDirectory.appendingPathComponent("test.order")
         try data.write(to: orderURL)
-        let passFolder = try Zip.quickUnzipFile(orderURL)
+        let orderFolder = try Zip.quickUnzipFile(orderURL)
 
-        let passJSONData = try String(contentsOfFile: passFolder.path.appending("/order.json")).data(using: .utf8)
+        XCTAssert(FileManager.default.fileExists(atPath: orderFolder.path.appending("/signature")))
+
+        let passJSONData = try String(contentsOfFile: orderFolder.path.appending("/order.json")).data(using: .utf8)
         let passJSON = try JSONSerialization.jsonObject(with: passJSONData!) as! [String: Any]
         XCTAssertEqual(passJSON["authenticationToken"] as? String, order.authenticationToken)
         try XCTAssertEqual(passJSON["orderIdentifier"] as? String, order.requireID().uuidString)
 
-        let manifestJSONData = try String(contentsOfFile: passFolder.path.appending("/manifest.json")).data(using: .utf8)
+        let manifestJSONData = try String(contentsOfFile: orderFolder.path.appending("/manifest.json")).data(using: .utf8)
         let manifestJSON = try JSONSerialization.jsonObject(with: manifestJSONData!) as! [String: Any]
-        let iconData = try Data(contentsOf: passFolder.appendingPathComponent("/icon.png"))
+        let iconData = try Data(contentsOf: orderFolder.appendingPathComponent("/icon.png"))
         let iconHash = Array(SHA256.hash(data: iconData)).hex
         XCTAssertEqual(manifestJSON["icon.png"] as? String, iconHash)
     }
@@ -179,6 +181,7 @@ final class OrdersTests: XCTestCase {
 
     func testAPNSClient() async throws {
         XCTAssertNotNil(app.apns.client(.init(string: "orders")))
+
         let orderData = OrderData(title: "Test Order")
         try await orderData.create(on: app.db)
         let order = try await orderData._$order.get(on: app.db)
@@ -243,4 +246,10 @@ final class OrdersTests: XCTestCase {
         XCTAssertEqual(delegate.sslBinary, URL(fileURLWithPath: "/usr/bin/openssl"))
         XCTAssertFalse(delegate.generateSignatureFile(in: URL(fileURLWithPath: "")))
     }
+}
+
+final class DefaultOrdersDelegate: OrdersDelegate {
+    let sslSigningFilesDirectory = URL(fileURLWithPath: "", isDirectory: true)
+    func template<O: OrderModel>(for order: O, db: any Database) async throws -> URL { URL(fileURLWithPath: "") }
+    func encode<O: OrderModel>(order: O, db: any Database, encoder: JSONEncoder) async throws -> Data { Data() }
 }
