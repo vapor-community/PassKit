@@ -86,12 +86,12 @@ public final class PassesServiceCustom<P, U, D, R: PassesRegistrationModel, E: E
         let v1 = app.grouped("api", "passes", "v1")
         v1.get("devices", ":deviceLibraryIdentifier", "registrations", ":passTypeIdentifier", use: { try await self.passesForDevice(req: $0) })
         v1.post("log", use: { try await self.logError(req: $0) })
+        v1.post("passes", ":passTypeIdentifier", ":passSerial", "personalize", use: { try await self.personalizedPass(req: $0) })
 
         let v1auth = v1.grouped(ApplePassMiddleware<P>())
         v1auth.post("devices", ":deviceLibraryIdentifier", "registrations", ":passTypeIdentifier", ":passSerial", use: { try await self.registerDevice(req: $0) })
         v1auth.get("passes", ":passTypeIdentifier", ":passSerial", use: { try await self.latestVersionOfPass(req: $0) })
         v1auth.delete("devices", ":deviceLibraryIdentifier", "registrations", ":passTypeIdentifier", ":passSerial", use: { try await self.unregisterDevice(req: $0) })
-        v1auth.post("passes", ":passTypeIdentifier", ":passSerial", "personalize", use: { try await self.personalizedPass(req: $0) })
 
         if let pushRoutesMiddleware {
             let pushAuth = v1.grouped(pushRoutesMiddleware)
@@ -247,7 +247,7 @@ extension PassesServiceCustom {
             throw Abort(.badRequest)
         }
 
-        guard body.logs.isEmpty == false else {
+        guard !body.logs.isEmpty else {
             throw Abort(.badRequest)
         }
 

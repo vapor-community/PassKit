@@ -79,6 +79,58 @@ final class OrdersTests: XCTestCase {
                 XCTAssertNotNil(res.headers.lastModified)
             }
         )
+
+        // Test call with invalid authentication token
+        try await app.test(
+            .GET,
+            "\(ordersURI)orders/\(order.orderTypeIdentifier)/\(order.requireID())",
+            headers: [
+                "Authorization": "AppleOrder invalidToken",
+                "If-Modified-Since": "0"
+            ],
+            afterResponse: { res async throws in
+                XCTAssertEqual(res.status, .unauthorized)
+            }
+        )
+
+        // Test distant future `If-Modified-Since` date
+        try await app.test(
+            .GET,
+            "\(ordersURI)orders/\(order.orderTypeIdentifier)/\(order.requireID())",
+            headers: [
+                "Authorization": "AppleOrder \(order.authenticationToken)",
+                "If-Modified-Since": "2147483647"
+            ],
+            afterResponse: { res async throws in
+                XCTAssertEqual(res.status, .notModified)
+            }
+        )
+
+        // Test call with invalid order ID
+        try await app.test(
+            .GET,
+            "\(ordersURI)orders/\(order.orderTypeIdentifier)/invalidID",
+            headers: [
+                "Authorization": "AppleOrder \(order.authenticationToken)",
+                "If-Modified-Since": "0"
+            ],
+            afterResponse: { res async throws in
+                XCTAssertEqual(res.status, .badRequest)
+            }
+        )
+
+        // Test call with invalid order type identifier
+        try await app.test(
+            .GET,
+            "\(ordersURI)orders/order.com.example.InvalidType/\(order.requireID())",
+            headers: [
+                "Authorization": "AppleOrder \(order.authenticationToken)",
+                "If-Modified-Since": "0"
+            ],
+            afterResponse: { res async throws in
+                XCTAssertEqual(res.status, .notFound)
+            }
+        )
     }
 
     func testAPIDeviceRegistration() async throws {
@@ -177,6 +229,27 @@ final class OrdersTests: XCTestCase {
         XCTAssertEqual(logs.count, 2)
         XCTAssertEqual(logs[0].message, log1)
         XCTAssertEqual(logs[1]._$message.value, log2)
+
+        // Test call with no DTO
+        try await app.test(
+            .POST,
+            "\(ordersURI)log",
+            afterResponse: { res async throws in
+                XCTAssertEqual(res.status, .badRequest)
+            }
+        )
+
+        // Test call with empty logs
+        try await app.test(
+            .POST,
+            "\(ordersURI)log",
+            beforeRequest: { req async throws in
+                try req.content.encode(ErrorLogDTO(logs: []))
+            },
+            afterResponse: { res async throws in
+                XCTAssertEqual(res.status, .badRequest)
+            }
+        )
     }
 
     func testAPNSClient() async throws {

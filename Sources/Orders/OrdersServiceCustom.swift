@@ -226,7 +226,7 @@ extension OrdersServiceCustom {
             throw Abort(.badRequest)
         }
 
-        guard body.logs.isEmpty == false else {
+        guard !body.logs.isEmpty else {
             throw Abort(.badRequest)
         }
 

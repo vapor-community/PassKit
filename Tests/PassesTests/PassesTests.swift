@@ -119,6 +119,58 @@ final class PassesTests: XCTestCase {
                 XCTAssertNotNil(res.headers.lastModified)
             }
         )
+
+        // Test call with invalid authentication token
+        try await app.test(
+            .GET,
+            "\(passesURI)passes/\(pass.passTypeIdentifier)/\(pass.requireID())",
+            headers: [
+                "Authorization": "ApplePass invalid-token",
+                "If-Modified-Since": "0"
+            ],
+            afterResponse: { res async throws in
+                XCTAssertEqual(res.status, .unauthorized)
+            }
+        )
+
+        // Test distant future `If-Modified-Since` date
+        try await app.test(
+            .GET,
+            "\(passesURI)passes/\(pass.passTypeIdentifier)/\(pass.requireID())",
+            headers: [
+                "Authorization": "ApplePass \(pass.authenticationToken)",
+                "If-Modified-Since": "2147483647"
+            ],
+            afterResponse: { res async throws in
+                XCTAssertEqual(res.status, .notModified)
+            }
+        )
+
+        // Test call with invalid pass ID
+        try await app.test(
+            .GET,
+            "\(passesURI)passes/\(pass.passTypeIdentifier)/invalid-uuid",
+            headers: [
+                "Authorization": "ApplePass \(pass.authenticationToken)",
+                "If-Modified-Since": "0"
+            ],
+            afterResponse: { res async throws in
+                XCTAssertEqual(res.status, .badRequest)
+            }
+        )
+
+        // Test call with invalid pass type identifier
+        try await app.test(
+            .GET,
+            "\(passesURI)passes/pass.com.example.InvalidType/\(pass.requireID())",
+            headers: [
+                "Authorization": "ApplePass \(pass.authenticationToken)",
+                "If-Modified-Since": "0"
+            ],
+            afterResponse: { res async throws in
+                XCTAssertEqual(res.status, .notFound)
+            }
+        )
     }
 
     func testPersonalizationAPI() async throws {
@@ -141,7 +193,6 @@ final class PassesTests: XCTestCase {
         try await app.test(
             .POST,
             "\(passesURI)passes/\(pass.passTypeIdentifier)/\(pass.requireID())/personalize",
-            headers: ["Authorization": "ApplePass \(pass.authenticationToken)"],
             beforeRequest: { req async throws in
                 try req.content.encode(personalizationDict)
             },
@@ -165,6 +216,30 @@ final class PassesTests: XCTestCase {
         XCTAssertEqual(personalizationQuery[0]._$ISOCountryCode.value, personalizationDict.requiredPersonalizationInfo.ISOCountryCode)
         XCTAssertEqual(personalizationQuery[0]._$phoneNumber.value, personalizationDict.requiredPersonalizationInfo.phoneNumber)
         XCTAssertEqual(personalizationQuery[0]._$postalCode.value, personalizationDict.requiredPersonalizationInfo.postalCode)
+
+        // Test call with invalid pass ID
+        try await app.test(
+            .POST,
+            "\(passesURI)passes/\(pass.passTypeIdentifier)/invalid-uuid/personalize",
+            beforeRequest: { req async throws in
+                try req.content.encode(personalizationDict)
+            },
+            afterResponse: { res async throws in
+                XCTAssertEqual(res.status, .badRequest)
+            }
+        )
+
+        // Test call with invalid pass type identifier
+        try await app.test(
+            .POST,
+            "\(passesURI)passes/pass.com.example.InvalidType/\(pass.requireID())/personalize",
+            beforeRequest: { req async throws in
+                try req.content.encode(personalizationDict)
+            },
+            afterResponse: { res async throws in
+                XCTAssertEqual(res.status, .notFound)
+            }
+        )
     }
 
     func testAPIDeviceRegistration() async throws {
@@ -263,11 +338,32 @@ final class PassesTests: XCTestCase {
         XCTAssertEqual(logs.count, 2)
         XCTAssertEqual(logs[0].message, log1)
         XCTAssertEqual(logs[1]._$message.value, log2)
+
+        // Test call with no DTO
+        try await app.test(
+            .POST,
+            "\(passesURI)log",
+            afterResponse: { res async throws in
+                XCTAssertEqual(res.status, .badRequest)
+            }
+        )
+
+        // Test call with empty logs
+        try await app.test(
+            .POST,
+            "\(passesURI)log",
+            beforeRequest: { req async throws in
+                try req.content.encode(ErrorLogDTO(logs: []))
+            },
+            afterResponse: { res async throws in
+                XCTAssertEqual(res.status, .badRequest)
+            }
+        )
     }
 
     func testAPNSClient() async throws {
         XCTAssertNotNil(app.apns.client(.init(string: "passes")))
-        
+
         let passData = PassData(title: "Test Pass")
         try await passData.create(on: app.db)
         let pass = try await passData._$pass.get(on: app.db)
