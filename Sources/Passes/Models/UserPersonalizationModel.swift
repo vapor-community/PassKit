@@ -32,7 +32,7 @@ public protocol UserPersonalizationModel: Model where IDValue == Int {
     /// The user’s ISO country code.
     ///
     /// This key is only included when the system can deduce the country code.
-    var ISOCountryCode: String? { get set }
+    var isoCountryCode: String? { get set }
 
     /// The phone number, as entered by the user.
     var phoneNumber: String? { get set }
@@ -99,14 +99,14 @@ extension UserPersonalizationModel {
         return postalCode
     }
 
-    var _$ISOCountryCode: OptionalField<String> {
-        guard let mirror = Mirror(reflecting: self).descendant("_ISOCountryCode"),
-            let ISOCountryCode = mirror as? OptionalField<String>
+    var _$isoCountryCode: OptionalField<String> {
+        guard let mirror = Mirror(reflecting: self).descendant("_isoCountryCode"),
+            let isoCountryCode = mirror as? OptionalField<String>
         else {
-            fatalError("ISOCountryCode property must be declared using @OptionalField")
+            fatalError("isoCountryCode property must be declared using @OptionalField")
         }
 
-        return ISOCountryCode
+        return isoCountryCode
     }
 
     var _$phoneNumber: OptionalField<String> {

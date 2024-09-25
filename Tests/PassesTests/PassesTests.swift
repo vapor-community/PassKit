@@ -204,7 +204,7 @@ final class PassesTests: XCTestCase {
                 familyName: "Doe",
                 fullName: "John Doe",
                 givenName: "John",
-                ISOCountryCode: "US",
+                isoCountryCode: "US",
                 phoneNumber: "1234567890",
                 postalCode: "12345"
             )
@@ -242,8 +242,8 @@ final class PassesTests: XCTestCase {
             personalizationQuery[0]._$givenName.value,
             personalizationDict.requiredPersonalizationInfo.givenName)
         XCTAssertEqual(
-            personalizationQuery[0]._$ISOCountryCode.value,
-            personalizationDict.requiredPersonalizationInfo.ISOCountryCode)
+            personalizationQuery[0]._$isoCountryCode.value,
+            personalizationDict.requiredPersonalizationInfo.isoCountryCode)
         XCTAssertEqual(
             personalizationQuery[0]._$phoneNumber.value,
             personalizationDict.requiredPersonalizationInfo.phoneNumber)
@@ -340,6 +340,9 @@ final class PassesTests: XCTestCase {
             .POST,
             "\(passesURI)devices/\(deviceLibraryIdentifier)/registrations/\(pass.passTypeIdentifier)/\("not-a-uuid")",
             headers: ["Authorization": "ApplePass \(pass.authenticationToken)"],
+            beforeRequest: { req async throws in
+                try req.content.encode(RegistrationDTO(pushToken: pushToken))
+            },
             afterResponse: { res async throws in
                 XCTAssertEqual(res.status, .badRequest)
             }

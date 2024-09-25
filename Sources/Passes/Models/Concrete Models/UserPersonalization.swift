@@ -43,8 +43,8 @@ final public class UserPersonalization: UserPersonalizationModel, @unchecked Sen
     /// The user’s ISO country code.
     ///
     /// This key is only included when the system can deduce the country code.
-    @OptionalField(key: UserPersonalization.FieldKeys.ISOCountryCode)
-    public var ISOCountryCode: String?
+    @OptionalField(key: UserPersonalization.FieldKeys.isoCountryCode)
+    public var isoCountryCode: String?
 
     /// The phone number, as entered by the user.
     @OptionalField(key: UserPersonalization.FieldKeys.phoneNumber)
@@ -62,7 +62,7 @@ extension UserPersonalization: AsyncMigration {
             .field(UserPersonalization.FieldKeys.familyName, .string)
             .field(UserPersonalization.FieldKeys.emailAddress, .string)
             .field(UserPersonalization.FieldKeys.postalCode, .string)
-            .field(UserPersonalization.FieldKeys.ISOCountryCode, .string)
+            .field(UserPersonalization.FieldKeys.isoCountryCode, .string)
             .field(UserPersonalization.FieldKeys.phoneNumber, .string)
             .create()
     }
@@ -80,7 +80,7 @@ extension UserPersonalization {
         static let familyName = FieldKey(stringLiteral: "family_name")
         static let emailAddress = FieldKey(stringLiteral: "email_address")
         static let postalCode = FieldKey(stringLiteral: "postal_code")
-        static let ISOCountryCode = FieldKey(stringLiteral: "iso_country_code")
+        static let isoCountryCode = FieldKey(stringLiteral: "iso_country_code")
         static let phoneNumber = FieldKey(stringLiteral: "phone_number")
     }
 }

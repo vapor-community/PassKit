@@ -16,8 +16,18 @@ struct PersonalizationDictionaryDTO: Content {
         let familyName: String?
         let fullName: String?
         let givenName: String?
-        let ISOCountryCode: String?
+        let isoCountryCode: String?
         let phoneNumber: String?
         let postalCode: String?
+
+        enum CodingKeys: String, CodingKey {
+            case emailAddress
+            case familyName
+            case fullName
+            case givenName
+            case isoCountryCode = "ISOCountryCode"
+            case phoneNumber
+            case postalCode
+        }
     }
 }

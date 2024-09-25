@@ -208,8 +208,8 @@ extension PassesServiceCustom {
 
         var serialNumbers: [String] = []
         var maxDate = Date.distantPast
-        try registrations.forEach { r in
-            let pass = r.pass
+        for registration in registrations {
+            let pass = registration.pass
             try serialNumbers.append(pass.requireID().uuidString)
             if let updatedAt = pass.updatedAt, updatedAt > maxDate {
                 maxDate = updatedAt
@@ -322,7 +322,7 @@ extension PassesServiceCustom {
         userPersonalization.familyName = userInfo.requiredPersonalizationInfo.familyName
         userPersonalization.emailAddress = userInfo.requiredPersonalizationInfo.emailAddress
         userPersonalization.postalCode = userInfo.requiredPersonalizationInfo.postalCode
-        userPersonalization.ISOCountryCode = userInfo.requiredPersonalizationInfo.ISOCountryCode
+        userPersonalization.isoCountryCode = userInfo.requiredPersonalizationInfo.isoCountryCode
         userPersonalization.phoneNumber = userInfo.requiredPersonalizationInfo.phoneNumber
         try await userPersonalization.create(on: req.db)
 
@@ -488,7 +488,7 @@ extension PassesServiceCustom {
     ) throws -> Data {
         var manifest: [String: String] = [:]
         let paths = try FileManager.default.subpathsOfDirectory(atPath: root.path)
-        try paths.forEach { relativePath in
+        for relativePath in paths {
             let file = URL(fileURLWithPath: relativePath, relativeTo: root)
             guard !file.hasDirectoryPath else { return }
             let data = try Data(contentsOf: file)

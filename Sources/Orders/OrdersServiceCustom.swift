@@ -236,8 +236,8 @@ extension OrdersServiceCustom {
 
         var orderIdentifiers: [String] = []
         var maxDate = Date.distantPast
-        try registrations.forEach { r in
-            let order = r.order
+        for registration in registrations {
+            let order = registration.order
             try orderIdentifiers.append(order.requireID().uuidString)
             if let updatedAt = order.updatedAt, updatedAt > maxDate {
                 maxDate = updatedAt
@@ -378,7 +378,7 @@ extension OrdersServiceCustom {
     ) throws -> Data {
         var manifest: [String: String] = [:]
         let paths = try FileManager.default.subpathsOfDirectory(atPath: root.path)
-        try paths.forEach { relativePath in
+        for relativePath in paths {
             let file = URL(fileURLWithPath: relativePath, relativeTo: root)
             guard !file.hasDirectoryPath else { return }
             let data = try Data(contentsOf: file)

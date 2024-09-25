@@ -202,6 +202,9 @@ final class OrdersTests: XCTestCase {
             .POST,
             "\(ordersURI)devices/\(deviceLibraryIdentifier)/registrations/\(order.orderTypeIdentifier)/\("not-a-uuid")",
             headers: ["Authorization": "AppleOrder \(order.authenticationToken)"],
+            beforeRequest: { req async throws in
+                try req.content.encode(RegistrationDTO(pushToken: pushToken))
+            },
             afterResponse: { res async throws in
                 XCTAssertEqual(res.status, .badRequest)
             }
