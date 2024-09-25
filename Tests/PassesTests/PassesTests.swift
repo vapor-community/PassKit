@@ -63,6 +63,8 @@ final class PassesTests: XCTestCase {
         let iconData = try Data(contentsOf: passFolder.appendingPathComponent("/icon.png"))
         let iconHash = Array(Insecure.SHA1.hash(data: iconData)).hex
         XCTAssertEqual(manifestJSON["icon.png"] as? String, iconHash)
+        XCTAssertNotNil(manifestJSON["logo.png"])
+        XCTAssertNotNil(manifestJSON["personalizationLogo.png"])
     }
 
     func testPassesGeneration() async throws {

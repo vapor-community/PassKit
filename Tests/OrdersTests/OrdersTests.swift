@@ -62,6 +62,7 @@ final class OrdersTests: XCTestCase {
         let iconData = try Data(contentsOf: orderFolder.appendingPathComponent("/icon.png"))
         let iconHash = Array(SHA256.hash(data: iconData)).hex
         XCTAssertEqual(manifestJSON["icon.png"] as? String, iconHash)
+        XCTAssertNotNil(manifestJSON["pet_store_logo.png"])
     }
 
     // Tests the API Apple Wallet calls to get orders
