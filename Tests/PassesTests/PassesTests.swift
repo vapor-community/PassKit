@@ -283,6 +283,23 @@ final class PassesTests: XCTestCase {
         let deviceLibraryIdentifier = "abcdefg"
         let pushToken = "1234567890"
 
+        try await app.test(
+            .GET,
+            "\(passesURI)devices/\(deviceLibraryIdentifier)/registrations/\(pass.passTypeIdentifier)?passesUpdatedSince=0",
+            afterResponse: { res async throws in
+                XCTAssertEqual(res.status, .noContent)
+            }
+        )
+
+        try await app.test(
+            .DELETE,
+            "\(passesURI)devices/\(deviceLibraryIdentifier)/registrations/\(pass.passTypeIdentifier)/\(pass.requireID())",
+            headers: ["Authorization": "ApplePass \(pass.authenticationToken)"],
+            afterResponse: { res async throws in
+                XCTAssertEqual(res.status, .notFound)
+            }
+        )
+
         // Test registration without authentication token
         try await app.test(
             .POST,
@@ -381,6 +398,16 @@ final class PassesTests: XCTestCase {
             .GET,
             "\(passesURI)push/\(pass.passTypeIdentifier)/\("not-a-uuid")",
             headers: ["X-Secret": "foo"],
+            afterResponse: { res async throws in
+                XCTAssertEqual(res.status, .badRequest)
+            }
+        )
+
+        // Test call with invalid UUID
+        try await app.test(
+            .DELETE,
+            "\(passesURI)devices/\(deviceLibraryIdentifier)/registrations/\(pass.passTypeIdentifier)/\("not-a-uuid")",
+            headers: ["Authorization": "ApplePass \(pass.authenticationToken)"],
             afterResponse: { res async throws in
                 XCTAssertEqual(res.status, .badRequest)
             }

@@ -145,6 +145,23 @@ final class OrdersTests: XCTestCase {
         let deviceLibraryIdentifier = "abcdefg"
         let pushToken = "1234567890"
 
+        try await app.test(
+            .GET,
+            "\(ordersURI)devices/\(deviceLibraryIdentifier)/registrations/\(order.orderTypeIdentifier)?ordersModifiedSince=0",
+            afterResponse: { res async throws in
+                XCTAssertEqual(res.status, .noContent)
+            }
+        )
+
+        try await app.test(
+            .DELETE,
+            "\(ordersURI)devices/\(deviceLibraryIdentifier)/registrations/\(order.orderTypeIdentifier)/\(order.requireID())",
+            headers: ["Authorization": "AppleOrder \(order.authenticationToken)"],
+            afterResponse: { res async throws in
+                XCTAssertEqual(res.status, .notFound)
+            }
+        )
+
         // Test registration without authentication token
         try await app.test(
             .POST,
@@ -243,6 +260,16 @@ final class OrdersTests: XCTestCase {
             .GET,
             "\(ordersURI)push/\(order.orderTypeIdentifier)/\("not-a-uuid")",
             headers: ["X-Secret": "foo"],
+            afterResponse: { res async throws in
+                XCTAssertEqual(res.status, .badRequest)
+            }
+        )
+
+        // Test call with invalid UUID
+        try await app.test(
+            .DELETE,
+            "\(ordersURI)devices/\(deviceLibraryIdentifier)/registrations/\(order.orderTypeIdentifier)/\("not-a-uuid")",
+            headers: ["Authorization": "AppleOrder \(order.authenticationToken)"],
             afterResponse: { res async throws in
                 XCTAssertEqual(res.status, .badRequest)
             }
