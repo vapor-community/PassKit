@@ -380,7 +380,7 @@ extension OrdersServiceCustom {
         let paths = try FileManager.default.subpathsOfDirectory(atPath: root.path)
         for relativePath in paths {
             let file = URL(fileURLWithPath: relativePath, relativeTo: root)
-            guard !file.hasDirectoryPath else { return }
+            guard !file.hasDirectoryPath else { continue }
             let data = try Data(contentsOf: file)
             let hash = SHA256.hash(data: data)
             manifest[relativePath] = hash.map { "0\(String($0, radix: 16))".suffix(2) }.joined()
