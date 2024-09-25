@@ -26,19 +26,22 @@
 /// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 /// THE SOFTWARE.
 
-import Vapor
 import FluentKit
+import Vapor
 
 struct ApplePassMiddleware<P: PassModel>: AsyncMiddleware {
-    func respond(to request: Request, chainingTo next: any AsyncResponder) async throws -> Response {
-        guard let auth = request.headers["Authorization"].first?.replacingOccurrences(of: "ApplePass ", with: ""),
-            let _ = try await P.query(on: request.db)
+    func respond(
+        to request: Request, chainingTo next: any AsyncResponder
+    ) async throws -> Response {
+        guard
+            let auth = request.headers["Authorization"].first?.replacingOccurrences(
+                of: "ApplePass ", with: ""),
+            (try await P.query(on: request.db)
                 .filter(\._$authenticationToken == auth)
-                .first()
+                .first()) != nil
         else {
             throw Abort(.unauthorized)
         }
         return try await next.respond(to: request)
     }
 }
-

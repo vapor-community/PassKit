@@ -26,13 +26,16 @@
 /// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 /// THE SOFTWARE.
 
-import Vapor
 import FluentKit
+import Vapor
 
 /// The main class that handles PassKit passes.
 public final class PassesService: Sendable {
-    private let service: PassesServiceCustom<Pass, UserPersonalization, PassesDevice, PassesRegistration, PassesErrorLog>
-    
+    private let service:
+        PassesServiceCustom<
+            Pass, UserPersonalization, PassesDevice, PassesRegistration, PassesErrorLog
+        >
+
     /// Initializes the service and registers all the routes required for PassKit to work.
     ///
     /// - Parameters:
@@ -40,8 +43,13 @@ public final class PassesService: Sendable {
     ///   - delegate: The ``PassesDelegate`` to use for pass generation.
     ///   - pushRoutesMiddleware: The `Middleware` to use for push notification routes. If `nil`, push routes will not be registered.
     ///   - logger: The `Logger` to use.
-    public init(app: Application, delegate: any PassesDelegate, pushRoutesMiddleware: (any Middleware)? = nil, logger: Logger? = nil) throws {
-        service = try .init(app: app, delegate: delegate, pushRoutesMiddleware: pushRoutesMiddleware, logger: logger)
+    public init(
+        app: Application, delegate: any PassesDelegate,
+        pushRoutesMiddleware: (any Middleware)? = nil, logger: Logger? = nil
+    ) throws {
+        service = try .init(
+            app: app, delegate: delegate, pushRoutesMiddleware: pushRoutesMiddleware, logger: logger
+        )
     }
 
     /// Generates the pass content bundle for a given pass.
@@ -64,10 +72,11 @@ public final class PassesService: Sendable {
     ///   - passes: The passes to include in the bundle.
     ///   - db: The `Database` to use.
     /// - Returns: The bundle of passes as `Data`.
-    public func generatePassesContent(for passes: [Pass], on db: any Database) async throws -> Data {
+    public func generatePassesContent(for passes: [Pass], on db: any Database) async throws -> Data
+    {
         try await service.generatePassesContent(for: passes, on: db)
     }
-    
+
     /// Adds the migrations for PassKit passes models.
     ///
     /// - Parameter migrations: The `Migrations` object to add the migrations to.
@@ -78,19 +87,21 @@ public final class PassesService: Sendable {
         migrations.add(PassesRegistration())
         migrations.add(PassesErrorLog())
     }
-    
+
     /// Sends push notifications for a given pass.
     ///
     /// - Parameters:
     ///   - id: The `UUID` of the pass to send the notifications for.
     ///   - passTypeIdentifier: The type identifier of the pass.
     ///   - db: The `Database` to use.
-    public func sendPushNotificationsForPass(id: UUID, of passTypeIdentifier: String, on db: any Database) async throws {
+    public func sendPushNotificationsForPass(
+        id: UUID, of passTypeIdentifier: String, on db: any Database
+    ) async throws {
         try await service.sendPushNotificationsForPass(id: id, of: passTypeIdentifier, on: db)
     }
-    
+
     /// Sends push notifications for a given pass.
-    /// 
+    ///
     /// - Parameters:
     ///   - pass: The pass to send the notifications for.
     ///   - db: The `Database` to use.

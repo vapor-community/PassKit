@@ -7,7 +7,9 @@ struct SecretMiddleware: AsyncMiddleware {
         self.secret = secret
     }
 
-    func respond(to request: Request, chainingTo next: any AsyncResponder) async throws -> Response {
+    func respond(
+        to request: Request, chainingTo next: any AsyncResponder
+    ) async throws -> Response {
         guard request.headers.first(name: "X-Secret") == secret else {
             throw Abort(.unauthorized, reason: "Incorrect X-Secret header.")
         }

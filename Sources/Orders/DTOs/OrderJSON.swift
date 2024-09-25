@@ -13,35 +13,35 @@ public struct OrderJSON {
     public protocol Properties: Encodable {
         /// The date and time when the customer created the order, in RFC 3339 format.
         var createdAt: String { get }
-        
+
         /// A unique order identifier scoped to your order type identifier.
         ///
         /// In combination with the order type identifier, this uniquely identifies an order within the system and isn’t displayed to the user.
         var orderIdentifier: String { get }
-        
+
         /// A URL where the customer can manage the order.
         var orderManagementURL: String { get }
-        
+
         /// The type of order this bundle represents.
         ///
         /// Currently the only supported value is `ecommerce`.
         var orderType: OrderType { get }
-        
+
         /// An identifier for the order type associated with the order.
         ///
         /// The value must correspond with your signing certificate and isn’t displayed to the user.
         var orderTypeIdentifier: String { get }
-        
+
         /// A high-level status of the order, used for display purposes.
         ///
         /// The system considers orders with status `completed` or `cancelled` closed.
         var status: OrderStatus { get }
-        
+
         /// The version of the schema used for the order.
         ///
         /// The current version is `1`.
         var schemaVersion: SchemaVersion { get }
-        
+
         /// The date and time when the order was last updated, in RFC 3339 format.
         ///
         /// This should equal the `createdAt` time, if the order hasn’t had any updates.
@@ -58,10 +58,10 @@ extension OrderJSON {
     public protocol Merchant: Encodable {
         /// The localized display name of the merchant.
         var displayName: String { get }
-        
+
         /// The Apple Merchant Identifier for this merchant, generated at `developer.apple.com`.
         var merchantIdentifier: String { get }
-        
+
         /// The URL for the merchant’s website or landing page.
         var url: String { get }
     }
@@ -74,10 +74,10 @@ extension OrderJSON {
     public protocol Barcode: Encodable {
         /// The format of the barcode.
         var format: BarcodeFormat { get }
-        
+
         /// The contents of the barcode.
         var message: String { get }
-        
+
         /// The text encoding of the barcode message.
         ///
         /// Typically this is `iso-8859-1`, but you may specify an alternative encoding if required.

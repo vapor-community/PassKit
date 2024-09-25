@@ -5,9 +5,10 @@
 //  Created by Francesco Paolo Severino on 29/06/24.
 //
 
-import struct Foundation.Date
 import FluentKit
 import PassKit
+
+import struct Foundation.Date
 
 /// The `Model` that stores PassKit passes error logs.
 final public class PassesErrorLog: ErrorLogModel, @unchecked Sendable {

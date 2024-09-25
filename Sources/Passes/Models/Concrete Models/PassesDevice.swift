@@ -38,7 +38,9 @@ extension PassesDevice: AsyncMigration {
             .field(.id, .int, .identifier(auto: true))
             .field(PassesDevice.FieldKeys.pushToken, .string, .required)
             .field(PassesDevice.FieldKeys.deviceLibraryIdentifier, .string, .required)
-            .unique(on: PassesDevice.FieldKeys.pushToken, PassesDevice.FieldKeys.deviceLibraryIdentifier)
+            .unique(
+                on: PassesDevice.FieldKeys.pushToken, PassesDevice.FieldKeys.deviceLibraryIdentifier
+            )
             .create()
     }
 

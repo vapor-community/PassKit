@@ -5,15 +5,15 @@
 //  Created by Francesco Paolo Severino on 01/07/24.
 //
 
-import Vapor
 import APNS
-import VaporAPNS
 import APNSCore
 import Fluent
 import NIOSSL
 import PassKit
-import Zip
+import Vapor
+import VaporAPNS
 @_spi(CMS) import X509
+import Zip
 
 /// Class to handle ``OrdersService``.
 ///
@@ -22,11 +22,12 @@ import Zip
 /// - Device Type
 /// - Registration Type
 /// - Error Log Type
-public final class OrdersServiceCustom<O, D, R: OrdersRegistrationModel, E: ErrorLogModel>: Sendable where O == R.OrderType, D == R.DeviceType {
+public final class OrdersServiceCustom<O, D, R: OrdersRegistrationModel, E: ErrorLogModel>: Sendable
+where O == R.OrderType, D == R.DeviceType {
     private unowned let app: Application
     private unowned let delegate: any OrdersDelegate
     private let logger: Logger?
-    
+
     /// Initializes the service and registers all the routes required for Apple Wallet to work.
     ///
     /// - Parameters:
@@ -43,12 +44,16 @@ public final class OrdersServiceCustom<O, D, R: OrdersRegistrationModel, E: Erro
         self.app = app
         self.delegate = delegate
         self.logger = logger
-        
-        let privateKeyPath = URL(fileURLWithPath: delegate.pemPrivateKey, relativeTo: delegate.sslSigningFilesDirectory).unixPath()
+
+        let privateKeyPath = URL(
+            fileURLWithPath: delegate.pemPrivateKey, relativeTo: delegate.sslSigningFilesDirectory
+        ).path
         guard FileManager.default.fileExists(atPath: privateKeyPath) else {
             throw OrdersError.pemPrivateKeyMissing
         }
-        let pemPath = URL(fileURLWithPath: delegate.pemCertificate, relativeTo: delegate.sslSigningFilesDirectory).unixPath()
+        let pemPath = URL(
+            fileURLWithPath: delegate.pemCertificate, relativeTo: delegate.sslSigningFilesDirectory
+        ).path
         guard FileManager.default.fileExists(atPath: pemPath) else {
             throw OrdersError.pemCertificateMissing
         }
@@ -60,7 +65,9 @@ public final class OrdersServiceCustom<O, D, R: OrdersRegistrationModel, E: Erro
                         NIOSSLPrivateKey(file: privateKeyPath, format: .pem) { closure in
                             closure(password.utf8)
                         }),
-                    certificateChain: NIOSSLCertificate.fromPEMFile(pemPath).map { .certificate($0) }
+                    certificateChain: NIOSSLCertificate.fromPEMFile(pemPath).map {
+                        .certificate($0)
+                    }
                 ),
                 environment: .production
             )
@@ -68,7 +75,9 @@ public final class OrdersServiceCustom<O, D, R: OrdersRegistrationModel, E: Erro
             apnsConfig = APNSClientConfiguration(
                 authenticationMethod: try .tls(
                     privateKey: .privateKey(NIOSSLPrivateKey(file: privateKeyPath, format: .pem)),
-                    certificateChain: NIOSSLCertificate.fromPEMFile(pemPath).map { .certificate($0) }
+                    certificateChain: NIOSSLCertificate.fromPEMFile(pemPath).map {
+                        .certificate($0)
+                    }
                 ),
                 environment: .production
             )
@@ -83,18 +92,30 @@ public final class OrdersServiceCustom<O, D, R: OrdersRegistrationModel, E: Erro
         )
 
         let v1 = app.grouped("api", "orders", "v1")
-        v1.get("devices", ":deviceIdentifier", "registrations", ":orderTypeIdentifier", use: { try await self.ordersForDevice(req: $0) })
+        v1.get(
+            "devices", ":deviceIdentifier", "registrations", ":orderTypeIdentifier",
+            use: { try await self.ordersForDevice(req: $0) })
         v1.post("log", use: { try await self.logError(req: $0) })
 
         let v1auth = v1.grouped(AppleOrderMiddleware<O>())
-        v1auth.post("devices", ":deviceIdentifier", "registrations", ":orderTypeIdentifier", ":orderIdentifier", use: { try await self.registerDevice(req: $0) })
-        v1auth.get("orders", ":orderTypeIdentifier", ":orderIdentifier", use: { try await self.latestVersionOfOrder(req: $0) })
-        v1auth.delete("devices", ":deviceIdentifier", "registrations", ":orderTypeIdentifier", ":orderIdentifier", use: { try await self.unregisterDevice(req: $0) })
-        
+        v1auth.post(
+            "devices", ":deviceIdentifier", "registrations", ":orderTypeIdentifier",
+            ":orderIdentifier", use: { try await self.registerDevice(req: $0) })
+        v1auth.get(
+            "orders", ":orderTypeIdentifier", ":orderIdentifier",
+            use: { try await self.latestVersionOfOrder(req: $0) })
+        v1auth.delete(
+            "devices", ":deviceIdentifier", "registrations", ":orderTypeIdentifier",
+            ":orderIdentifier", use: { try await self.unregisterDevice(req: $0) })
+
         if let pushRoutesMiddleware {
             let pushAuth = v1.grouped(pushRoutesMiddleware)
-            pushAuth.post("push", ":orderTypeIdentifier", ":orderIdentifier", use: { try await self.pushUpdatesForOrder(req: $0) })
-            pushAuth.get("push", ":orderTypeIdentifier", ":orderIdentifier", use: { try await self.tokensForOrderUpdate(req: $0) })
+            pushAuth.post(
+                "push", ":orderTypeIdentifier", ":orderIdentifier",
+                use: { try await self.pushUpdatesForOrder(req: $0) })
+            pushAuth.get(
+                "push", ":orderTypeIdentifier", ":orderIdentifier",
+                use: { try await self.tokensForOrderUpdate(req: $0) })
         }
     }
 }
@@ -103,20 +124,22 @@ public final class OrdersServiceCustom<O, D, R: OrdersRegistrationModel, E: Erro
 extension OrdersServiceCustom {
     func latestVersionOfOrder(req: Request) async throws -> Response {
         logger?.debug("Called latestVersionOfOrder")
-        
+
         var ifModifiedSince: TimeInterval = 0
         if let header = req.headers[.ifModifiedSince].first, let ims = TimeInterval(header) {
             ifModifiedSince = ims
         }
 
         guard let orderTypeIdentifier = req.parameters.get("orderTypeIdentifier"),
-            let id = req.parameters.get("orderIdentifier", as: UUID.self) else {
-                throw Abort(.badRequest)
+            let id = req.parameters.get("orderIdentifier", as: UUID.self)
+        else {
+            throw Abort(.badRequest)
         }
-        guard let order = try await O.query(on: req.db)
-            .filter(\._$id == id)
-            .filter(\._$orderTypeIdentifier == orderTypeIdentifier)
-            .first()
+        guard
+            let order = try await O.query(on: req.db)
+                .filter(\._$id == id)
+                .filter(\._$orderTypeIdentifier == orderTypeIdentifier)
+                .first()
         else {
             throw Abort(.notFound)
         }
@@ -151,10 +174,11 @@ extension OrdersServiceCustom {
         }
         let orderTypeIdentifier = req.parameters.get("orderTypeIdentifier")!
         let deviceIdentifier = req.parameters.get("deviceIdentifier")!
-        guard let order = try await O.query(on: req.db)
-            .filter(\._$id == orderIdentifier)
-            .filter(\._$orderTypeIdentifier == orderTypeIdentifier)
-            .first()
+        guard
+            let order = try await O.query(on: req.db)
+                .filter(\._$id == orderIdentifier)
+                .filter(\._$orderTypeIdentifier == orderTypeIdentifier)
+                .first()
         else {
             throw Abort(.notFound)
         }
@@ -172,10 +196,15 @@ extension OrdersServiceCustom {
         }
     }
 
-    private static func createRegistration(device: D, order: O, db: any Database) async throws -> HTTPStatus {
-        let r = try await R.for(deviceLibraryIdentifier: device.deviceLibraryIdentifier, orderTypeIdentifier: order.orderTypeIdentifier, on: db)
-            .filter(O.self, \._$id == order.requireID())
-            .first()
+    private static func createRegistration(
+        device: D, order: O, db: any Database
+    ) async throws -> HTTPStatus {
+        let r = try await R.for(
+            deviceLibraryIdentifier: device.deviceLibraryIdentifier,
+            orderTypeIdentifier: order.orderTypeIdentifier, on: db
+        )
+        .filter(O.self, \._$id == order.requireID())
+        .first()
         // If the registration already exists, docs say to return 200 OK
         if r != nil { return .ok }
 
@@ -192,7 +221,9 @@ extension OrdersServiceCustom {
         let orderTypeIdentifier = req.parameters.get("orderTypeIdentifier")!
         let deviceIdentifier = req.parameters.get("deviceIdentifier")!
 
-        var query = R.for(deviceLibraryIdentifier: deviceIdentifier, orderTypeIdentifier: orderTypeIdentifier, on: req.db)
+        var query = R.for(
+            deviceLibraryIdentifier: deviceIdentifier, orderTypeIdentifier: orderTypeIdentifier,
+            on: req.db)
         if let since: TimeInterval = req.query["ordersModifiedSince"] {
             let when = Date(timeIntervalSince1970: since)
             query = query.filter(O.self, \._$updatedAt > when)
@@ -243,7 +274,11 @@ extension OrdersServiceCustom {
         let orderTypeIdentifier = req.parameters.get("orderTypeIdentifier")!
         let deviceIdentifier = req.parameters.get("deviceIdentifier")!
 
-        guard let r = try await R.for(deviceLibraryIdentifier: deviceIdentifier, orderTypeIdentifier: orderTypeIdentifier, on: req.db)
+        guard
+            let r = try await R.for(
+                deviceLibraryIdentifier: deviceIdentifier, orderTypeIdentifier: orderTypeIdentifier,
+                on: req.db
+            )
             .filter(O.self, \._$id == orderIdentifier)
             .first()
         else {
@@ -273,7 +308,7 @@ extension OrdersServiceCustom {
             throw Abort(.badRequest)
         }
         let orderTypeIdentifier = req.parameters.get("orderTypeIdentifier")!
-        
+
         return try await Self.registrationsForOrder(id: id, of: orderTypeIdentifier, on: req.db)
             .map { $0.device.pushToken }
     }
@@ -287,8 +322,11 @@ extension OrdersServiceCustom {
     ///   - id: The `UUID` of the order to send the notifications for.
     ///   - orderTypeIdentifier: The type identifier of the order.
     ///   - db: The `Database` to use.
-    public func sendPushNotificationsForOrder(id: UUID, of orderTypeIdentifier: String, on db: any Database) async throws {
-        let registrations = try await Self.registrationsForOrder(id: id, of: orderTypeIdentifier, on: db)
+    public func sendPushNotificationsForOrder(
+        id: UUID, of orderTypeIdentifier: String, on db: any Database
+    ) async throws {
+        let registrations = try await Self.registrationsForOrder(
+            id: id, of: orderTypeIdentifier, on: db)
         for reg in registrations {
             let backgroundNotification = APNSBackgroundNotification(
                 expiration: .immediately,
@@ -308,15 +346,18 @@ extension OrdersServiceCustom {
     }
 
     /// Sends push notifications for a given order.
-    /// 
+    ///
     /// - Parameters:
     ///   - order: The order to send the notifications for.
     ///   - db: The `Database` to use.
     public func sendPushNotifications(for order: O, on db: any Database) async throws {
-        try await sendPushNotificationsForOrder(id: order.requireID(), of: order.orderTypeIdentifier, on: db)
+        try await sendPushNotificationsForOrder(
+            id: order.requireID(), of: order.orderTypeIdentifier, on: db)
     }
 
-    static func registrationsForOrder(id: UUID, of orderTypeIdentifier: String, on db: any Database) async throws -> [R] {
+    static func registrationsForOrder(
+        id: UUID, of orderTypeIdentifier: String, on db: any Database
+    ) async throws -> [R] {
         // This could be done by enforcing the caller to have a Siblings property wrapper,
         // but there's not really any value to forcing that on them when we can just do the query ourselves like this.
         try await R.query(on: db)
@@ -332,9 +373,11 @@ extension OrdersServiceCustom {
 
 // MARK: - order file generation
 extension OrdersServiceCustom {
-    private static func generateManifestFile(using encoder: JSONEncoder, in root: URL) throws -> Data {
+    private static func generateManifestFile(
+        using encoder: JSONEncoder, in root: URL
+    ) throws -> Data {
         var manifest: [String: String] = [:]
-        let paths = try FileManager.default.subpathsOfDirectory(atPath: root.unixPath())
+        let paths = try FileManager.default.subpathsOfDirectory(atPath: root.path)
         try paths.forEach { relativePath in
             let file = URL(fileURLWithPath: relativePath, relativeTo: root)
             guard !file.hasDirectoryPath else { return }
@@ -354,7 +397,7 @@ extension OrdersServiceCustom {
         // Swift Crypto doesn't support encrypted PEM private keys, so we have to use OpenSSL for that.
         if let password = delegate.pemPrivateKeyPassword {
             let sslBinary = delegate.sslBinary
-            guard FileManager.default.fileExists(atPath: sslBinary.unixPath()) else {
+            guard FileManager.default.fileExists(atPath: sslBinary.path) else {
                 throw OrdersError.opensslBinaryMissing
             }
 
@@ -366,16 +409,16 @@ extension OrdersServiceCustom {
                 "-certfile", delegate.wwdrCertificate,
                 "-signer", delegate.pemCertificate,
                 "-inkey", delegate.pemPrivateKey,
-                "-in", root.appendingPathComponent("manifest.json").unixPath(),
-                "-out", root.appendingPathComponent("signature").unixPath(),
+                "-in", root.appendingPathComponent("manifest.json").path,
+                "-out", root.appendingPathComponent("signature").path,
                 "-outform", "DER",
-                "-passin", "pass:\(password)"
+                "-passin", "pass:\(password)",
             ]
             try proc.run()
             proc.waitUntilExit()
             return
         }
-        
+
         let signature = try CMS.sign(
             manifest,
             signatureAlgorithm: .sha256WithRSAEncryption,
@@ -412,7 +455,9 @@ extension OrdersServiceCustom {
     /// - Returns: The generated order content as `Data`.
     public func generateOrderContent(for order: O, on db: any Database) async throws -> Data {
         let templateDirectory = try await delegate.template(for: order, db: db)
-        guard (try? templateDirectory.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? false else {
+        guard
+            (try? templateDirectory.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? false
+        else {
             throw OrdersError.templateNotDirectory
         }
 
@@ -424,13 +469,14 @@ extension OrdersServiceCustom {
         let encoder = JSONEncoder()
         try await self.delegate.encode(order: order, db: db, encoder: encoder)
             .write(to: root.appendingPathComponent("order.json"))
-        
+
         try self.generateSignatureFile(
             for: Self.generateManifestFile(using: encoder, in: root),
             in: root
         )
 
-        var files = try FileManager.default.contentsOfDirectory(at: templateDirectory, includingPropertiesForKeys: nil)
+        var files = try FileManager.default.contentsOfDirectory(
+            at: templateDirectory, includingPropertiesForKeys: nil)
         files.append(URL(fileURLWithPath: "order.json", relativeTo: root))
         files.append(URL(fileURLWithPath: "manifest.json", relativeTo: root))
         files.append(URL(fileURLWithPath: "signature", relativeTo: root))

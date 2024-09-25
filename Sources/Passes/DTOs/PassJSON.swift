@@ -13,25 +13,25 @@ public struct PassJSON {
     public protocol Properties: Encodable {
         /// A short description that iOS accessibility technologies use for a pass.
         var description: String { get }
-        
+
         /// The version of the file format.
         ///
         /// The value must be `1`.
         var formatVersion: FormatVersion { get }
-        
+
         /// The name of the organization.
         var organizationName: String { get }
-        
+
         /// The pass type identifier that’s registered with Apple.
         ///
         /// The value must be the same as the distribution certificate used to sign the pass.
         var passTypeIdentifier: String { get }
-        
+
         /// An alphanumeric serial number.
         ///
         /// The combination of the serial number and pass type identifier must be unique for each pass.
         var serialNumber: String { get }
-        
+
         /// The Team ID for the Apple Developer Program account that registered the pass type identifier.
         var teamIdentifier: String { get }
     }
@@ -44,7 +44,7 @@ extension PassJSON {
     public protocol PassFieldContent: Encodable {
         /// A unique key that identifies a field in the pass; for example, `departure-gate`.
         var key: String { get }
-        
+
         /// The value to use for the field; for example, 42.
         ///
         /// A date or time value must include a time zone.
@@ -76,10 +76,10 @@ extension PassJSON {
         ///
         /// The barcode format `PKBarcodeFormatCode128` isn’t supported for watchOS.
         var format: BarcodeFormat { get }
-        
+
         /// The message or payload to display as a barcode.
         var message: String { get }
-        
+
         /// The IANA character set name of the text encoding to use to convert message
         /// from a string representation to a data representation that the system renders as a barcode, such as `iso-8859-1`.
         var messageEncoding: String { get }
@@ -93,8 +93,8 @@ extension PassJSON {
     public protocol Locations: Encodable {
         /// The latitude, in degrees, of the location.
         var latitude: Double { get }
-        
-        /// (Required) 
+
+        /// (Required)
         var longitude: Double { get }
     }
 }
@@ -123,7 +123,7 @@ extension PassJSON {
         /// The value must be `1`.
         case v1 = 1
     }
-    
+
     /// The type of transit for a boarding pass.
     public enum TransitType: String, Encodable {
         case air = "PKTransitTypeAir"
@@ -132,7 +132,7 @@ extension PassJSON {
         case generic = "PKTransitTypeGeneric"
         case train = "PKTransitTypeTrain"
     }
-    
+
     /// The format of the barcode.
     public enum BarcodeFormat: String, Encodable {
         case pdf417 = "PKBarcodeFormatPDF417"

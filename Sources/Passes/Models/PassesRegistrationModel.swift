@@ -36,31 +36,35 @@ public protocol PassesRegistrationModel: Model where IDValue == Int {
 
     /// The device for this registration.
     var device: DeviceType { get set }
-    
+
     /// The pass for this registration.
     var pass: PassType { get set }
 }
 
-internal extension PassesRegistrationModel {
+extension PassesRegistrationModel {
     var _$device: Parent<DeviceType> {
         guard let mirror = Mirror(reflecting: self).descendant("_device"),
-            let device = mirror as? Parent<DeviceType> else {
-                fatalError("device property must be declared using @Parent")
+            let device = mirror as? Parent<DeviceType>
+        else {
+            fatalError("device property must be declared using @Parent")
         }
-        
+
         return device
     }
-    
+
     var _$pass: Parent<PassType> {
         guard let mirror = Mirror(reflecting: self).descendant("_pass"),
-            let pass = mirror as? Parent<PassType> else {
-                fatalError("pass property must be declared using @Parent")
+            let pass = mirror as? Parent<PassType>
+        else {
+            fatalError("pass property must be declared using @Parent")
         }
-        
+
         return pass
     }
-    
-    static func `for`(deviceLibraryIdentifier: String, passTypeIdentifier: String, on db: any Database) -> QueryBuilder<Self> {
+
+    static func `for`(
+        deviceLibraryIdentifier: String, passTypeIdentifier: String, on db: any Database
+    ) -> QueryBuilder<Self> {
         Self.query(on: db)
             .join(parent: \._$pass)
             .join(parent: \._$device)
@@ -70,4 +74,3 @@ internal extension PassesRegistrationModel {
             .filter(DeviceType.self, \._$deviceLibraryIdentifier == deviceLibraryIdentifier)
     }
 }
-

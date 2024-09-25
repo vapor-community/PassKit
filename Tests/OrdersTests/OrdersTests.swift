@@ -1,16 +1,17 @@
-import XCTVapor
 import Fluent
 import FluentSQLiteDriver
-@testable import Orders
 import PassKit
+import XCTVapor
 import Zip
+
+@testable import Orders
 
 final class OrdersTests: XCTestCase {
     let delegate = TestOrdersDelegate()
     let ordersURI = "/api/orders/v1/"
     var ordersService: OrdersService!
     var app: Application!
-    
+
     override func setUp() async throws {
         self.app = try await Application.make(.testing)
         app.databases.use(.sqlite(.memory), as: .sqlite)
@@ -30,7 +31,7 @@ final class OrdersTests: XCTestCase {
         Zip.addCustomFileExtension("order")
     }
 
-    override func tearDown() async throws { 
+    override func tearDown() async throws {
         try await app.autoRevert()
         try await self.app.asyncShutdown()
         self.app = nil
@@ -47,13 +48,17 @@ final class OrdersTests: XCTestCase {
 
         XCTAssert(FileManager.default.fileExists(atPath: orderFolder.path.appending("/signature")))
 
-        let passJSONData = try String(contentsOfFile: orderFolder.path.appending("/order.json")).data(using: .utf8)
+        let passJSONData = try String(contentsOfFile: orderFolder.path.appending("/order.json"))
+            .data(using: .utf8)
         let passJSON = try JSONSerialization.jsonObject(with: passJSONData!) as! [String: Any]
         XCTAssertEqual(passJSON["authenticationToken"] as? String, order.authenticationToken)
         try XCTAssertEqual(passJSON["orderIdentifier"] as? String, order.requireID().uuidString)
 
-        let manifestJSONData = try String(contentsOfFile: orderFolder.path.appending("/manifest.json")).data(using: .utf8)
-        let manifestJSON = try JSONSerialization.jsonObject(with: manifestJSONData!) as! [String: Any]
+        let manifestJSONData = try String(
+            contentsOfFile: orderFolder.path.appending("/manifest.json")
+        ).data(using: .utf8)
+        let manifestJSON =
+            try JSONSerialization.jsonObject(with: manifestJSONData!) as! [String: Any]
         let iconData = try Data(contentsOf: orderFolder.appendingPathComponent("/icon.png"))
         let iconHash = Array(SHA256.hash(data: iconData)).hex
         XCTAssertEqual(manifestJSON["icon.png"] as? String, iconHash)
@@ -70,7 +75,7 @@ final class OrdersTests: XCTestCase {
             "\(ordersURI)orders/\(order.orderTypeIdentifier)/\(order.requireID())",
             headers: [
                 "Authorization": "AppleOrder \(order.authenticationToken)",
-                "If-Modified-Since": "0"
+                "If-Modified-Since": "0",
             ],
             afterResponse: { res async throws in
                 XCTAssertEqual(res.status, .ok)
@@ -86,7 +91,7 @@ final class OrdersTests: XCTestCase {
             "\(ordersURI)orders/\(order.orderTypeIdentifier)/\(order.requireID())",
             headers: [
                 "Authorization": "AppleOrder invalidToken",
-                "If-Modified-Since": "0"
+                "If-Modified-Since": "0",
             ],
             afterResponse: { res async throws in
                 XCTAssertEqual(res.status, .unauthorized)
@@ -99,7 +104,7 @@ final class OrdersTests: XCTestCase {
             "\(ordersURI)orders/\(order.orderTypeIdentifier)/\(order.requireID())",
             headers: [
                 "Authorization": "AppleOrder \(order.authenticationToken)",
-                "If-Modified-Since": "2147483647"
+                "If-Modified-Since": "2147483647",
             ],
             afterResponse: { res async throws in
                 XCTAssertEqual(res.status, .notModified)
@@ -112,7 +117,7 @@ final class OrdersTests: XCTestCase {
             "\(ordersURI)orders/\(order.orderTypeIdentifier)/invalidID",
             headers: [
                 "Authorization": "AppleOrder \(order.authenticationToken)",
-                "If-Modified-Since": "0"
+                "If-Modified-Since": "0",
             ],
             afterResponse: { res async throws in
                 XCTAssertEqual(res.status, .badRequest)
@@ -125,7 +130,7 @@ final class OrdersTests: XCTestCase {
             "\(ordersURI)orders/order.com.example.InvalidType/\(order.requireID())",
             headers: [
                 "Authorization": "AppleOrder \(order.authenticationToken)",
-                "If-Modified-Since": "0"
+                "If-Modified-Since": "0",
             ],
             afterResponse: { res async throws in
                 XCTAssertEqual(res.status, .notFound)
@@ -259,7 +264,8 @@ final class OrdersTests: XCTestCase {
         try await orderData.create(on: app.db)
         let order = try await orderData._$order.get(on: app.db)
 
-        try await ordersService.sendPushNotificationsForOrder(id: order.requireID(), of: order.orderTypeIdentifier, on: app.db)
+        try await ordersService.sendPushNotificationsForOrder(
+            id: order.requireID(), of: order.orderTypeIdentifier, on: app.db)
 
         let deviceLibraryIdentifier = "abcdefg"
         let pushToken = "1234567890"
@@ -304,10 +310,18 @@ final class OrdersTests: XCTestCase {
     }
 
     func testOrdersError() {
-        XCTAssertEqual(OrdersError.templateNotDirectory.description, "OrdersError(errorType: templateNotDirectory)")
-        XCTAssertEqual(OrdersError.pemCertificateMissing.description, "OrdersError(errorType: pemCertificateMissing)")
-        XCTAssertEqual(OrdersError.pemPrivateKeyMissing.description, "OrdersError(errorType: pemPrivateKeyMissing)")
-        XCTAssertEqual(OrdersError.opensslBinaryMissing.description, "OrdersError(errorType: opensslBinaryMissing)")
+        XCTAssertEqual(
+            OrdersError.templateNotDirectory.description,
+            "OrdersError(errorType: templateNotDirectory)")
+        XCTAssertEqual(
+            OrdersError.pemCertificateMissing.description,
+            "OrdersError(errorType: pemCertificateMissing)")
+        XCTAssertEqual(
+            OrdersError.pemPrivateKeyMissing.description,
+            "OrdersError(errorType: pemPrivateKeyMissing)")
+        XCTAssertEqual(
+            OrdersError.opensslBinaryMissing.description,
+            "OrdersError(errorType: opensslBinaryMissing)")
     }
 
     func testDefaultDelegate() {
@@ -323,6 +337,12 @@ final class OrdersTests: XCTestCase {
 
 final class DefaultOrdersDelegate: OrdersDelegate {
     let sslSigningFilesDirectory = URL(fileURLWithPath: "", isDirectory: true)
-    func template<O: OrderModel>(for order: O, db: any Database) async throws -> URL { URL(fileURLWithPath: "") }
-    func encode<O: OrderModel>(order: O, db: any Database, encoder: JSONEncoder) async throws -> Data { Data() }
+    func template<O: OrderModel>(for order: O, db: any Database) async throws -> URL {
+        URL(fileURLWithPath: "")
+    }
+    func encode<O: OrderModel>(
+        order: O, db: any Database, encoder: JSONEncoder
+    ) async throws -> Data {
+        Data()
+    }
 }

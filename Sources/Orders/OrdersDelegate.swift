@@ -5,8 +5,8 @@
 //  Created by Francesco Paolo Severino on 01/07/24.
 //
 
-import Foundation
 import FluentKit
+import Foundation
 
 /// The delegate which is responsible for generating the order files.
 public protocol OrdersDelegate: AnyObject, Sendable {
@@ -48,7 +48,9 @@ public protocol OrdersDelegate: AnyObject, Sendable {
     /// - Returns: The encoded order JSON data.
     ///
     /// > Tip: See the [`Order`](https://developer.apple.com/documentation/walletorders/order) object to understand the keys.
-    func encode<O: OrderModel>(order: O, db: any Database, encoder: JSONEncoder) async throws -> Data
+    func encode<O: OrderModel>(
+        order: O, db: any Database, encoder: JSONEncoder
+    ) async throws -> Data
 
     /// Should return a `URL` which points to the template data for the order.
     ///
@@ -64,7 +66,7 @@ public protocol OrdersDelegate: AnyObject, Sendable {
     ///
     /// > Important: Be sure to use the `URL(fileURLWithPath:)` constructor.
     var sslBinary: URL { get }
-    
+
     /// The name of Apple's WWDR.pem certificate as contained in `sslSigningFiles` path.
     ///
     /// Defaults to `WWDR.pem`
@@ -84,28 +86,28 @@ public protocol OrdersDelegate: AnyObject, Sendable {
     var pemPrivateKeyPassword: String? { get }
 }
 
-public extension OrdersDelegate {
-    var wwdrCertificate: String {
-        get { return "WWDR.pem" }
+extension OrdersDelegate {
+    public var wwdrCertificate: String {
+        return "WWDR.pem"
     }
 
-    var pemCertificate: String {
-        get { return "ordercertificate.pem" }
+    public var pemCertificate: String {
+        return "ordercertificate.pem"
     }
 
-    var pemPrivateKey: String {
-        get { return "orderkey.pem" }
+    public var pemPrivateKey: String {
+        return "orderkey.pem"
     }
 
-    var pemPrivateKeyPassword: String? {
-        get { return nil }
+    public var pemPrivateKeyPassword: String? {
+        return nil
     }
 
-    var sslBinary: URL {
-        get { return URL(fileURLWithPath: "/usr/bin/openssl") }
+    public var sslBinary: URL {
+        return URL(fileURLWithPath: "/usr/bin/openssl")
     }
-    
-    func generateSignatureFile(in root: URL) -> Bool {
+
+    public func generateSignatureFile(in root: URL) -> Bool {
         return false
     }
 }

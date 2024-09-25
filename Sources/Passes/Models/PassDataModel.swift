@@ -36,11 +36,12 @@ public protocol PassDataModel: Model {
     var pass: PassType { get set }
 }
 
-internal extension PassDataModel {
+extension PassDataModel {
     var _$pass: Parent<PassType> {
         guard let mirror = Mirror(reflecting: self).descendant("_pass"),
-            let pass = mirror as? Parent<PassType> else {
-                fatalError("pass property must be declared using @Parent")
+            let pass = mirror as? Parent<PassType>
+        else {
+            fatalError("pass property must be declared using @Parent")
         }
 
         return pass

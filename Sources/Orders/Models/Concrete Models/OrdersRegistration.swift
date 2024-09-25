@@ -33,8 +33,14 @@ extension OrdersRegistration: AsyncMigration {
     public func prepare(on database: any Database) async throws {
         try await database.schema(Self.schema)
             .field(.id, .int, .identifier(auto: true))
-            .field(OrdersRegistration.FieldKeys.deviceID, .int, .required, .references(DeviceType.schema, .id, onDelete: .cascade))
-            .field(OrdersRegistration.FieldKeys.orderID, .uuid, .required, .references(OrderType.schema, .id, onDelete: .cascade))
+            .field(
+                OrdersRegistration.FieldKeys.deviceID, .int, .required,
+                .references(DeviceType.schema, .id, onDelete: .cascade)
+            )
+            .field(
+                OrdersRegistration.FieldKeys.orderID, .uuid, .required,
+                .references(OrderType.schema, .id, onDelete: .cascade)
+            )
             .create()
     }
 

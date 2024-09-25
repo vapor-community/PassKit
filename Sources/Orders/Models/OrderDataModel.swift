@@ -15,11 +15,12 @@ public protocol OrderDataModel: Model {
     var order: OrderType { get set }
 }
 
-internal extension OrderDataModel {
+extension OrderDataModel {
     var _$order: Parent<OrderType> {
         guard let mirror = Mirror(reflecting: self).descendant("_order"),
-            let order = mirror as? Parent<OrderType> else {
-                fatalError("order property must be declared using @Parent")
+            let order = mirror as? Parent<OrderType>
+        else {
+            fatalError("order property must be declared using @Parent")
         }
 
         return order

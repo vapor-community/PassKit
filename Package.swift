@@ -1,20 +1,20 @@
-// swift-tools-version:5.10
+// swift-tools-version:6.0
 import PackageDescription
 
 let package = Package(
     name: "PassKit",
     platforms: [
-        .macOS(.v13)
+        .macOS(.v14)
     ],
     products: [
         .library(name: "Passes", targets: ["Passes"]),
         .library(name: "Orders", targets: ["Orders"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/vapor/vapor.git", from: "4.103.1"),
+        .package(url: "https://github.com/vapor/vapor.git", from: "4.105.2"),
         .package(url: "https://github.com/vapor/fluent.git", from: "4.11.0"),
         .package(url: "https://github.com/vapor/apns.git", from: "4.2.0"),
-        .package(url: "https://github.com/vapor-community/Zip.git", from: "2.2.0"),
+        .package(url: "https://github.com/vapor-community/Zip.git", from: "2.2.3"),
         .package(url: "https://github.com/apple/swift-certificates.git", from: "1.5.0"),
         // used in tests
         .package(url: "https://github.com/vapor/fluent-sqlite-driver.git", from: "4.7.4"),
@@ -34,14 +34,14 @@ let package = Package(
         .target(
             name: "Passes",
             dependencies: [
-                .target(name: "PassKit"),
+                .target(name: "PassKit")
             ],
             swiftSettings: swiftSettings
         ),
         .target(
             name: "Orders",
             dependencies: [
-                .target(name: "PassKit"),
+                .target(name: "PassKit")
             ],
             swiftSettings: swiftSettings
         ),
@@ -54,7 +54,7 @@ let package = Package(
                 .product(name: "FluentSQLiteDriver", package: "fluent-sqlite-driver"),
             ],
             resources: [
-                .copy("Templates"),
+                .copy("Templates")
             ],
             swiftSettings: swiftSettings
         ),
@@ -67,18 +67,15 @@ let package = Package(
                 .product(name: "FluentSQLiteDriver", package: "fluent-sqlite-driver"),
             ],
             resources: [
-                .copy("Templates"),
+                .copy("Templates")
             ],
             swiftSettings: swiftSettings
         ),
     ]
 )
 
-var swiftSettings: [SwiftSetting] { [
-    .enableUpcomingFeature("ExistentialAny"),
-    .enableUpcomingFeature("ConciseMagicFile"),
-    .enableUpcomingFeature("ForwardTrailingClosures"),
-    .enableUpcomingFeature("DisableOutwardActorInference"),
-    .enableUpcomingFeature("StrictConcurrency"),
-    .enableExperimentalFeature("StrictConcurrency=complete"),
-] }
+var swiftSettings: [SwiftSetting] {
+    [
+        .enableUpcomingFeature("ExistentialAny")
+    ]
+}

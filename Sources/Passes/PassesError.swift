@@ -16,13 +16,13 @@ public struct PassesError: Error, Sendable {
             case opensslBinaryMissing
             case invalidNumberOfPasses
         }
-        
+
         let base: Base
-        
+
         private init(_ base: Base) {
             self.base = base
         }
-        
+
         /// The template path is not a directory.
         public static let templateNotDirectory = Self(.templateNotDirectory)
         /// The `pemCertificate` file is missing.
@@ -39,15 +39,15 @@ public struct PassesError: Error, Sendable {
             base.rawValue
         }
     }
-    
+
     private struct Backing: Sendable {
         fileprivate let errorType: ErrorType
-        
+
         init(errorType: ErrorType) {
             self.errorType = errorType
         }
     }
-    
+
     private var backing: Backing
 
     /// The type of this error.
@@ -56,7 +56,7 @@ public struct PassesError: Error, Sendable {
     private init(errorType: ErrorType) {
         self.backing = .init(errorType: errorType)
     }
-    
+
     /// The template path is not a directory.
     public static let templateNotDirectory = Self(errorType: .templateNotDirectory)
 

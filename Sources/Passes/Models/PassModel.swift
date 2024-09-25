@@ -26,8 +26,8 @@
 /// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 /// THE SOFTWARE.
 
-import Foundation
 import FluentKit
+import Foundation
 
 /// Represents the `Model` that stores PassKit passes.
 ///
@@ -37,7 +37,7 @@ public protocol PassModel: Model where IDValue == UUID {
 
     /// The pass type identifier that’s registered with Apple.
     var passTypeIdentifier: String { get set }
-    
+
     /// The last time the pass was modified.
     var updatedAt: Date? { get set }
 
@@ -54,49 +54,54 @@ public protocol PassModel: Model where IDValue == UUID {
     init(passTypeIdentifier: String, authenticationToken: String)
 }
 
-internal extension PassModel {
+extension PassModel {
     var _$id: ID<UUID> {
         guard let mirror = Mirror(reflecting: self).descendant("_id"),
-            let id = mirror as? ID<UUID> else {
-                fatalError("id property must be declared using @ID")
+            let id = mirror as? ID<UUID>
+        else {
+            fatalError("id property must be declared using @ID")
         }
-        
+
         return id
     }
-    
+
     var _$passTypeIdentifier: Field<String> {
         guard let mirror = Mirror(reflecting: self).descendant("_passTypeIdentifier"),
-            let passTypeIdentifier = mirror as? Field<String> else {
-                fatalError("passTypeIdentifier property must be declared using @Field")
+            let passTypeIdentifier = mirror as? Field<String>
+        else {
+            fatalError("passTypeIdentifier property must be declared using @Field")
         }
-        
+
         return passTypeIdentifier
     }
-    
+
     var _$updatedAt: Timestamp<DefaultTimestampFormat> {
         guard let mirror = Mirror(reflecting: self).descendant("_updatedAt"),
-            let updatedAt = mirror as? Timestamp<DefaultTimestampFormat> else {
-                fatalError("updatedAt property must be declared using @Timestamp(on: .update)")
+            let updatedAt = mirror as? Timestamp<DefaultTimestampFormat>
+        else {
+            fatalError("updatedAt property must be declared using @Timestamp(on: .update)")
         }
-        
+
         return updatedAt
     }
 
     var _$authenticationToken: Field<String> {
         guard let mirror = Mirror(reflecting: self).descendant("_authenticationToken"),
-            let authenticationToken = mirror as? Field<String> else {
-                fatalError("authenticationToken property must be declared using @Field")
+            let authenticationToken = mirror as? Field<String>
+        else {
+            fatalError("authenticationToken property must be declared using @Field")
         }
-        
+
         return authenticationToken
     }
 
     var _$userPersonalization: OptionalParent<UserPersonalizationType> {
         guard let mirror = Mirror(reflecting: self).descendant("_userPersonalization"),
-            let userPersonalization = mirror as? OptionalParent<UserPersonalizationType> else {
-                fatalError("userPersonalization property must be declared using @OptionalParent")
+            let userPersonalization = mirror as? OptionalParent<UserPersonalizationType>
+        else {
+            fatalError("userPersonalization property must be declared using @OptionalParent")
         }
-        
+
         return userPersonalization
     }
 }

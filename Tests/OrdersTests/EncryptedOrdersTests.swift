@@ -1,16 +1,17 @@
-import XCTVapor
 import Fluent
 import FluentSQLiteDriver
-@testable import Orders
 import PassKit
+import XCTVapor
 import Zip
+
+@testable import Orders
 
 final class EncryptedOrdersTests: XCTestCase {
     let delegate = EncryptedOrdersDelegate()
     let ordersURI = "/api/orders/v1/"
     var ordersService: OrdersService!
     var app: Application!
-    
+
     override func setUp() async throws {
         self.app = try await Application.make(.testing)
         app.databases.use(.sqlite(.memory), as: .sqlite)
@@ -30,7 +31,7 @@ final class EncryptedOrdersTests: XCTestCase {
         Zip.addCustomFileExtension("order")
     }
 
-    override func tearDown() async throws { 
+    override func tearDown() async throws {
         try await app.autoRevert()
         try await self.app.asyncShutdown()
         self.app = nil
@@ -47,13 +48,17 @@ final class EncryptedOrdersTests: XCTestCase {
 
         XCTAssert(FileManager.default.fileExists(atPath: orderFolder.path.appending("/signature")))
 
-        let passJSONData = try String(contentsOfFile: orderFolder.path.appending("/order.json")).data(using: .utf8)
+        let passJSONData = try String(contentsOfFile: orderFolder.path.appending("/order.json"))
+            .data(using: .utf8)
         let passJSON = try JSONSerialization.jsonObject(with: passJSONData!) as! [String: Any]
         XCTAssertEqual(passJSON["authenticationToken"] as? String, order.authenticationToken)
         try XCTAssertEqual(passJSON["orderIdentifier"] as? String, order.requireID().uuidString)
 
-        let manifestJSONData = try String(contentsOfFile: orderFolder.path.appending("/manifest.json")).data(using: .utf8)
-        let manifestJSON = try JSONSerialization.jsonObject(with: manifestJSONData!) as! [String: Any]
+        let manifestJSONData = try String(
+            contentsOfFile: orderFolder.path.appending("/manifest.json")
+        ).data(using: .utf8)
+        let manifestJSON =
+            try JSONSerialization.jsonObject(with: manifestJSONData!) as! [String: Any]
         let iconData = try Data(contentsOf: orderFolder.appendingPathComponent("/icon.png"))
         let iconHash = Array(SHA256.hash(data: iconData)).hex
         XCTAssertEqual(manifestJSON["icon.png"] as? String, iconHash)
@@ -66,7 +71,8 @@ final class EncryptedOrdersTests: XCTestCase {
         try await orderData.create(on: app.db)
         let order = try await orderData._$order.get(on: app.db)
 
-        try await ordersService.sendPushNotificationsForOrder(id: order.requireID(), of: order.orderTypeIdentifier, on: app.db)
+        try await ordersService.sendPushNotificationsForOrder(
+            id: order.requireID(), of: order.orderTypeIdentifier, on: app.db)
 
         let deviceLibraryIdentifier = "abcdefg"
         let pushToken = "1234567890"

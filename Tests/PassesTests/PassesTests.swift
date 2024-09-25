@@ -1,20 +1,21 @@
-import XCTVapor
 import Fluent
 import FluentSQLiteDriver
-@testable import Passes
 import PassKit
+import XCTVapor
 import Zip
+
+@testable import Passes
 
 final class PassesTests: XCTestCase {
     let delegate = TestPassesDelegate()
     let passesURI = "/api/passes/v1/"
     var passesService: PassesService!
     var app: Application!
-    
+
     override func setUp() async throws {
         self.app = try await Application.make(.testing)
         app.databases.use(.sqlite(.memory), as: .sqlite)
-        
+
         PassesService.register(migrations: app.migrations)
         app.migrations.add(CreatePassData())
         passesService = try PassesService(
@@ -30,7 +31,7 @@ final class PassesTests: XCTestCase {
         Zip.addCustomFileExtension("pkpass")
     }
 
-    override func tearDown() async throws { 
+    override func tearDown() async throws {
         try await app.autoRevert()
         try await self.app.asyncShutdown()
         self.app = nil
@@ -47,14 +48,18 @@ final class PassesTests: XCTestCase {
 
         XCTAssert(FileManager.default.fileExists(atPath: passFolder.path.appending("/signature")))
 
-        let passJSONData = try String(contentsOfFile: passFolder.path.appending("/pass.json")).data(using: .utf8)
+        let passJSONData = try String(contentsOfFile: passFolder.path.appending("/pass.json")).data(
+            using: .utf8)
         let passJSON = try JSONSerialization.jsonObject(with: passJSONData!) as! [String: Any]
         XCTAssertEqual(passJSON["authenticationToken"] as? String, pass.authenticationToken)
         try XCTAssertEqual(passJSON["serialNumber"] as? String, pass.requireID().uuidString)
         XCTAssertEqual(passJSON["description"] as? String, passData.title)
 
-        let manifestJSONData = try String(contentsOfFile: passFolder.path.appending("/manifest.json")).data(using: .utf8)
-        let manifestJSON = try JSONSerialization.jsonObject(with: manifestJSONData!) as! [String: Any]
+        let manifestJSONData = try String(
+            contentsOfFile: passFolder.path.appending("/manifest.json")
+        ).data(using: .utf8)
+        let manifestJSON =
+            try JSONSerialization.jsonObject(with: manifestJSONData!) as! [String: Any]
         let iconData = try Data(contentsOf: passFolder.appendingPathComponent("/icon.png"))
         let iconHash = Array(Insecure.SHA1.hash(data: iconData)).hex
         XCTAssertEqual(manifestJSON["icon.png"] as? String, iconHash)
@@ -82,19 +87,27 @@ final class PassesTests: XCTestCase {
         try data.write(to: passURL)
         let passFolder = try Zip.quickUnzipFile(passURL)
 
-        let passJSONData = try String(contentsOfFile: passFolder.path.appending("/pass.json")).data(using: .utf8)
+        let passJSONData = try String(contentsOfFile: passFolder.path.appending("/pass.json")).data(
+            using: .utf8)
         let passJSON = try JSONSerialization.jsonObject(with: passJSONData!) as! [String: Any]
         XCTAssertEqual(passJSON["authenticationToken"] as? String, pass.authenticationToken)
         try XCTAssertEqual(passJSON["serialNumber"] as? String, pass.requireID().uuidString)
         XCTAssertEqual(passJSON["description"] as? String, passData.title)
 
-        let personalizationJSONData = try String(contentsOfFile: passFolder.path.appending("/personalization.json")).data(using: .utf8)
-        let personalizationJSON = try JSONSerialization.jsonObject(with: personalizationJSONData!) as! [String: Any]
+        let personalizationJSONData = try String(
+            contentsOfFile: passFolder.path.appending("/personalization.json")
+        ).data(using: .utf8)
+        let personalizationJSON =
+            try JSONSerialization.jsonObject(with: personalizationJSONData!) as! [String: Any]
         XCTAssertEqual(personalizationJSON["description"] as? String, "Hello, World!")
 
-        let manifestJSONData = try String(contentsOfFile: passFolder.path.appending("/manifest.json")).data(using: .utf8)
-        let manifestJSON = try JSONSerialization.jsonObject(with: manifestJSONData!) as! [String: Any]
-        let iconData = try Data(contentsOf: passFolder.appendingPathComponent("/personalizationLogo.png"))
+        let manifestJSONData = try String(
+            contentsOfFile: passFolder.path.appending("/manifest.json")
+        ).data(using: .utf8)
+        let manifestJSON =
+            try JSONSerialization.jsonObject(with: manifestJSONData!) as! [String: Any]
+        let iconData = try Data(
+            contentsOf: passFolder.appendingPathComponent("/personalizationLogo.png"))
         let iconHash = Array(Insecure.SHA1.hash(data: iconData)).hex
         XCTAssertEqual(manifestJSON["personalizationLogo.png"] as? String, iconHash)
     }
@@ -110,7 +123,7 @@ final class PassesTests: XCTestCase {
             "\(passesURI)passes/\(pass.passTypeIdentifier)/\(pass.requireID())",
             headers: [
                 "Authorization": "ApplePass \(pass.authenticationToken)",
-                "If-Modified-Since": "0"
+                "If-Modified-Since": "0",
             ],
             afterResponse: { res async throws in
                 XCTAssertEqual(res.status, .ok)
@@ -126,7 +139,7 @@ final class PassesTests: XCTestCase {
             "\(passesURI)passes/\(pass.passTypeIdentifier)/\(pass.requireID())",
             headers: [
                 "Authorization": "ApplePass invalid-token",
-                "If-Modified-Since": "0"
+                "If-Modified-Since": "0",
             ],
             afterResponse: { res async throws in
                 XCTAssertEqual(res.status, .unauthorized)
@@ -139,7 +152,7 @@ final class PassesTests: XCTestCase {
             "\(passesURI)passes/\(pass.passTypeIdentifier)/\(pass.requireID())",
             headers: [
                 "Authorization": "ApplePass \(pass.authenticationToken)",
-                "If-Modified-Since": "2147483647"
+                "If-Modified-Since": "2147483647",
             ],
             afterResponse: { res async throws in
                 XCTAssertEqual(res.status, .notModified)
@@ -152,7 +165,7 @@ final class PassesTests: XCTestCase {
             "\(passesURI)passes/\(pass.passTypeIdentifier)/invalid-uuid",
             headers: [
                 "Authorization": "ApplePass \(pass.authenticationToken)",
-                "If-Modified-Since": "0"
+                "If-Modified-Since": "0",
             ],
             afterResponse: { res async throws in
                 XCTAssertEqual(res.status, .badRequest)
@@ -165,7 +178,7 @@ final class PassesTests: XCTestCase {
             "\(passesURI)passes/pass.com.example.InvalidType/\(pass.requireID())",
             headers: [
                 "Authorization": "ApplePass \(pass.authenticationToken)",
-                "If-Modified-Since": "0"
+                "If-Modified-Since": "0",
             ],
             afterResponse: { res async throws in
                 XCTAssertEqual(res.status, .notFound)
@@ -209,13 +222,27 @@ final class PassesTests: XCTestCase {
             ._$userPersonalization.get(on: app.db)?
             .requireID()
         XCTAssertEqual(personalizationQuery[0]._$id.value, passPersonalizationID)
-        XCTAssertEqual(personalizationQuery[0]._$emailAddress.value, personalizationDict.requiredPersonalizationInfo.emailAddress)
-        XCTAssertEqual(personalizationQuery[0]._$familyName.value, personalizationDict.requiredPersonalizationInfo.familyName)
-        XCTAssertEqual(personalizationQuery[0]._$fullName.value, personalizationDict.requiredPersonalizationInfo.fullName)
-        XCTAssertEqual(personalizationQuery[0]._$givenName.value, personalizationDict.requiredPersonalizationInfo.givenName)
-        XCTAssertEqual(personalizationQuery[0]._$ISOCountryCode.value, personalizationDict.requiredPersonalizationInfo.ISOCountryCode)
-        XCTAssertEqual(personalizationQuery[0]._$phoneNumber.value, personalizationDict.requiredPersonalizationInfo.phoneNumber)
-        XCTAssertEqual(personalizationQuery[0]._$postalCode.value, personalizationDict.requiredPersonalizationInfo.postalCode)
+        XCTAssertEqual(
+            personalizationQuery[0]._$emailAddress.value,
+            personalizationDict.requiredPersonalizationInfo.emailAddress)
+        XCTAssertEqual(
+            personalizationQuery[0]._$familyName.value,
+            personalizationDict.requiredPersonalizationInfo.familyName)
+        XCTAssertEqual(
+            personalizationQuery[0]._$fullName.value,
+            personalizationDict.requiredPersonalizationInfo.fullName)
+        XCTAssertEqual(
+            personalizationQuery[0]._$givenName.value,
+            personalizationDict.requiredPersonalizationInfo.givenName)
+        XCTAssertEqual(
+            personalizationQuery[0]._$ISOCountryCode.value,
+            personalizationDict.requiredPersonalizationInfo.ISOCountryCode)
+        XCTAssertEqual(
+            personalizationQuery[0]._$phoneNumber.value,
+            personalizationDict.requiredPersonalizationInfo.phoneNumber)
+        XCTAssertEqual(
+            personalizationQuery[0]._$postalCode.value,
+            personalizationDict.requiredPersonalizationInfo.postalCode)
 
         // Test call with invalid pass ID
         try await app.test(
@@ -368,7 +395,8 @@ final class PassesTests: XCTestCase {
         try await passData.create(on: app.db)
         let pass = try await passData._$pass.get(on: app.db)
 
-        try await passesService.sendPushNotificationsForPass(id: pass.requireID(), of: pass.passTypeIdentifier, on: app.db)
+        try await passesService.sendPushNotificationsForPass(
+            id: pass.requireID(), of: pass.passTypeIdentifier, on: app.db)
 
         let deviceLibraryIdentifier = "abcdefg"
         let pushToken = "1234567890"
@@ -408,16 +436,26 @@ final class PassesTests: XCTestCase {
         do {
             try await passData.update(on: app.db)
         } catch let error as HTTPClientError {
-            XCTAssertEqual(error.self, .remoteConnectionClosed)  
+            XCTAssertEqual(error.self, .remoteConnectionClosed)
         }
     }
 
     func testPassesError() {
-        XCTAssertEqual(PassesError.templateNotDirectory.description, "PassesError(errorType: templateNotDirectory)")
-        XCTAssertEqual(PassesError.pemCertificateMissing.description, "PassesError(errorType: pemCertificateMissing)")
-        XCTAssertEqual(PassesError.pemPrivateKeyMissing.description, "PassesError(errorType: pemPrivateKeyMissing)")
-        XCTAssertEqual(PassesError.opensslBinaryMissing.description, "PassesError(errorType: opensslBinaryMissing)")
-        XCTAssertEqual(PassesError.invalidNumberOfPasses.description, "PassesError(errorType: invalidNumberOfPasses)")
+        XCTAssertEqual(
+            PassesError.templateNotDirectory.description,
+            "PassesError(errorType: templateNotDirectory)")
+        XCTAssertEqual(
+            PassesError.pemCertificateMissing.description,
+            "PassesError(errorType: pemCertificateMissing)")
+        XCTAssertEqual(
+            PassesError.pemPrivateKeyMissing.description,
+            "PassesError(errorType: pemPrivateKeyMissing)")
+        XCTAssertEqual(
+            PassesError.opensslBinaryMissing.description,
+            "PassesError(errorType: opensslBinaryMissing)")
+        XCTAssertEqual(
+            PassesError.invalidNumberOfPasses.description,
+            "PassesError(errorType: invalidNumberOfPasses)")
     }
 
     func testDefaultDelegate() async throws {
@@ -432,13 +470,20 @@ final class PassesTests: XCTestCase {
         let passData = PassData(title: "Test Pass")
         try await passData.create(on: app.db)
         let pass = try await passData.$pass.get(on: app.db)
-        let data = try await delegate.encodePersonalization(for: pass, db: app.db, encoder: JSONEncoder())
+        let data = try await delegate.encodePersonalization(
+            for: pass, db: app.db, encoder: JSONEncoder())
         XCTAssertNil(data)
     }
 }
 
 final class DefaultPassesDelegate: PassesDelegate {
     let sslSigningFilesDirectory = URL(fileURLWithPath: "", isDirectory: true)
-    func template<P: PassModel>(for pass: P, db: any Database) async throws -> URL { URL(fileURLWithPath: "") }
-    func encode<P: PassModel>(pass: P, db: any Database, encoder: JSONEncoder) async throws -> Data { Data() }
+    func template<P: PassModel>(for pass: P, db: any Database) async throws -> URL {
+        URL(fileURLWithPath: "")
+    }
+    func encode<P: PassModel>(
+        pass: P, db: any Database, encoder: JSONEncoder
+    ) async throws -> Data {
+        Data()
+    }
 }

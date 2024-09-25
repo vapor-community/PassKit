@@ -5,8 +5,8 @@
 //  Created by Francesco Paolo Severino on 30/06/24.
 //
 
-import Foundation
 import FluentKit
+import Foundation
 
 /// The `Model` that stores Wallet orders.
 final public class Order: OrderModel, @unchecked Sendable {
@@ -35,7 +35,7 @@ final public class Order: OrderModel, @unchecked Sendable {
     @Field(key: Order.FieldKeys.authenticationToken)
     public var authenticationToken: String
 
-    public required init() { }
+    public required init() {}
 
     public required init(orderTypeIdentifier: String, authenticationToken: String) {
         self.orderTypeIdentifier = orderTypeIdentifier

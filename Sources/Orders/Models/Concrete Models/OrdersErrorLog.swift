@@ -5,9 +5,10 @@
 //  Created by Francesco Paolo Severino on 30/06/24.
 //
 
-import struct Foundation.Date
 import FluentKit
 import PassKit
+
+import struct Foundation.Date
 
 /// The `Model` that stores Wallet orders error logs.
 final public class OrdersErrorLog: ErrorLogModel, @unchecked Sendable {
