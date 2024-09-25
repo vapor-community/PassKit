@@ -295,6 +295,39 @@ final class PassesTests: XCTestCase {
             }
         )
 
+        // Test registration of a non-existing pass
+        try await app.test(
+            .POST,
+            "\(passesURI)devices/\(deviceLibraryIdentifier)/registrations/\("pass.com.example.NotFound")/\(UUID().uuidString)",
+            headers: ["Authorization": "ApplePass \(pass.authenticationToken)"],
+            beforeRequest: { req async throws in
+                try req.content.encode(RegistrationDTO(pushToken: pushToken))
+            },
+            afterResponse: { res async throws in
+                XCTAssertEqual(res.status, .notFound)
+            }
+        )
+
+        // Test call without DTO
+        try await app.test(
+            .POST,
+            "\(passesURI)devices/\(deviceLibraryIdentifier)/registrations/\(pass.passTypeIdentifier)/\(pass.requireID())",
+            headers: ["Authorization": "ApplePass \(pass.authenticationToken)"],
+            afterResponse: { res async throws in
+                XCTAssertEqual(res.status, .badRequest)
+            }
+        )
+
+        // Test call with invalid UUID
+        try await app.test(
+            .POST,
+            "\(passesURI)devices/\(deviceLibraryIdentifier)/registrations/\(pass.passTypeIdentifier)/\("not-a-uuid")",
+            headers: ["Authorization": "ApplePass \(pass.authenticationToken)"],
+            afterResponse: { res async throws in
+                XCTAssertEqual(res.status, .badRequest)
+            }
+        )
+
         try await app.test(
             .POST,
             "\(passesURI)devices/\(deviceLibraryIdentifier)/registrations/\(pass.passTypeIdentifier)/\(pass.requireID())",
@@ -343,6 +376,7 @@ final class PassesTests: XCTestCase {
             }
         )
 
+        // Test call with invalid UUID
         try await app.test(
             .GET,
             "\(passesURI)push/\(pass.passTypeIdentifier)/\("not-a-uuid")",
@@ -447,6 +481,7 @@ final class PassesTests: XCTestCase {
             }
         )
 
+        // Test call with invalid UUID
         try await app.test(
             .POST,
             "\(passesURI)push/\(pass.passTypeIdentifier)/\("not-a-uuid")",

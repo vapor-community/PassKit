@@ -157,6 +157,39 @@ final class OrdersTests: XCTestCase {
             }
         )
 
+        // Test registration of a non-existing order
+        try await app.test(
+            .POST,
+            "\(ordersURI)devices/\(deviceLibraryIdentifier)/registrations/\("order.com.example.NotFound")/\(UUID().uuidString)",
+            headers: ["Authorization": "AppleOrder \(order.authenticationToken)"],
+            beforeRequest: { req async throws in
+                try req.content.encode(RegistrationDTO(pushToken: pushToken))
+            },
+            afterResponse: { res async throws in
+                XCTAssertEqual(res.status, .notFound)
+            }
+        )
+
+        // Test call without DTO
+        try await app.test(
+            .POST,
+            "\(ordersURI)devices/\(deviceLibraryIdentifier)/registrations/\(order.orderTypeIdentifier)/\(order.requireID())",
+            headers: ["Authorization": "AppleOrder \(order.authenticationToken)"],
+            afterResponse: { res async throws in
+                XCTAssertEqual(res.status, .badRequest)
+            }
+        )
+
+        // Test call with invalid UUID
+        try await app.test(
+            .POST,
+            "\(ordersURI)devices/\(deviceLibraryIdentifier)/registrations/\(order.orderTypeIdentifier)/\("not-a-uuid")",
+            headers: ["Authorization": "AppleOrder \(order.authenticationToken)"],
+            afterResponse: { res async throws in
+                XCTAssertEqual(res.status, .badRequest)
+            }
+        )
+
         try await app.test(
             .POST,
             "\(ordersURI)devices/\(deviceLibraryIdentifier)/registrations/\(order.orderTypeIdentifier)/\(order.requireID())",
@@ -205,6 +238,7 @@ final class OrdersTests: XCTestCase {
             }
         )
 
+        // Test call with invalid UUID
         try await app.test(
             .GET,
             "\(ordersURI)push/\(order.orderTypeIdentifier)/\("not-a-uuid")",
@@ -309,6 +343,7 @@ final class OrdersTests: XCTestCase {
             }
         )
 
+        // Test call with invalid UUID
         try await app.test(
             .POST,
             "\(ordersURI)push/\(order.orderTypeIdentifier)/\("not-a-uuid")",
