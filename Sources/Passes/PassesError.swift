@@ -6,10 +6,10 @@
 //
 
 /// Errors that can be thrown by PassKit passes.
-public struct PassesError: Error, Sendable {
+public struct PassesError: Error, Sendable, Equatable {
     /// The type of the errors that can be thrown by PassKit passes.
-    public struct ErrorType: Sendable, Hashable, CustomStringConvertible {
-        enum Base: String, Sendable {
+    public struct ErrorType: Sendable, Hashable, CustomStringConvertible, Equatable {
+        enum Base: String, Sendable, Equatable {
             case templateNotDirectory
             case pemCertificateMissing
             case pemPrivateKeyMissing
@@ -40,11 +40,15 @@ public struct PassesError: Error, Sendable {
         }
     }
 
-    private struct Backing: Sendable {
+    private struct Backing: Sendable, Equatable {
         fileprivate let errorType: ErrorType
 
         init(errorType: ErrorType) {
             self.errorType = errorType
+        }
+
+        static func == (lhs: PassesError.Backing, rhs: PassesError.Backing) -> Bool {
+            lhs.errorType == rhs.errorType
         }
     }
 
@@ -71,6 +75,10 @@ public struct PassesError: Error, Sendable {
 
     /// The number of passes to bundle is invalid.
     public static let invalidNumberOfPasses = Self(errorType: .invalidNumberOfPasses)
+
+    public static func == (lhs: PassesError, rhs: PassesError) -> Bool {
+        lhs.backing == rhs.backing
+    }
 }
 
 extension PassesError: CustomStringConvertible {

@@ -76,6 +76,13 @@ final class PassesTests: XCTestCase {
 
         let data = try await passesService.generatePassesContent(for: [pass1, pass2], on: app.db)
         XCTAssertNotNil(data)
+
+        do {
+            let data = try await passesService.generatePassesContent(for: [pass1], on: app.db)
+            XCTFail("Expected error, got \(data)")
+        } catch let error as PassesError {
+            XCTAssertEqual(error, .invalidNumberOfPasses)
+        }
     }
 
     func testPersonalization() async throws {
@@ -337,6 +344,15 @@ final class PassesTests: XCTestCase {
         )
 
         try await app.test(
+            .GET,
+            "\(passesURI)push/\(pass.passTypeIdentifier)/\("not-a-uuid")",
+            headers: ["X-Secret": "foo"],
+            afterResponse: { res async throws in
+                XCTAssertEqual(res.status, .badRequest)
+            }
+        )
+
+        try await app.test(
             .DELETE,
             "\(passesURI)devices/\(deviceLibraryIdentifier)/registrations/\(pass.passTypeIdentifier)/\(pass.requireID())",
             headers: ["Authorization": "ApplePass \(pass.authenticationToken)"],
@@ -428,6 +444,15 @@ final class PassesTests: XCTestCase {
             headers: ["X-Secret": "foo"],
             afterResponse: { res async throws in
                 XCTAssertEqual(res.status, .internalServerError)
+            }
+        )
+
+        try await app.test(
+            .POST,
+            "\(passesURI)push/\(pass.passTypeIdentifier)/\("not-a-uuid")",
+            headers: ["X-Secret": "foo"],
+            afterResponse: { res async throws in
+                XCTAssertEqual(res.status, .badRequest)
             }
         )
 

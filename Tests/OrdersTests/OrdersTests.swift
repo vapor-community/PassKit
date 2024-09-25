@@ -206,6 +206,15 @@ final class OrdersTests: XCTestCase {
         )
 
         try await app.test(
+            .GET,
+            "\(ordersURI)push/\(order.orderTypeIdentifier)/\("not-a-uuid")",
+            headers: ["X-Secret": "foo"],
+            afterResponse: { res async throws in
+                XCTAssertEqual(res.status, .badRequest)
+            }
+        )
+
+        try await app.test(
             .DELETE,
             "\(ordersURI)devices/\(deviceLibraryIdentifier)/registrations/\(order.orderTypeIdentifier)/\(order.requireID())",
             headers: ["Authorization": "AppleOrder \(order.authenticationToken)"],
@@ -297,6 +306,15 @@ final class OrdersTests: XCTestCase {
             headers: ["X-Secret": "foo"],
             afterResponse: { res async throws in
                 XCTAssertEqual(res.status, .internalServerError)
+            }
+        )
+
+        try await app.test(
+            .POST,
+            "\(ordersURI)push/\(order.orderTypeIdentifier)/\("not-a-uuid")",
+            headers: ["X-Secret": "foo"],
+            afterResponse: { res async throws in
+                XCTAssertEqual(res.status, .badRequest)
             }
         )
 
