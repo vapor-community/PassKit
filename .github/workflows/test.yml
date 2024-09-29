@@ -9,7 +9,7 @@ on:
 jobs:
   lint:
     runs-on: ubuntu-latest
-    container: swift:jammy
+    container: swift:noble
     steps:
       - name: Check out PassKit
         uses: actions/checkout@v4
