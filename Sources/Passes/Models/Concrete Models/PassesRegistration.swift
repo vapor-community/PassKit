@@ -33,8 +33,14 @@ extension PassesRegistration: AsyncMigration {
     public func prepare(on database: any Database) async throws {
         try await database.schema(Self.schema)
             .field(.id, .int, .identifier(auto: true))
-            .field(PassesRegistration.FieldKeys.deviceID, .int, .required, .references(DeviceType.schema, .id, onDelete: .cascade))
-            .field(PassesRegistration.FieldKeys.passID, .uuid, .required, .references(PassType.schema, .id, onDelete: .cascade))
+            .field(
+                PassesRegistration.FieldKeys.deviceID, .int, .required,
+                .references(DeviceType.schema, .id, onDelete: .cascade)
+            )
+            .field(
+                PassesRegistration.FieldKeys.passID, .uuid, .required,
+                .references(PassType.schema, .id, onDelete: .cascade)
+            )
             .create()
     }
 

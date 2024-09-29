@@ -1,27 +1,28 @@
 import Fluent
-import struct Foundation.UUID
 import Orders
 import Vapor
 
+import struct Foundation.UUID
+
 final class OrderData: OrderDataModel, @unchecked Sendable {
     static let schema = OrderData.FieldKeys.schemaName
-    
+
     @ID(key: .id)
     var id: UUID?
 
     @Field(key: OrderData.FieldKeys.title)
     var title: String
-    
+
     @Parent(key: OrderData.FieldKeys.orderID)
     var order: Order
 
-    init() { }
+    init() {}
 
     init(id: UUID? = nil, title: String) {
         self.id = id
         self.title = title
     }
-    
+
     func toDTO() -> OrderDataDTO {
         .init(
             id: self.id,
@@ -33,10 +34,10 @@ final class OrderData: OrderDataModel, @unchecked Sendable {
 struct OrderDataDTO: Content {
     var id: UUID?
     var title: String?
-    
+
     func toModel() -> OrderData {
         let model = OrderData()
-        
+
         model.id = self.id
         if let title = self.title {
             model.title = title
@@ -50,7 +51,10 @@ struct CreateOrderData: AsyncMigration {
         try await database.schema(OrderData.FieldKeys.schemaName)
             .id()
             .field(OrderData.FieldKeys.title, .string, .required)
-            .field(OrderData.FieldKeys.orderID, .uuid, .required, .references(Order.schema, .id, onDelete: .cascade))
+            .field(
+                OrderData.FieldKeys.orderID, .uuid, .required,
+                .references(Order.schema, .id, onDelete: .cascade)
+            )
             .create()
     }
 
@@ -88,7 +92,7 @@ struct OrderJSONData: OrderJSON.Properties {
         let url = "https://www.example.com/"
         let logo = "pet_store_logo.png"
     }
-    
+
     init(data: OrderData, order: Order) {
         self.orderIdentifier = order.id!.uuidString
         self.authenticationToken = order.authenticationToken
@@ -107,7 +111,9 @@ struct OrderDataMiddleware: AsyncModelMiddleware {
         self.service = service
     }
 
-    func create(model: OrderData, on db: any Database, next: any AnyAsyncModelResponder) async throws {
+    func create(
+        model: OrderData, on db: any Database, next: any AnyAsyncModelResponder
+    ) async throws {
         let order = Order(
             orderTypeIdentifier: "order.com.example.pet-store",
             authenticationToken: Data([UInt8].random(count: 12)).base64EncodedString())
@@ -116,7 +122,9 @@ struct OrderDataMiddleware: AsyncModelMiddleware {
         try await next.create(model, on: db)
     }
 
-    func update(model: OrderData, on db: any Database, next: any AnyAsyncModelResponder) async throws {
+    func update(
+        model: OrderData, on db: any Database, next: any AnyAsyncModelResponder
+    ) async throws {
         let order = try await model.$order.get(on: db)
         order.updatedAt = Date()
         try await order.save(on: db)

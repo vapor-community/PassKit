@@ -5,8 +5,8 @@
 //  Created by Francesco Paolo Severino on 30/06/24.
 //
 
-import Foundation
 import FluentKit
+import Foundation
 
 /// Represents the `Model` that stores Waller orders.
 ///
@@ -17,7 +17,7 @@ public protocol OrderModel: Model where IDValue == UUID {
 
     /// The date and time when the customer created the order.
     var createdAt: Date? { get set }
-    
+
     /// The date and time when the order was last updated.
     var updatedAt: Date? { get set }
 
@@ -25,40 +25,44 @@ public protocol OrderModel: Model where IDValue == UUID {
     var authenticationToken: String { get set }
 }
 
-internal extension OrderModel {
+extension OrderModel {
     var _$id: ID<UUID> {
         guard let mirror = Mirror(reflecting: self).descendant("_id"),
-            let id = mirror as? ID<UUID> else {
-                fatalError("id property must be declared using @ID")
+            let id = mirror as? ID<UUID>
+        else {
+            fatalError("id property must be declared using @ID")
         }
-        
+
         return id
     }
-    
+
     var _$orderTypeIdentifier: Field<String> {
         guard let mirror = Mirror(reflecting: self).descendant("_orderTypeIdentifier"),
-            let orderTypeIdentifier = mirror as? Field<String> else {
-                fatalError("orderTypeIdentifier property must be declared using @Field")
+            let orderTypeIdentifier = mirror as? Field<String>
+        else {
+            fatalError("orderTypeIdentifier property must be declared using @Field")
         }
-        
+
         return orderTypeIdentifier
     }
-    
+
     var _$updatedAt: Timestamp<DefaultTimestampFormat> {
         guard let mirror = Mirror(reflecting: self).descendant("_updatedAt"),
-            let updatedAt = mirror as? Timestamp<DefaultTimestampFormat> else {
-                fatalError("updatedAt property must be declared using @Timestamp(on: .update)")
+            let updatedAt = mirror as? Timestamp<DefaultTimestampFormat>
+        else {
+            fatalError("updatedAt property must be declared using @Timestamp(on: .update)")
         }
-        
+
         return updatedAt
     }
 
     var _$authenticationToken: Field<String> {
         guard let mirror = Mirror(reflecting: self).descendant("_authenticationToken"),
-            let authenticationToken = mirror as? Field<String> else {
-                fatalError("authenticationToken property must be declared using @Field")
+            let authenticationToken = mirror as? Field<String>
+        else {
+            fatalError("authenticationToken property must be declared using @Field")
         }
-        
+
         return authenticationToken
     }
 }

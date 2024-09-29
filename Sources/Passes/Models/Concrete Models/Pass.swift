@@ -5,8 +5,8 @@
 //  Created by Francesco Paolo Severino on 29/06/24.
 //
 
-import Foundation
 import FluentKit
+import Foundation
 
 /// The `Model` that stores PassKit passes.
 ///
@@ -39,8 +39,8 @@ final public class Pass: PassModel, @unchecked Sendable {
     /// The user personalization info.
     @OptionalParent(key: Pass.FieldKeys.userPersonalizationID)
     public var userPersonalization: UserPersonalizationType?
-    
-    public required init() { }
+
+    public required init() {}
 
     public required init(passTypeIdentifier: String, authenticationToken: String) {
         self.passTypeIdentifier = passTypeIdentifier
@@ -55,7 +55,10 @@ extension Pass: AsyncMigration {
             .field(Pass.FieldKeys.updatedAt, .datetime, .required)
             .field(Pass.FieldKeys.passTypeIdentifier, .string, .required)
             .field(Pass.FieldKeys.authenticationToken, .string, .required)
-            .field(Pass.FieldKeys.userPersonalizationID, .int, .references(UserPersonalizationType.schema, .id))
+            .field(
+                Pass.FieldKeys.userPersonalizationID, .int,
+                .references(UserPersonalizationType.schema, .id)
+            )
             .unique(on: Pass.FieldKeys.userPersonalizationID)
             .create()
     }

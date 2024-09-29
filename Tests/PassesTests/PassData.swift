@@ -1,27 +1,28 @@
 import Fluent
-import struct Foundation.UUID
 import Passes
 import Vapor
 
+import struct Foundation.UUID
+
 final class PassData: PassDataModel, @unchecked Sendable {
     static let schema = PassData.FieldKeys.schemaName
-    
+
     @ID(key: .id)
     var id: UUID?
 
     @Field(key: PassData.FieldKeys.title)
     var title: String
-    
+
     @Parent(key: PassData.FieldKeys.passID)
     var pass: Pass
 
-    init() { }
+    init() {}
 
     init(id: UUID? = nil, title: String) {
         self.id = id
         self.title = title
     }
-    
+
     func toDTO() -> PassDataDTO {
         .init(
             id: self.id,
@@ -33,10 +34,10 @@ final class PassData: PassDataModel, @unchecked Sendable {
 struct PassDataDTO: Content {
     var id: UUID?
     var title: String?
-    
+
     func toModel() -> PassData {
         let model = PassData()
-        
+
         model.id = self.id
         if let title = self.title {
             model.title = title
@@ -50,7 +51,10 @@ struct CreatePassData: AsyncMigration {
         try await database.schema(PassData.FieldKeys.schemaName)
             .id()
             .field(PassData.FieldKeys.title, .string, .required)
-            .field(PassData.FieldKeys.passID, .uuid, .required, .references(Pass.schema, .id, onDelete: .cascade))
+            .field(
+                PassData.FieldKeys.passID, .uuid, .required,
+                .references(Pass.schema, .id, onDelete: .cascade)
+            )
             .create()
     }
 
@@ -81,14 +85,14 @@ struct PassJSONData: PassJSON.Properties {
     private let sharingProhibited = true
     let backgroundColor = "rgb(207, 77, 243)"
     let foregroundColor = "rgb(255, 255, 255)"
-    
+
     let barcodes = Barcode(message: "test")
     struct Barcode: PassJSON.Barcodes {
         let format = PassJSON.BarcodeFormat.qr
         let message: String
         let messageEncoding = "iso-8859-1"
     }
-    
+
     let boardingPass = Boarding(transitType: .air)
     struct Boarding: PassJSON.BoardingPass {
         let transitType: PassJSON.TransitType
@@ -126,7 +130,7 @@ struct PersonalizationJSONData: PersonalizationJSON.Properties {
         PersonalizationJSON.PersonalizationField.name,
         PersonalizationJSON.PersonalizationField.postalCode,
         PersonalizationJSON.PersonalizationField.emailAddress,
-        PersonalizationJSON.PersonalizationField.phoneNumber
+        PersonalizationJSON.PersonalizationField.phoneNumber,
     ]
     var description = "Hello, World!"
 }
@@ -138,7 +142,9 @@ struct PassDataMiddleware: AsyncModelMiddleware {
         self.service = service
     }
 
-    func create(model: PassData, on db: any Database, next: any AnyAsyncModelResponder) async throws {
+    func create(
+        model: PassData, on db: any Database, next: any AnyAsyncModelResponder
+    ) async throws {
         let pass = Pass(
             passTypeIdentifier: "pass.com.vapor-community.PassKit",
             authenticationToken: Data([UInt8].random(count: 12)).base64EncodedString())
@@ -147,7 +153,9 @@ struct PassDataMiddleware: AsyncModelMiddleware {
         try await next.create(model, on: db)
     }
 
-    func update(model: PassData, on db: any Database, next: any AnyAsyncModelResponder) async throws {
+    func update(
+        model: PassData, on db: any Database, next: any AnyAsyncModelResponder
+    ) async throws {
         let pass = try await model.$pass.get(on: db)
         pass.updatedAt = Date()
         try await pass.save(on: db)

@@ -32,19 +32,20 @@ import FluentKit
 public protocol ErrorLogModel: Model {
     /// The error message provided by PassKit.
     var message: String { get set }
-    
+
     /// The designated initializer.
     /// - Parameter message: The error message.
     init(message: String)
 }
 
-package extension ErrorLogModel {
-    var _$message: Field<String> {
+extension ErrorLogModel {
+    package var _$message: Field<String> {
         guard let mirror = Mirror(reflecting: self).descendant("_message"),
-            let message = mirror as? Field<String> else {
-                fatalError("id property must be declared using @ID")
+            let message = mirror as? Field<String>
+        else {
+            fatalError("id property must be declared using @ID")
         }
-        
+
         return message
     }
 }

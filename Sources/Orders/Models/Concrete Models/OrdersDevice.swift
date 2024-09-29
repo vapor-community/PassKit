@@ -38,7 +38,9 @@ extension OrdersDevice: AsyncMigration {
             .field(.id, .int, .identifier(auto: true))
             .field(OrdersDevice.FieldKeys.pushToken, .string, .required)
             .field(OrdersDevice.FieldKeys.deviceLibraryIdentifier, .string, .required)
-            .unique(on: OrdersDevice.FieldKeys.pushToken, OrdersDevice.FieldKeys.deviceLibraryIdentifier)
+            .unique(
+                on: OrdersDevice.FieldKeys.pushToken, OrdersDevice.FieldKeys.deviceLibraryIdentifier
+            )
             .create()
     }
 

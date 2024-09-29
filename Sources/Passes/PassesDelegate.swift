@@ -26,8 +26,8 @@
 /// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 /// THE SOFTWARE.
 
-import Foundation
 import FluentKit
+import Foundation
 
 /// The delegate which is responsible for generating the pass files.
 public protocol PassesDelegate: AnyObject, Sendable {
@@ -80,7 +80,7 @@ public protocol PassesDelegate: AnyObject, Sendable {
     /// you should return a properly formatted personalization JSON file.
     ///
     /// If the pass does not require personalization, you should return `nil`.
-    /// 
+    ///
     /// The default implementation of this method returns `nil`.
     ///
     /// - Parameters:
@@ -88,7 +88,9 @@ public protocol PassesDelegate: AnyObject, Sendable {
     ///   - db: The SQL database to query against.
     ///   - encoder: The `JSONEncoder` which you should use.
     /// - Returns: The encoded personalization JSON data, or `nil` if the pass does not require personalization.
-    func encodePersonalization<P: PassModel>(for pass: P, db: any Database, encoder: JSONEncoder) async throws -> Data?
+    func encodePersonalization<P: PassModel>(
+        for pass: P, db: any Database, encoder: JSONEncoder
+    ) async throws -> Data?
 
     /// Should return a `URL` which points to the template data for the pass.
     ///
@@ -104,7 +106,7 @@ public protocol PassesDelegate: AnyObject, Sendable {
     ///
     /// > Important: Be sure to use the `URL(fileURLWithPath:)` constructor.
     var sslBinary: URL { get }
-    
+
     /// The name of Apple's WWDR.pem certificate as contained in `sslSigningFiles` path.
     ///
     /// Defaults to `WWDR.pem`
@@ -124,32 +126,34 @@ public protocol PassesDelegate: AnyObject, Sendable {
     var pemPrivateKeyPassword: String? { get }
 }
 
-public extension PassesDelegate {
-    var wwdrCertificate: String {
-        get { return "WWDR.pem" }
+extension PassesDelegate {
+    public var wwdrCertificate: String {
+        return "WWDR.pem"
     }
 
-    var pemCertificate: String {
-        get { return "passcertificate.pem" }
+    public var pemCertificate: String {
+        return "passcertificate.pem"
     }
 
-    var pemPrivateKey: String {
-        get { return "passkey.pem" }
+    public var pemPrivateKey: String {
+        return "passkey.pem"
     }
 
-    var pemPrivateKeyPassword: String? {
-        get { return nil }
+    public var pemPrivateKeyPassword: String? {
+        return nil
     }
 
-    var sslBinary: URL {
-        get { return URL(fileURLWithPath: "/usr/bin/openssl") }
+    public var sslBinary: URL {
+        return URL(fileURLWithPath: "/usr/bin/openssl")
     }
-    
-    func generateSignatureFile(in root: URL) -> Bool {
+
+    public func generateSignatureFile(in root: URL) -> Bool {
         return false
     }
 
-    func encodePersonalization<P: PassModel>(for pass: P, db: any Database, encoder: JSONEncoder) async throws -> Data? {
+    public func encodePersonalization<P: PassModel>(
+        for pass: P, db: any Database, encoder: JSONEncoder
+    ) async throws -> Data? {
         return nil
     }
 }

@@ -32,10 +32,10 @@ import FluentKit
 public protocol DeviceModel: Model where IDValue == Int {
     /// The push token used for sending updates to the device.
     var pushToken: String { get set }
-    
+
     /// The identifier PassKit provides for the device.
     var deviceLibraryIdentifier: String { get set }
-    
+
     /// The designated initializer.
     /// - Parameters:
     ///   - deviceLibraryIdentifier: The device identifier as provided during registration.
@@ -43,23 +43,24 @@ public protocol DeviceModel: Model where IDValue == Int {
     init(deviceLibraryIdentifier: String, pushToken: String)
 }
 
-package extension DeviceModel {
-    var _$pushToken: Field<String> {
+extension DeviceModel {
+    package var _$pushToken: Field<String> {
         guard let mirror = Mirror(reflecting: self).descendant("_pushToken"),
-            let pushToken = mirror as? Field<String> else {
-                fatalError("pushToken property must be declared using @Field")
+            let pushToken = mirror as? Field<String>
+        else {
+            fatalError("pushToken property must be declared using @Field")
         }
-        
+
         return pushToken
     }
-    
-    var _$deviceLibraryIdentifier: Field<String> {
+
+    package var _$deviceLibraryIdentifier: Field<String> {
         guard let mirror = Mirror(reflecting: self).descendant("_deviceLibraryIdentifier"),
-            let deviceLibraryIdentifier = mirror as? Field<String> else {
-                fatalError("deviceLibraryIdentifier property must be declared using @Field")
+            let deviceLibraryIdentifier = mirror as? Field<String>
+        else {
+            fatalError("deviceLibraryIdentifier property must be declared using @Field")
         }
-        
+
         return deviceLibraryIdentifier
     }
 }
-
