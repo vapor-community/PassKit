@@ -7,16 +7,9 @@ on:
   push: { branches: [ main ] }
 
 jobs:
-  lint:
-    runs-on: ubuntu-latest
-    container: swift:noble
-    steps:
-      - name: Check out PassKit
-        uses: actions/checkout@v4
-      - name: Run format lint check
-        run:  swift format lint --strict --recursive --parallel .
-
   unit-tests:
     uses: vapor/ci/.github/workflows/run-unit-tests.yml@main
+    with:
+      with_linting: true
     secrets:
       CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}

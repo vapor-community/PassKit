@@ -72,8 +72,7 @@ public final class PassesService: Sendable {
     ///   - passes: The passes to include in the bundle.
     ///   - db: The `Database` to use.
     /// - Returns: The bundle of passes as `Data`.
-    public func generatePassesContent(for passes: [Pass], on db: any Database) async throws -> Data
-    {
+    public func generatePassesContent(for passes: [Pass], on db: any Database) async throws -> Data {
         try await service.generatePassesContent(for: passes, on: db)
     }
 

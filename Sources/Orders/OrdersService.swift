@@ -10,8 +10,7 @@ import Vapor
 
 /// The main class that handles Wallet orders.
 public final class OrdersService: Sendable {
-    private let service:
-        OrdersServiceCustom<Order, OrdersDevice, OrdersRegistration, OrdersErrorLog>
+    private let service: OrdersServiceCustom<Order, OrdersDevice, OrdersRegistration, OrdersErrorLog>
 
     /// Initializes the service and registers all the routes required for Apple Wallet to work.
     ///
