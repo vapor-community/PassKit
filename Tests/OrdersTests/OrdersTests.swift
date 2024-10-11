@@ -322,6 +322,16 @@ struct OrdersTests {
             let deviceLibraryIdentifier = "abcdefg"
             let pushToken = "1234567890"
 
+            // Test call with incorrect secret
+            try await app.test(
+                .POST,
+                "\(ordersURI)push/\(order.orderTypeIdentifier)/\(order.requireID())",
+                headers: ["X-Secret": "bar"],
+                afterResponse: { res async throws in
+                    #expect(res.status == .unauthorized)
+                }
+            )
+
             try await app.test(
                 .POST,
                 "\(ordersURI)push/\(order.orderTypeIdentifier)/\(order.requireID())",

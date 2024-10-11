@@ -444,6 +444,16 @@ struct PassesTests {
             let deviceLibraryIdentifier = "abcdefg"
             let pushToken = "1234567890"
 
+            // Test call with incorrect secret
+            try await app.test(
+                .POST,
+                "\(passesURI)push/\(pass.passTypeIdentifier)/\(pass.requireID())",
+                headers: ["X-Secret": "bar"],
+                afterResponse: { res async throws in
+                    #expect(res.status == .unauthorized)
+                }
+            )
+
             try await app.test(
                 .POST,
                 "\(passesURI)push/\(pass.passTypeIdentifier)/\(pass.requireID())",
