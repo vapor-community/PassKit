@@ -11,7 +11,7 @@ struct OrdersTests {
     let delegate = TestOrdersDelegate()
     let ordersURI = "/api/orders/v1/"
 
-    @Test("Test order generation")
+    @Test("Order Generation")
     func orderGeneration() async throws {
         try await withApp(delegate: delegate) { app, ordersService in
             let orderData = OrderData(title: "Test Order")
@@ -39,7 +39,7 @@ struct OrdersTests {
         }
     }
 
-    @Test("Getting order from Apple Wallet API")
+    @Test("Getting Order from Apple Wallet API")
     func getOrderFromAPI() async throws {
         try await withApp(delegate: delegate) { app, ordersService in
             let orderData = OrderData(title: "Test Order")
@@ -115,7 +115,7 @@ struct OrdersTests {
         }
     }
 
-    @Test("Test device registration API")
+    @Test("Device Registration API")
     func apiDeviceRegistration() async throws {
         try await withApp(delegate: delegate) { app, ordersService in
             let orderData = OrderData(title: "Test Order")
@@ -268,7 +268,7 @@ struct OrdersTests {
         }
     }
 
-    @Test("Test error logging")
+    @Test("Error Logging")
     func errorLog() async throws {
         try await withApp(delegate: delegate) { app, ordersService in
             let log1 = "Error 1"
@@ -313,7 +313,7 @@ struct OrdersTests {
         }
     }
 
-    @Test("Test APNS client")
+    @Test("APNS Client")
     func apnsClient() async throws {
         try await withApp(delegate: delegate) { app, ordersService in
             #expect(app.apns.client(.init(string: "orders")) != nil)
@@ -387,7 +387,7 @@ struct OrdersTests {
         }
     }
 
-    @Test("Test OrdersError")
+    @Test("OrdersError")
     func ordersError() {
         #expect(OrdersError.templateNotDirectory.description == "OrdersError(errorType: templateNotDirectory)")
         #expect(OrdersError.pemCertificateMissing.description == "OrdersError(errorType: pemCertificateMissing)")
@@ -395,7 +395,7 @@ struct OrdersTests {
         #expect(OrdersError.opensslBinaryMissing.description == "OrdersError(errorType: opensslBinaryMissing)")
     }
 
-    @Test("Test default OrdersDelegate properties")
+    @Test("Default OrdersDelegate Properties")
     func defaultDelegate() {
         let delegate = DefaultOrdersDelegate()
         #expect(delegate.wwdrCertificate == "WWDR.pem")

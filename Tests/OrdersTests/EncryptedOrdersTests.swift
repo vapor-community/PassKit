@@ -6,12 +6,12 @@ import Zip
 
 @testable import Orders
 
-@Suite("Orders Tests with encrypted PEM key")
+@Suite("Orders Tests with Encrypted PEM Key")
 struct EncryptedOrdersTests {
     let delegate = EncryptedOrdersDelegate()
     let ordersURI = "/api/orders/v1/"
 
-    @Test("Test order generation")
+    @Test("Order Generation")
     func orderGeneration() async throws {
         try await withApp(delegate: delegate) { app, ordersService in
             let orderData = OrderData(title: "Test Order")
@@ -38,7 +38,7 @@ struct EncryptedOrdersTests {
         }
     }
 
-    @Test("Test APNS client")
+    @Test("APNS Client")
     func apnsClient() async throws {
         try await withApp(delegate: delegate) { app, ordersService in
             #expect(app.apns.client(.init(string: "orders")) != nil)

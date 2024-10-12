@@ -11,7 +11,7 @@ struct PassesTests {
     let delegate = TestPassesDelegate()
     let passesURI = "/api/passes/v1/"
 
-    @Test("Test pass generation")
+    @Test("Pass Generation")
     func passGeneration() async throws {
         try await withApp(delegate: delegate) { app, passesService in
             let passData = PassData(title: "Test Pass")
@@ -41,7 +41,7 @@ struct PassesTests {
         }
     }
 
-    @Test("Test generating multiple passes")
+    @Test("Generating Multiple Passes")
     func passesGeneration() async throws {
         try await withApp(delegate: delegate) { app, passesService in
             let passData1 = PassData(title: "Test Pass 1")
@@ -64,7 +64,7 @@ struct PassesTests {
         }
     }
 
-    @Test("Test personalizable pass")
+    @Test("Personalizable Passes")
     func personalization() async throws {
         try await withApp(delegate: delegate) { app, passesService in
             let passData = PassData(title: "Personalize")
@@ -94,7 +94,7 @@ struct PassesTests {
         }
     }
 
-    @Test("Getting pass from Apple Wallet API")
+    @Test("Getting Pass from Apple Wallet API")
     func getPassFromAPI() async throws {
         try await withApp(delegate: delegate) { app, passesService in
             let passData = PassData(title: "Test Pass")
@@ -170,7 +170,7 @@ struct PassesTests {
         }
     }
 
-    @Test("Personalizable pass Apple Wallet API")
+    @Test("Personalizable Pass Apple Wallet API")
     func personalizationAPI() async throws {
         try await withApp(delegate: delegate) { app, passesService in
             let passData = PassData(title: "Personalize")
@@ -240,7 +240,7 @@ struct PassesTests {
         }
     }
 
-    @Test("Test device registration API")
+    @Test("Device Registration API")
     func apiDeviceRegistration() async throws {
         try await withApp(delegate: delegate) { app, passesService in
             let passData = PassData(title: "Test Pass")
@@ -393,7 +393,7 @@ struct PassesTests {
         }
     }
 
-    @Test("Test error logging")
+    @Test("Error Logging")
     func errorLog() async throws {
         try await withApp(delegate: delegate) { app, passesService in
             let log1 = "Error 1"
@@ -438,7 +438,7 @@ struct PassesTests {
         }
     }
 
-    @Test("Test APNS client")
+    @Test("APNS Client")
     func apnsClient() async throws {
         try await withApp(delegate: delegate) { app, passesService in
             #expect(app.apns.client(.init(string: "passes")) != nil)
@@ -512,7 +512,7 @@ struct PassesTests {
         }
     }
 
-    @Test("Test PassesError")
+    @Test("PassesError")
     func passesError() {
         #expect(PassesError.templateNotDirectory.description == "PassesError(errorType: templateNotDirectory)")
         #expect(PassesError.pemCertificateMissing.description == "PassesError(errorType: pemCertificateMissing)")
@@ -521,7 +521,7 @@ struct PassesTests {
         #expect(PassesError.invalidNumberOfPasses.description == "PassesError(errorType: invalidNumberOfPasses)")
     }
 
-    @Test("Test default PassesDelegate properties")
+    @Test("Default PassesDelegate Properties")
     func defaultDelegate() async throws {
         let defaultDelegate = DefaultPassesDelegate()
         #expect(defaultDelegate.wwdrCertificate == "WWDR.pem")
