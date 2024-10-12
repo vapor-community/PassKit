@@ -13,7 +13,7 @@
         <img src="https://img.shields.io/codecov/c/github/vapor-community/PassKit?style=plastic&logo=codecov&label=codecov">
     </a>
     <a href="https://swift.org">
-        <img src="https://design.vapor.codes/images/swift510up.svg" alt="Swift 5.10+">
+        <img src="https://design.vapor.codes/images/swift60up.svg" alt="Swift 6.0+">
     </a>
 </div>
 <br>
