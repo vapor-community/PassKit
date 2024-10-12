@@ -39,7 +39,8 @@ struct PassesTests {
         }
     }
 
-    @Test func passesGeneration() async throws {
+    @Test("Test generating multiple passes")
+    func passesGeneration() async throws {
         try await withApp(delegate: delegate) { app, passesService in
             let passData1 = PassData(title: "Test Pass 1")
             try await passData1.create(on: app.db)
