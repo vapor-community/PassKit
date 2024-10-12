@@ -6,11 +6,13 @@ import Zip
 
 @testable import Orders
 
+@Suite("Orders Tests")
 struct OrdersTests {
     let delegate = TestOrdersDelegate()
     let ordersURI = "/api/orders/v1/"
 
-    @Test func orderGeneration() async throws {
+    @Test("Test order generation")
+    func orderGeneration() async throws {
         try await withApp(delegate: delegate) { app, ordersService in
             let orderData = OrderData(title: "Test Order")
             try await orderData.create(on: app.db)
@@ -37,8 +39,8 @@ struct OrdersTests {
         }
     }
 
-    // Tests the API Apple Wallet calls to get orders
-    @Test func getOrderFromAPI() async throws {
+    @Test("Getting order from Apple Wallet API")
+    func getOrderFromAPI() async throws {
         try await withApp(delegate: delegate) { app, ordersService in
             let orderData = OrderData(title: "Test Order")
             try await orderData.create(on: app.db)
@@ -113,7 +115,8 @@ struct OrdersTests {
         }
     }
 
-    @Test func apiDeviceRegistration() async throws {
+    @Test("Test device registration API")
+    func apiDeviceRegistration() async throws {
         try await withApp(delegate: delegate) { app, ordersService in
             let orderData = OrderData(title: "Test Order")
             try await orderData.create(on: app.db)
@@ -265,7 +268,8 @@ struct OrdersTests {
         }
     }
 
-    @Test func errorLog() async throws {
+    @Test("Test error logging")
+    func errorLog() async throws {
         try await withApp(delegate: delegate) { app, ordersService in
             let log1 = "Error 1"
             let log2 = "Error 2"
@@ -309,7 +313,8 @@ struct OrdersTests {
         }
     }
 
-    @Test func apnsClient() async throws {
+    @Test("Test APNS client")
+    func apnsClient() async throws {
         try await withApp(delegate: delegate) { app, ordersService in
             #expect(app.apns.client(.init(string: "orders")) != nil)
 
@@ -382,14 +387,16 @@ struct OrdersTests {
         }
     }
 
-    @Test func ordersError() {
+    @Test("Test OrdersError")
+    func ordersError() {
         #expect(OrdersError.templateNotDirectory.description == "OrdersError(errorType: templateNotDirectory)")
         #expect(OrdersError.pemCertificateMissing.description == "OrdersError(errorType: pemCertificateMissing)")
         #expect(OrdersError.pemPrivateKeyMissing.description == "OrdersError(errorType: pemPrivateKeyMissing)")
         #expect(OrdersError.opensslBinaryMissing.description == "OrdersError(errorType: opensslBinaryMissing)")
     }
 
-    @Test func defaultDelegate() {
+    @Test("Test default OrdersDelegate properties")
+    func defaultDelegate() {
         let delegate = DefaultOrdersDelegate()
         #expect(delegate.wwdrCertificate == "WWDR.pem")
         #expect(delegate.pemCertificate == "ordercertificate.pem")

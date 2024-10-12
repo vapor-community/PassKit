@@ -5,11 +5,13 @@ import Zip
 
 @testable import Passes
 
+@Suite("Passes Tests with encrypted PEM key")
 struct EncryptedPassesTests {
     let delegate = EncryptedPassesDelegate()
     let passesURI = "/api/passes/v1/"
 
-    @Test func passGeneration() async throws {
+    @Test("Test pass generation")
+    func passGeneration() async throws {
         try await withApp(delegate: delegate) { app, passesService in
             let passData = PassData(title: "Test Pass")
             try await passData.create(on: app.db)
@@ -36,7 +38,8 @@ struct EncryptedPassesTests {
         }
     }
 
-    @Test func personalizationAPI() async throws {
+    @Test("Personalizable pass Apple Wallet API")
+    func personalizationAPI() async throws {
         try await withApp(delegate: delegate) { app, passesService in
             let passData = PassData(title: "Personalize")
             try await passData.create(on: app.db)
@@ -82,7 +85,8 @@ struct EncryptedPassesTests {
         }
     }
 
-    @Test func apnsClient() async throws {
+    @Test("Test APNS client")
+    func apnsClient() async throws {
         try await withApp(delegate: delegate) { app, passesService in
             #expect(app.apns.client(.init(string: "passes")) != nil)
 

@@ -6,11 +6,13 @@ import Zip
 
 @testable import Passes
 
+@Suite("Passes Tests")
 struct PassesTests {
     let delegate = TestPassesDelegate()
     let passesURI = "/api/passes/v1/"
 
-    @Test func passGeneration() async throws {
+    @Test("Test pass generation")
+    func passGeneration() async throws {
         try await withApp(delegate: delegate) { app, passesService in
             let passData = PassData(title: "Test Pass")
             try await passData.create(on: app.db)
@@ -62,7 +64,8 @@ struct PassesTests {
         }
     }
 
-    @Test func personalization() async throws {
+    @Test("Test personalizable pass")
+    func personalization() async throws {
         try await withApp(delegate: delegate) { app, passesService in
             let passData = PassData(title: "Personalize")
             try await passData.create(on: app.db)
@@ -91,8 +94,8 @@ struct PassesTests {
         }
     }
 
-    // Tests the API Apple Wallet calls to get passes
-    @Test func getPassFromAPI() async throws {
+    @Test("Getting pass from Apple Wallet API")
+    func getPassFromAPI() async throws {
         try await withApp(delegate: delegate) { app, passesService in
             let passData = PassData(title: "Test Pass")
             try await passData.create(on: app.db)
@@ -167,7 +170,8 @@ struct PassesTests {
         }
     }
 
-    @Test func personalizationAPI() async throws {
+    @Test("Personalizable pass Apple Wallet API")
+    func personalizationAPI() async throws {
         try await withApp(delegate: delegate) { app, passesService in
             let passData = PassData(title: "Personalize")
             try await passData.create(on: app.db)
@@ -236,7 +240,8 @@ struct PassesTests {
         }
     }
 
-    @Test func apiDeviceRegistration() async throws {
+    @Test("Test device registration API")
+    func apiDeviceRegistration() async throws {
         try await withApp(delegate: delegate) { app, passesService in
             let passData = PassData(title: "Test Pass")
             try await passData.create(on: app.db)
@@ -388,7 +393,8 @@ struct PassesTests {
         }
     }
 
-    @Test func errorLog() async throws {
+    @Test("Test error logging")
+    func errorLog() async throws {
         try await withApp(delegate: delegate) { app, passesService in
             let log1 = "Error 1"
             let log2 = "Error 2"
@@ -432,7 +438,8 @@ struct PassesTests {
         }
     }
 
-    @Test func apnsClient() async throws {
+    @Test("Test APNS client")
+    func apnsClient() async throws {
         try await withApp(delegate: delegate) { app, passesService in
             #expect(app.apns.client(.init(string: "passes")) != nil)
 
@@ -505,7 +512,8 @@ struct PassesTests {
         }
     }
 
-    @Test func passesError() {
+    @Test("Test PassesError")
+    func passesError() {
         #expect(PassesError.templateNotDirectory.description == "PassesError(errorType: templateNotDirectory)")
         #expect(PassesError.pemCertificateMissing.description == "PassesError(errorType: pemCertificateMissing)")
         #expect(PassesError.pemPrivateKeyMissing.description == "PassesError(errorType: pemPrivateKeyMissing)")
@@ -513,7 +521,8 @@ struct PassesTests {
         #expect(PassesError.invalidNumberOfPasses.description == "PassesError(errorType: invalidNumberOfPasses)")
     }
 
-    @Test func defaultDelegate() async throws {
+    @Test("Test default PassesDelegate properties")
+    func defaultDelegate() async throws {
         let defaultDelegate = DefaultPassesDelegate()
         #expect(defaultDelegate.wwdrCertificate == "WWDR.pem")
         #expect(defaultDelegate.pemCertificate == "passcertificate.pem")
