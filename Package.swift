@@ -11,13 +11,13 @@ let package = Package(
         .library(name: "Orders", targets: ["Orders"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/vapor/vapor.git", from: "4.105.2"),
-        .package(url: "https://github.com/vapor/fluent.git", from: "4.11.0"),
+        .package(url: "https://github.com/vapor/vapor.git", from: "4.106.0"),
+        .package(url: "https://github.com/vapor/fluent.git", from: "4.12.0"),
         .package(url: "https://github.com/vapor/apns.git", from: "4.2.0"),
         .package(url: "https://github.com/vapor-community/Zip.git", from: "2.2.3"),
         .package(url: "https://github.com/apple/swift-certificates.git", from: "1.5.0"),
         // used in tests
-        .package(url: "https://github.com/vapor/fluent-sqlite-driver.git", from: "4.7.4"),
+        .package(url: "https://github.com/vapor/fluent-sqlite-driver.git", from: "4.8.0"),
     ],
     targets: [
         .target(
