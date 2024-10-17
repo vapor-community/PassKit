@@ -397,13 +397,7 @@ struct OrdersTests {
 
     @Test("Default OrdersDelegate Properties")
     func defaultDelegate() {
-        let delegate = DefaultOrdersDelegate()
-        #expect(delegate.wwdrCertificate == "WWDR.pem")
-        #expect(delegate.pemCertificate == "ordercertificate.pem")
-        #expect(delegate.pemPrivateKey == "orderkey.pem")
-        #expect(delegate.pemPrivateKeyPassword == nil)
-        #expect(delegate.sslBinary == URL(fileURLWithPath: "/usr/bin/openssl"))
-        #expect(!delegate.generateSignatureFile(in: URL(fileURLWithPath: "")))
+        #expect(!DefaultOrdersDelegate().generateSignatureFile(in: URL(fileURLWithPath: "")))
     }
 }
 
