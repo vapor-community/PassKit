@@ -30,6 +30,7 @@ where P == R.PassType, D == R.DeviceType, U == P.UserPersonalizationType {
     private unowned let app: Application
     private unowned let delegate: any PassesDelegate
     private let logger: Logger?
+    private let encoder = JSONEncoder()
 
     /// Initializes the service and registers all the routes required for PassKit to work.
     ///
@@ -89,7 +90,7 @@ where P == R.PassType, D == R.DeviceType, U == P.UserPersonalizationType {
             apnsConfig,
             eventLoopGroupProvider: .shared(app.eventLoopGroup),
             responseDecoder: JSONDecoder(),
-            requestEncoder: JSONEncoder(),
+            requestEncoder: self.encoder,
             as: .init(string: "passes"),
             isDefault: false
         )
@@ -483,9 +484,7 @@ extension PassesServiceCustom {
 
 // MARK: - pkpass file generation
 extension PassesServiceCustom {
-    private static func generateManifestFile(
-        using encoder: JSONEncoder, in root: URL
-    ) throws -> Data {
+    private static func generateManifestFile(using encoder: JSONEncoder, in root: URL) throws -> Data {
         var manifest: [String: String] = [:]
         let paths = try FileManager.default.subpathsOfDirectory(atPath: root.path)
         for relativePath in paths {
@@ -578,23 +577,17 @@ extension PassesServiceCustom {
         try FileManager.default.copyItem(at: templateDirectory, to: root)
         defer { _ = try? FileManager.default.removeItem(at: root) }
 
-        let encoder = JSONEncoder()
-        try await self.delegate.encode(pass: pass, db: db, encoder: encoder)
+        
+        try await self.delegate.encode(pass: pass, db: db, encoder: self.encoder)
             .write(to: root.appendingPathComponent("pass.json"))
 
         // Pass Personalization
-        if let encodedPersonalization = try await self.delegate.encodePersonalization(
-            for: pass, db: db, encoder: encoder)
-        {
-            try encodedPersonalization.write(
-                to: root.appendingPathComponent("personalization.json"))
+        if let personalizationJSON = try await self.delegate.personalizationJSON(for: pass, db: db) {
+            try self.encoder.encode(personalizationJSON).write(to: root.appendingPathComponent("personalization.json"))
             files.append(URL(fileURLWithPath: "personalization.json", relativeTo: root))
         }
 
-        try self.generateSignatureFile(
-            for: Self.generateManifestFile(using: encoder, in: root),
-            in: root
-        )
+        try self.generateSignatureFile(for: Self.generateManifestFile(using: self.encoder, in: root), in: root)
 
         files.append(URL(fileURLWithPath: "pass.json", relativeTo: root))
         files.append(URL(fileURLWithPath: "manifest.json", relativeTo: root))

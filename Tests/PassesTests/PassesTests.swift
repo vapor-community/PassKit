@@ -535,7 +535,7 @@ struct PassesTests {
             let passData = PassData(title: "Test Pass")
             try await passData.create(on: app.db)
             let pass = try await passData.$pass.get(on: app.db)
-            let data = try await defaultDelegate.encodePersonalization(for: pass, db: app.db, encoder: JSONEncoder())
+            let data = try await defaultDelegate.personalizationJSON(for: pass, db: app.db)
             #expect(data == nil)
         }
     }

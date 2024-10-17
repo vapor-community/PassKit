@@ -22,28 +22,6 @@ final class PassData: PassDataModel, @unchecked Sendable {
         self.id = id
         self.title = title
     }
-
-    func toDTO() -> PassDataDTO {
-        .init(
-            id: self.id,
-            title: self.$title.value
-        )
-    }
-}
-
-struct PassDataDTO: Content {
-    var id: UUID?
-    var title: String?
-
-    func toModel() -> PassData {
-        let model = PassData()
-
-        model.id = self.id
-        if let title = self.title {
-            model.title = title
-        }
-        return model
-    }
 }
 
 struct CreatePassData: AsyncMigration {
@@ -51,10 +29,7 @@ struct CreatePassData: AsyncMigration {
         try await database.schema(PassData.FieldKeys.schemaName)
             .id()
             .field(PassData.FieldKeys.title, .string, .required)
-            .field(
-                PassData.FieldKeys.passID, .uuid, .required,
-                .references(Pass.schema, .id, onDelete: .cascade)
-            )
+            .field(PassData.FieldKeys.passID, .uuid, .required, .references(Pass.schema, .id, onDelete: .cascade))
             .create()
     }
 
@@ -125,16 +100,6 @@ struct PassJSONData: PassJSON.Properties {
     }
 }
 
-struct PersonalizationJSONData: PersonalizationJSON.Properties {
-    var requiredPersonalizationFields = [
-        PersonalizationJSON.PersonalizationField.name,
-        PersonalizationJSON.PersonalizationField.postalCode,
-        PersonalizationJSON.PersonalizationField.emailAddress,
-        PersonalizationJSON.PersonalizationField.phoneNumber,
-    ]
-    var description = "Hello, World!"
-}
-
 struct PassDataMiddleware: AsyncModelMiddleware {
     private unowned let service: PassesService
 
@@ -142,9 +107,7 @@ struct PassDataMiddleware: AsyncModelMiddleware {
         self.service = service
     }
 
-    func create(
-        model: PassData, on db: any Database, next: any AnyAsyncModelResponder
-    ) async throws {
+    func create(model: PassData, on db: any Database, next: any AnyAsyncModelResponder) async throws {
         let pass = Pass(
             passTypeIdentifier: "pass.com.vapor-community.PassKit",
             authenticationToken: Data([UInt8].random(count: 12)).base64EncodedString())
@@ -153,9 +116,7 @@ struct PassDataMiddleware: AsyncModelMiddleware {
         try await next.create(model, on: db)
     }
 
-    func update(
-        model: PassData, on db: any Database, next: any AnyAsyncModelResponder
-    ) async throws {
+    func update(model: PassData, on db: any Database, next: any AnyAsyncModelResponder) async throws {
         let pass = try await model.$pass.get(on: db)
         pass.updatedAt = Date()
         try await pass.save(on: db)

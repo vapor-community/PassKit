@@ -72,12 +72,12 @@ public protocol PassesDelegate: AnyObject, Sendable {
     /// > Tip: See the [`Pass`](https://developer.apple.com/documentation/walletpasses/pass) object to understand the keys.
     func encode<P: PassModel>(pass: P, db: any Database, encoder: JSONEncoder) async throws -> Data
 
-    /// Encode the personalization JSON file.
+    /// Create the personalization JSON struct.
     ///
-    /// This method of the ``PassesDelegate`` should generate the entire personalization JSON file.
+    /// This method of the ``PassesDelegate`` should generate the entire personalization JSON struct.
     /// You are provided with the pass data from the SQL database and,
     /// if the pass in question requires personalization,
-    /// you should return a properly formatted personalization JSON file.
+    /// you should return a ``PersonalizationJSON``.
     ///
     /// If the pass does not require personalization, you should return `nil`.
     ///
@@ -86,11 +86,8 @@ public protocol PassesDelegate: AnyObject, Sendable {
     /// - Parameters:
     ///   - pass: The pass data from the SQL server.
     ///   - db: The SQL database to query against.
-    ///   - encoder: The `JSONEncoder` which you should use.
-    /// - Returns: The encoded personalization JSON data, or `nil` if the pass does not require personalization.
-    func encodePersonalization<P: PassModel>(
-        for pass: P, db: any Database, encoder: JSONEncoder
-    ) async throws -> Data?
+    /// - Returns: A ``PersonalizationJSON`` or `nil` if the pass does not require personalization.
+    func personalizationJSON<P: PassModel>(for pass: P, db: any Database) async throws -> PersonalizationJSON?
 
     /// Should return a `URL` which points to the template data for the pass.
     ///
@@ -151,9 +148,7 @@ extension PassesDelegate {
         return false
     }
 
-    public func encodePersonalization<P: PassModel>(
-        for pass: P, db: any Database, encoder: JSONEncoder
-    ) async throws -> Data? {
+    public func personalizationJSON<P: PassModel>(for pass: P, db: any Database) async throws -> PersonalizationJSON? {
         return nil
     }
 }
