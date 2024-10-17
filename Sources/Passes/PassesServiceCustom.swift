@@ -592,7 +592,6 @@ extension PassesServiceCustom {
         try FileManager.default.copyItem(at: templateDirectory, to: root)
         defer { _ = try? FileManager.default.removeItem(at: root) }
 
-        
         try await self.delegate.encode(pass: pass, db: db, encoder: self.encoder)
             .write(to: root.appendingPathComponent("pass.json"))
 

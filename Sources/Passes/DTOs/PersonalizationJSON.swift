@@ -2,7 +2,7 @@
 ///
 /// This file specifies the personal information requested by the signup form.
 /// It also contains a description of the program and (optionally) the program’s terms and conditions.
-/// 
+///
 /// > Tip: See the [documentation](https://developer.apple.com/library/archive/documentation/UserExperience/Conceptual/PassKit_PG/PassPersonalization.html#//apple_ref/doc/uid/TP40012195-CH12-SW2) to understand the keys.
 public struct PersonalizationJSON: Encodable, Sendable {
     /// The contents of this array define the data requested from the user.
@@ -16,15 +16,15 @@ public struct PersonalizationJSON: Encodable, Sendable {
     var description: String
 
     /// A description of the program’s terms and conditions.
-    /// 
+    ///
     /// This string can contain HTML link tags to external content.
-    /// 
+    ///
     /// If present, this information is displayed after the user enters their personal information and taps the Next button.
     /// The user then has the option to agree to the terms, or to cancel out of the signup process.
     var termsAndConditions: String?
 
     /// Initializes a new ``PersonalizationJSON`` instance.
-    /// 
+    ///
     /// - Parameters:
     ///   - requiredPersonalizationFields: An array of ``PersonalizationField`` values that define the data requested to the user.
     ///   - description: A brief description of the program.
