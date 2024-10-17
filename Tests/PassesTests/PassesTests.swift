@@ -524,18 +524,13 @@ struct PassesTests {
     @Test("Default PassesDelegate Properties")
     func defaultDelegate() async throws {
         let defaultDelegate = DefaultPassesDelegate()
-        #expect(defaultDelegate.wwdrCertificate == "WWDR.pem")
-        #expect(defaultDelegate.pemCertificate == "passcertificate.pem")
-        #expect(defaultDelegate.pemPrivateKey == "passkey.pem")
-        #expect(defaultDelegate.pemPrivateKeyPassword == nil)
-        #expect(defaultDelegate.sslBinary == URL(fileURLWithPath: "/usr/bin/openssl"))
         #expect(!defaultDelegate.generateSignatureFile(in: URL(fileURLWithPath: "")))
 
         try await withApp(delegate: delegate) { app, passesService in
             let passData = PassData(title: "Test Pass")
             try await passData.create(on: app.db)
             let pass = try await passData.$pass.get(on: app.db)
-            let data = try await defaultDelegate.encodePersonalization(for: pass, db: app.db, encoder: JSONEncoder())
+            let data = try await defaultDelegate.personalizationJSON(for: pass, db: app.db)
             #expect(data == nil)
         }
     }

@@ -3,16 +3,6 @@ import Orders
 import Vapor
 
 final class EncryptedOrdersDelegate: OrdersDelegate {
-    let sslSigningFilesDirectory = URL(
-        fileURLWithPath: "\(FileManager.default.currentDirectoryPath)/Tests/Certificates/",
-        isDirectory: true
-    )
-
-    let pemCertificate = "encryptedcert.pem"
-    let pemPrivateKey = "encryptedkey.pem"
-
-    let pemPrivateKeyPassword: String? = "password"
-
     func encode<O: OrderModel>(
         order: O, db: any Database, encoder: JSONEncoder
     ) async throws -> Data {
