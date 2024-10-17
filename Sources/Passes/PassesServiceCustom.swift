@@ -29,6 +29,12 @@ public final class PassesServiceCustom<
 where P == R.PassType, D == R.DeviceType, U == P.UserPersonalizationType {
     private unowned let app: Application
     private unowned let delegate: any PassesDelegate
+    private let signingFilesDirectory: URL
+    private let wwdrCertificate: String
+    private let pemCertificate: String
+    private let pemPrivateKey: String
+    private let pemPrivateKeyPassword: String?
+    private let sslBinary: URL
     private let logger: Logger?
     private let encoder = JSONEncoder()
 
@@ -37,32 +43,46 @@ where P == R.PassType, D == R.DeviceType, U == P.UserPersonalizationType {
     /// - Parameters:
     ///   - app: The `Vapor.Application` to use in route handlers and APNs.
     ///   - delegate: The ``PassesDelegate`` to use for pass generation.
+    ///   - signingFilesDirectory: The path of the directory where the signing files (`wwdrCertificate`, `pemCertificate`, `pemPrivateKey`) are located.
+    ///   - wwdrCertificate: The name of Apple's WWDR.pem certificate as contained in `signingFilesDirectory` path. Defaults to `WWDR.pem`.
+    ///   - pemCertificate: The name of the PEM Certificate for signing the pass as contained in `signingFilesDirectory` path. Defaults to `certificate.pem`.
+    ///   - pemPrivateKey: The name of the PEM Certificate's private key for signing the pass as contained in `signingFilesDirectory` path. Defaults to `key.pem`.
+    ///   - pemPrivateKeyPassword: The password to the private key file. If the key is not encrypted it must be `nil`. Defaults to `nil`.
+    ///   - sslBinary: The location of the `openssl` command as a file path.
     ///   - pushRoutesMiddleware: The `Middleware` to use for push notification routes. If `nil`, push routes will not be registered.
     ///   - logger: The `Logger` to use.
     public init(
         app: Application,
         delegate: any PassesDelegate,
+        signingFilesDirectory: String,
+        wwdrCertificate: String = "WWDR.pem",
+        pemCertificate: String = "certificate.pem",
+        pemPrivateKey: String = "key.pem",
+        pemPrivateKeyPassword: String? = nil,
+        sslBinary: String = "/usr/bin/openssl",
         pushRoutesMiddleware: (any Middleware)? = nil,
         logger: Logger? = nil
     ) throws {
         self.app = app
         self.delegate = delegate
+        self.signingFilesDirectory = URL(fileURLWithPath: signingFilesDirectory, isDirectory: true)
+        self.wwdrCertificate = wwdrCertificate
+        self.pemCertificate = pemCertificate
+        self.pemPrivateKey = pemPrivateKey
+        self.pemPrivateKeyPassword = pemPrivateKeyPassword
+        self.sslBinary = URL(fileURLWithPath: sslBinary)
         self.logger = logger
 
-        let privateKeyPath = URL(
-            fileURLWithPath: delegate.pemPrivateKey, relativeTo: delegate.sslSigningFilesDirectory
-        ).path
+        let privateKeyPath = URL(fileURLWithPath: pemPrivateKey, relativeTo: self.signingFilesDirectory).path
         guard FileManager.default.fileExists(atPath: privateKeyPath) else {
             throw PassesError.pemPrivateKeyMissing
         }
-        let pemPath = URL(
-            fileURLWithPath: delegate.pemCertificate, relativeTo: delegate.sslSigningFilesDirectory
-        ).path
+        let pemPath = URL(fileURLWithPath: pemCertificate, relativeTo: self.signingFilesDirectory).path
         guard FileManager.default.fileExists(atPath: pemPath) else {
             throw PassesError.pemCertificateMissing
         }
         let apnsConfig: APNSClientConfiguration
-        if let password = delegate.pemPrivateKeyPassword {
+        if let password = pemPrivateKeyPassword {
             apnsConfig = APNSClientConfiguration(
                 authenticationMethod: try .tls(
                     privateKey: .privateKey(
@@ -98,31 +118,26 @@ where P == R.PassType, D == R.DeviceType, U == P.UserPersonalizationType {
         let v1 = app.grouped("api", "passes", "v1")
         v1.get(
             "devices", ":deviceLibraryIdentifier", "registrations", ":passTypeIdentifier",
-            use: { try await self.passesForDevice(req: $0) })
+            use: { try await self.passesForDevice(req: $0) }
+        )
         v1.post("log", use: { try await self.logError(req: $0) })
-        v1.post(
-            "passes", ":passTypeIdentifier", ":passSerial", "personalize",
-            use: { try await self.personalizedPass(req: $0) })
+        v1.post("passes", ":passTypeIdentifier", ":passSerial", "personalize", use: { try await self.personalizedPass(req: $0) })
 
         let v1auth = v1.grouped(ApplePassMiddleware<P>())
         v1auth.post(
-            "devices", ":deviceLibraryIdentifier", "registrations", ":passTypeIdentifier",
-            ":passSerial", use: { try await self.registerDevice(req: $0) })
-        v1auth.get(
-            "passes", ":passTypeIdentifier", ":passSerial",
-            use: { try await self.latestVersionOfPass(req: $0) })
+            "devices", ":deviceLibraryIdentifier", "registrations", ":passTypeIdentifier", ":passSerial",
+            use: { try await self.registerDevice(req: $0) }
+        )
+        v1auth.get("passes", ":passTypeIdentifier", ":passSerial", use: { try await self.latestVersionOfPass(req: $0) })
         v1auth.delete(
-            "devices", ":deviceLibraryIdentifier", "registrations", ":passTypeIdentifier",
-            ":passSerial", use: { try await self.unregisterDevice(req: $0) })
+            "devices", ":deviceLibraryIdentifier", "registrations", ":passTypeIdentifier", ":passSerial",
+            use: { try await self.unregisterDevice(req: $0) }
+        )
 
         if let pushRoutesMiddleware {
             let pushAuth = v1.grouped(pushRoutesMiddleware)
-            pushAuth.post(
-                "push", ":passTypeIdentifier", ":passSerial",
-                use: { try await self.pushUpdatesForPass(req: $0) })
-            pushAuth.get(
-                "push", ":passTypeIdentifier", ":passSerial",
-                use: { try await self.tokensForPassUpdate(req: $0) })
+            pushAuth.post("push", ":passTypeIdentifier", ":passSerial", use: { try await self.pushUpdatesForPass(req: $0) })
+            pushAuth.get("push", ":passTypeIdentifier", ":passSerial", use: { try await self.tokensForPassUpdate(req: $0) })
         }
     }
 }
@@ -339,8 +354,8 @@ extension PassesServiceCustom {
             throw Abort(.internalServerError)
         }
         let signature: Data
-        if let password = delegate.pemPrivateKeyPassword {
-            let sslBinary = delegate.sslBinary
+        if let password = self.pemPrivateKeyPassword {
+            let sslBinary: URL = self.sslBinary
             guard FileManager.default.fileExists(atPath: sslBinary.path) else {
                 throw PassesError.opensslBinaryMissing
             }
@@ -349,13 +364,13 @@ extension PassesServiceCustom {
             try token.write(to: tokenURL)
 
             let proc = Process()
-            proc.currentDirectoryURL = delegate.sslSigningFilesDirectory
+            proc.currentDirectoryURL = self.signingFilesDirectory
             proc.executableURL = sslBinary
             proc.arguments = [
                 "smime", "-binary", "-sign",
-                "-certfile", delegate.wwdrCertificate,
-                "-signer", delegate.pemCertificate,
-                "-inkey", delegate.pemPrivateKey,
+                "-certfile", self.wwdrCertificate,
+                "-signer", self.pemCertificate,
+                "-inkey", self.pemPrivateKey,
                 "-in", tokenURL.path,
                 "-out", root.appendingPathComponent("signature").path,
                 "-outform", "DER",
@@ -371,21 +386,21 @@ extension PassesServiceCustom {
                 additionalIntermediateCertificates: [
                     Certificate(
                         pemEncoded: String(
-                            contentsOf: delegate.sslSigningFilesDirectory
-                                .appendingPathComponent(delegate.wwdrCertificate)
+                            contentsOf: self.signingFilesDirectory
+                                .appendingPathComponent(self.wwdrCertificate)
                         )
                     )
                 ],
                 certificate: Certificate(
                     pemEncoded: String(
-                        contentsOf: delegate.sslSigningFilesDirectory
-                            .appendingPathComponent(delegate.pemCertificate)
+                        contentsOf: self.signingFilesDirectory
+                            .appendingPathComponent(self.pemCertificate)
                     )
                 ),
                 privateKey: .init(
                     pemEncoded: String(
-                        contentsOf: delegate.sslSigningFilesDirectory
-                            .appendingPathComponent(delegate.pemPrivateKey)
+                        contentsOf: self.signingFilesDirectory
+                            .appendingPathComponent(self.pemPrivateKey)
                     )
                 ),
                 signingTime: Date()
@@ -504,20 +519,20 @@ extension PassesServiceCustom {
         if delegate.generateSignatureFile(in: root) { return }
 
         // Swift Crypto doesn't support encrypted PEM private keys, so we have to use OpenSSL for that.
-        if let password = delegate.pemPrivateKeyPassword {
-            let sslBinary = delegate.sslBinary
+        if let password = self.pemPrivateKeyPassword {
+            let sslBinary = self.sslBinary
             guard FileManager.default.fileExists(atPath: sslBinary.path) else {
                 throw PassesError.opensslBinaryMissing
             }
 
             let proc = Process()
-            proc.currentDirectoryURL = delegate.sslSigningFilesDirectory
+            proc.currentDirectoryURL = self.signingFilesDirectory
             proc.executableURL = sslBinary
             proc.arguments = [
                 "smime", "-binary", "-sign",
-                "-certfile", delegate.wwdrCertificate,
-                "-signer", delegate.pemCertificate,
-                "-inkey", delegate.pemPrivateKey,
+                "-certfile", self.wwdrCertificate,
+                "-signer", self.pemCertificate,
+                "-inkey", self.pemPrivateKey,
                 "-in", root.appendingPathComponent("manifest.json").path,
                 "-out", root.appendingPathComponent("signature").path,
                 "-outform", "DER",
@@ -534,21 +549,21 @@ extension PassesServiceCustom {
             additionalIntermediateCertificates: [
                 Certificate(
                     pemEncoded: String(
-                        contentsOf: delegate.sslSigningFilesDirectory
-                            .appendingPathComponent(delegate.wwdrCertificate)
+                        contentsOf: self.signingFilesDirectory
+                            .appendingPathComponent(self.wwdrCertificate)
                     )
                 )
             ],
             certificate: Certificate(
                 pemEncoded: String(
-                    contentsOf: delegate.sslSigningFilesDirectory
-                        .appendingPathComponent(delegate.pemCertificate)
+                    contentsOf: self.signingFilesDirectory
+                        .appendingPathComponent(self.pemCertificate)
                 )
             ),
             privateKey: .init(
                 pemEncoded: String(
-                    contentsOf: delegate.sslSigningFilesDirectory
-                        .appendingPathComponent(delegate.pemPrivateKey)
+                    contentsOf: self.signingFilesDirectory
+                        .appendingPathComponent(self.pemPrivateKey)
                 )
             ),
             signingTime: Date()

@@ -88,62 +88,9 @@ public protocol PassesDelegate: AnyObject, Sendable {
     ///   - db: The SQL database to query against.
     /// - Returns: A ``PersonalizationJSON`` or `nil` if the pass does not require personalization.
     func personalizationJSON<P: PassModel>(for pass: P, db: any Database) async throws -> PersonalizationJSON?
-
-    /// Should return a `URL` which points to the template data for the pass.
-    ///
-    /// The URL should point to a directory containing the files specified by these keys:
-    /// - `wwdrCertificate`
-    /// - `pemCertificate`
-    /// - `pemPrivateKey`
-    ///
-    /// > Important: Be sure to use the `URL(fileURLWithPath:isDirectory:)` initializer!
-    var sslSigningFilesDirectory: URL { get }
-
-    /// The location of the `openssl` command as a file URL.
-    ///
-    /// > Important: Be sure to use the `URL(fileURLWithPath:)` constructor.
-    var sslBinary: URL { get }
-
-    /// The name of Apple's WWDR.pem certificate as contained in `sslSigningFiles` path.
-    ///
-    /// Defaults to `WWDR.pem`
-    var wwdrCertificate: String { get }
-
-    /// The name of the PEM Certificate for signing the pass as contained in `sslSigningFiles` path.
-    ///
-    /// Defaults to `passcertificate.pem`
-    var pemCertificate: String { get }
-
-    /// The name of the PEM Certificate's private key for signing the pass as contained in `sslSigningFiles` path.
-    ///
-    /// Defaults to `passkey.pem`
-    var pemPrivateKey: String { get }
-
-    /// The password to the private key file.
-    var pemPrivateKeyPassword: String? { get }
 }
 
 extension PassesDelegate {
-    public var wwdrCertificate: String {
-        return "WWDR.pem"
-    }
-
-    public var pemCertificate: String {
-        return "passcertificate.pem"
-    }
-
-    public var pemPrivateKey: String {
-        return "passkey.pem"
-    }
-
-    public var pemPrivateKeyPassword: String? {
-        return nil
-    }
-
-    public var sslBinary: URL {
-        return URL(fileURLWithPath: "/usr/bin/openssl")
-    }
-
     public func generateSignatureFile(in root: URL) -> Bool {
         return false
     }

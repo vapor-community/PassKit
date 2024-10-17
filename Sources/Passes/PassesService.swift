@@ -31,24 +31,44 @@ import Vapor
 
 /// The main class that handles PassKit passes.
 public final class PassesService: Sendable {
-    private let service:
-        PassesServiceCustom<
-            Pass, UserPersonalization, PassesDevice, PassesRegistration, PassesErrorLog
-        >
+    private let service: PassesServiceCustom<Pass, UserPersonalization, PassesDevice, PassesRegistration, PassesErrorLog>
 
     /// Initializes the service and registers all the routes required for PassKit to work.
     ///
     /// - Parameters:
     ///   - app: The `Vapor.Application` to use in route handlers and APNs.
     ///   - delegate: The ``PassesDelegate`` to use for pass generation.
+    ///   - signingFilesDirectory: The path of the directory where the signing files (`wwdrCertificate`, `pemCertificate`, `pemPrivateKey`) are located.
+    ///   - wwdrCertificate: The name of Apple's WWDR.pem certificate as contained in `signingFilesDirectory` path. Defaults to `WWDR.pem`.
+    ///   - pemCertificate: The name of the PEM Certificate for signing the pass as contained in `signingFilesDirectory` path. Defaults to `certificate.pem`.
+    ///   - pemPrivateKey: The name of the PEM Certificate's private key for signing the pass as contained in `signingFilesDirectory` path. Defaults to `key.pem`.
+    ///   - pemPrivateKeyPassword: The password to the private key file. If the key is not encrypted it must be `nil`. Defaults to `nil`.
+    ///   - sslBinary: The location of the `openssl` command as a file path.
     ///   - pushRoutesMiddleware: The `Middleware` to use for push notification routes. If `nil`, push routes will not be registered.
     ///   - logger: The `Logger` to use.
     public init(
-        app: Application, delegate: any PassesDelegate,
-        pushRoutesMiddleware: (any Middleware)? = nil, logger: Logger? = nil
+        app: Application,
+        delegate: any PassesDelegate,
+        signingFilesDirectory: String,
+        wwdrCertificate: String = "WWDR.pem",
+        pemCertificate: String = "certificate.pem",
+        pemPrivateKey: String = "key.pem",
+        pemPrivateKeyPassword: String? = nil,
+        sslBinary: String = "/usr/bin/openssl",
+        pushRoutesMiddleware: (any Middleware)? = nil,
+        logger: Logger? = nil
     ) throws {
-        service = try .init(
-            app: app, delegate: delegate, pushRoutesMiddleware: pushRoutesMiddleware, logger: logger
+        self.service = try .init(
+            app: app,
+            delegate: delegate,
+            signingFilesDirectory: signingFilesDirectory,
+            wwdrCertificate: wwdrCertificate,
+            pemCertificate: pemCertificate,
+            pemPrivateKey: pemPrivateKey,
+            pemPrivateKeyPassword: pemPrivateKeyPassword,
+            sslBinary: sslBinary,
+            pushRoutesMiddleware: pushRoutesMiddleware,
+            logger: logger
         )
     }
 

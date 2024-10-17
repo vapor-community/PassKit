@@ -3,14 +3,6 @@ import Passes
 import Vapor
 
 final class TestPassesDelegate: PassesDelegate {
-    let sslSigningFilesDirectory = URL(
-        fileURLWithPath: "\(FileManager.default.currentDirectoryPath)/Tests/Certificates/",
-        isDirectory: true
-    )
-
-    let pemCertificate = "certificate.pem"
-    let pemPrivateKey = "key.pem"
-
     func encode<P: PassModel>(
         pass: P, db: any Database, encoder: JSONEncoder
     ) async throws -> Data {

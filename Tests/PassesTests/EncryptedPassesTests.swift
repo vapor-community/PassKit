@@ -12,7 +12,7 @@ struct EncryptedPassesTests {
 
     @Test("Pass Generation")
     func passGeneration() async throws {
-        try await withApp(delegate: delegate) { app, passesService in
+        try await withApp(delegate: delegate, useEncryptedKey: true) { app, passesService in
             let passData = PassData(title: "Test Pass")
             try await passData.create(on: app.db)
             let pass = try await passData.$pass.get(on: app.db)
@@ -40,7 +40,7 @@ struct EncryptedPassesTests {
 
     @Test("Personalizable Pass Apple Wallet API")
     func personalizationAPI() async throws {
-        try await withApp(delegate: delegate) { app, passesService in
+        try await withApp(delegate: delegate, useEncryptedKey: true) { app, passesService in
             let passData = PassData(title: "Personalize")
             try await passData.create(on: app.db)
             let pass = try await passData.$pass.get(on: app.db)
@@ -87,7 +87,7 @@ struct EncryptedPassesTests {
 
     @Test("APNS Client")
     func apnsClient() async throws {
-        try await withApp(delegate: delegate) { app, passesService in
+        try await withApp(delegate: delegate, useEncryptedKey: true) { app, passesService in
             #expect(app.apns.client(.init(string: "passes")) != nil)
 
             let passData = PassData(title: "Test Pass")

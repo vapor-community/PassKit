@@ -524,11 +524,6 @@ struct PassesTests {
     @Test("Default PassesDelegate Properties")
     func defaultDelegate() async throws {
         let defaultDelegate = DefaultPassesDelegate()
-        #expect(defaultDelegate.wwdrCertificate == "WWDR.pem")
-        #expect(defaultDelegate.pemCertificate == "passcertificate.pem")
-        #expect(defaultDelegate.pemPrivateKey == "passkey.pem")
-        #expect(defaultDelegate.pemPrivateKeyPassword == nil)
-        #expect(defaultDelegate.sslBinary == URL(fileURLWithPath: "/usr/bin/openssl"))
         #expect(!defaultDelegate.generateSignatureFile(in: URL(fileURLWithPath: "")))
 
         try await withApp(delegate: delegate) { app, passesService in

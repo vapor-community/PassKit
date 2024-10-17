@@ -8,6 +8,7 @@ import Zip
 
 func withApp(
     delegate: some PassesDelegate,
+    useEncryptedKey: Bool = false,
     _ body: (Application, PassesService) async throws -> Void
 ) async throws {
     let app = try await Application.make(.testing)
@@ -21,6 +22,10 @@ func withApp(
     let passesService = try PassesService(
         app: app,
         delegate: delegate,
+        signingFilesDirectory: "\(FileManager.default.currentDirectoryPath)/Tests/Certificates/",
+        pemCertificate: useEncryptedKey ? "encryptedcert.pem" : "certificate.pem",
+        pemPrivateKey: useEncryptedKey ? "encryptedkey.pem" : "key.pem",
+        pemPrivateKeyPassword: useEncryptedKey ? "password" : nil,
         pushRoutesMiddleware: SecretMiddleware(secret: "foo"),
         logger: app.logger
     )

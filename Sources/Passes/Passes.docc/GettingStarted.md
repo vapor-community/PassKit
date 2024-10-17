@@ -135,12 +135,6 @@ struct PassJSONData: PassJSON.Properties {
 ### Implement the Delegate
 
 Create a delegate class that implements ``PassesDelegate``.
-In the ``PassesDelegate/sslSigningFilesDirectory`` you specify there must be the `WWDR.pem`, `passcertificate.pem` and `passkey.pem` files.
-If they are named like that you're good to go, otherwise you have to specify the custom name.
-
-> Tip: Obtaining the three certificates files could be a bit tricky. You could get some guidance from [this guide](https://github.com/alexandercerutti/passkit-generator/wiki/Generating-Certificates) and [this video](https://www.youtube.com/watch?v=rJZdPoXHtzI).
-
-There are other fields available which have reasonable default values. See ``PassesDelegate``'s documentation.
 
 Because the files for your pass' template and the method of encoding might vary by pass type, you'll be provided the ``Pass`` for those methods.
 In the ``PassesDelegate/encode(pass:db:encoder:)`` method, you'll want to encode a `struct` that conforms to ``PassJSON``.
@@ -151,10 +145,6 @@ import Fluent
 import Passes
 
 final class PassDelegate: PassesDelegate {
-    let sslSigningFilesDirectory = URL(fileURLWithPath: "Certificates/Passes/", isDirectory: true)
-
-    let pemPrivateKeyPassword: String? = Environment.get("PASSES_PEM_PRIVATE_KEY_PASSWORD")!
-
     func encode<P: PassModel>(pass: P, db: Database, encoder: JSONEncoder) async throws -> Data {
         // The specific PassData class you use here may vary based on the `pass.passTypeIdentifier`
         // if you have multiple different types of passes, and thus multiple types of pass data.
@@ -177,12 +167,14 @@ final class PassDelegate: PassesDelegate {
 }
 ```
 
-> Important: If you have an encrypted PEM private key, you **must** explicitly declare ``PassesDelegate/pemPrivateKeyPassword`` as a `String?` or Swift will ignore it as it'll think it's a `String` instead.
-
 ### Initialize the Service
 
 Next, initialize the ``PassesService`` inside the `configure.swift` file.
 This will implement all of the routes that Apple Wallet expects to exist on your server.
+In the `signingFilesDirectory` you specify there must be the `WWDR.pem`, `certificate.pem` and `key.pem` files.
+If they are named like that you're good to go, otherwise you have to specify the custom name.
+
+> Tip: Obtaining the three certificates files could be a bit tricky. You could get some guidance from [this guide](https://github.com/alexandercerutti/passkit-generator/wiki/Generating-Certificates) and [this video](https://www.youtube.com/watch?v=rJZdPoXHtzI).
 
 ```swift
 import Fluent
@@ -193,7 +185,11 @@ let passDelegate = PassDelegate()
 
 public func configure(_ app: Application) async throws {
     ...
-    let passesService = try PassesService(app: app, delegate: passDelegate)
+    let passesService = try PassesService(
+        app: app,
+        delegate: passDelegate,
+        signingFilesDirectory: "Certificates/Passes/"
+    )
 }
 ```
 
@@ -223,7 +219,17 @@ let passDelegate = PassDelegate()
 
 public func configure(_ app: Application) async throws {
     ...
-    let passesService = try PassesServiceCustom<MyPassType, MyUserPersonalizationType, MyDeviceType, MyPassesRegistrationType, MyErrorLogType>(app: app, delegate: passDelegate)
+    let passesService = try PassesServiceCustom<
+        MyPassType,
+        MyUserPersonalizationType,
+        MyDeviceType,
+        MyPassesRegistrationType,
+        MyErrorLogType
+    >(
+        app: app,
+        delegate: passDelegate,
+        signingFilesDirectory: "Certificates/Passes/"
+    )
 }
 ```
 
