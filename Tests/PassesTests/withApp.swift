@@ -7,7 +7,6 @@ import Vapor
 import Zip
 
 func withApp(
-    delegate: some PassesDelegate,
     useEncryptedKey: Bool = false,
     _ body: (Application, PassesService) async throws -> Void
 ) async throws {
@@ -16,6 +15,8 @@ func withApp(
     try #require(isLoggingConfigured)
 
     app.databases.use(.sqlite(.memory), as: .sqlite)
+
+    let delegate = TestPassesDelegate()
 
     PassesService.register(migrations: app.migrations)
     app.migrations.add(CreatePassData())

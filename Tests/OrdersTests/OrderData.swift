@@ -89,7 +89,8 @@ struct OrderDataMiddleware: AsyncModelMiddleware {
     func create(model: OrderData, on db: any Database, next: any AnyAsyncModelResponder) async throws {
         let order = Order(
             orderTypeIdentifier: "order.com.example.pet-store",
-            authenticationToken: Data([UInt8].random(count: 12)).base64EncodedString())
+            authenticationToken: Data([UInt8].random(count: 12)).base64EncodedString()
+        )
         try await order.save(on: db)
         model.$order.id = try order.requireID()
         try await next.create(model, on: db)

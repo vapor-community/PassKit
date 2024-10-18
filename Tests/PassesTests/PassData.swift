@@ -110,7 +110,8 @@ struct PassDataMiddleware: AsyncModelMiddleware {
     func create(model: PassData, on db: any Database, next: any AnyAsyncModelResponder) async throws {
         let pass = Pass(
             passTypeIdentifier: "pass.com.vapor-community.PassKit",
-            authenticationToken: Data([UInt8].random(count: 12)).base64EncodedString())
+            authenticationToken: Data([UInt8].random(count: 12)).base64EncodedString()
+        )
         try await pass.save(on: db)
         model.$pass.id = try pass.requireID()
         try await next.create(model, on: db)

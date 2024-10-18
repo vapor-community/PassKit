@@ -8,12 +8,11 @@ import Zip
 
 @Suite("Passes Tests")
 struct PassesTests {
-    let delegate = TestPassesDelegate()
     let passesURI = "/api/passes/v1/"
 
-    @Test("Pass Generation")
-    func passGeneration() async throws {
-        try await withApp(delegate: delegate) { app, passesService in
+    @Test("Pass Generation", arguments: [true, false])
+    func passGeneration(useEncryptedKey: Bool) async throws {
+        try await withApp(useEncryptedKey: useEncryptedKey) { app, passesService in
             let passData = PassData(title: "Test Pass")
             try await passData.create(on: app.db)
             let pass = try await passData.$pass.get(on: app.db)
@@ -43,7 +42,7 @@ struct PassesTests {
 
     @Test("Generating Multiple Passes")
     func passesGeneration() async throws {
-        try await withApp(delegate: delegate) { app, passesService in
+        try await withApp { app, passesService in
             let passData1 = PassData(title: "Test Pass 1")
             try await passData1.create(on: app.db)
             let pass1 = try await passData1.$pass.get(on: app.db)
@@ -66,7 +65,7 @@ struct PassesTests {
 
     @Test("Personalizable Passes")
     func personalization() async throws {
-        try await withApp(delegate: delegate) { app, passesService in
+        try await withApp { app, passesService in
             let passData = PassData(title: "Personalize")
             try await passData.create(on: app.db)
             let pass = try await passData.$pass.get(on: app.db)
@@ -96,7 +95,7 @@ struct PassesTests {
 
     @Test("Getting Pass from Apple Wallet API")
     func getPassFromAPI() async throws {
-        try await withApp(delegate: delegate) { app, passesService in
+        try await withApp { app, passesService in
             let passData = PassData(title: "Test Pass")
             try await passData.create(on: app.db)
             let pass = try await passData.$pass.get(on: app.db)
@@ -170,9 +169,9 @@ struct PassesTests {
         }
     }
 
-    @Test("Personalizable Pass Apple Wallet API")
-    func personalizationAPI() async throws {
-        try await withApp(delegate: delegate) { app, passesService in
+    @Test("Personalizable Pass Apple Wallet API", arguments: [true, false])
+    func personalizationAPI(useEncryptedKey: Bool) async throws {
+        try await withApp(useEncryptedKey: useEncryptedKey) { app, passesService in
             let passData = PassData(title: "Personalize")
             try await passData.create(on: app.db)
             let pass = try await passData.$pass.get(on: app.db)
@@ -242,7 +241,7 @@ struct PassesTests {
 
     @Test("Device Registration API")
     func apiDeviceRegistration() async throws {
-        try await withApp(delegate: delegate) { app, passesService in
+        try await withApp { app, passesService in
             let passData = PassData(title: "Test Pass")
             try await passData.create(on: app.db)
             let pass = try await passData.$pass.get(on: app.db)
@@ -395,7 +394,7 @@ struct PassesTests {
 
     @Test("Error Logging")
     func errorLog() async throws {
-        try await withApp(delegate: delegate) { app, passesService in
+        try await withApp { app, passesService in
             let log1 = "Error 1"
             let log2 = "Error 2"
 
@@ -438,9 +437,9 @@ struct PassesTests {
         }
     }
 
-    @Test("APNS Client")
-    func apnsClient() async throws {
-        try await withApp(delegate: delegate) { app, passesService in
+    @Test("APNS Client", arguments: [true, false])
+    func apnsClient(useEncryptedKey: Bool) async throws {
+        try await withApp(useEncryptedKey: useEncryptedKey) { app, passesService in
             #expect(app.apns.client(.init(string: "passes")) != nil)
 
             let passData = PassData(title: "Test Pass")
@@ -523,25 +522,25 @@ struct PassesTests {
 
     @Test("Default PassesDelegate Properties")
     func defaultDelegate() async throws {
+        final class DefaultPassesDelegate: PassesDelegate {
+            let sslSigningFilesDirectory = URL(fileURLWithPath: "", isDirectory: true)
+            func template<P: PassModel>(for pass: P, db: any Database) async throws -> URL {
+                URL(fileURLWithPath: "")
+            }
+            func encode<P: PassModel>(pass: P, db: any Database, encoder: JSONEncoder) async throws -> Data {
+                Data()
+            }
+        }
+
         let defaultDelegate = DefaultPassesDelegate()
         #expect(!defaultDelegate.generateSignatureFile(in: URL(fileURLWithPath: "")))
 
-        try await withApp(delegate: delegate) { app, passesService in
+        try await withApp { app, passesService in
             let passData = PassData(title: "Test Pass")
             try await passData.create(on: app.db)
             let pass = try await passData.$pass.get(on: app.db)
             let data = try await defaultDelegate.personalizationJSON(for: pass, db: app.db)
             #expect(data == nil)
         }
-    }
-}
-
-final class DefaultPassesDelegate: PassesDelegate {
-    let sslSigningFilesDirectory = URL(fileURLWithPath: "", isDirectory: true)
-    func template<P: PassModel>(for pass: P, db: any Database) async throws -> URL {
-        URL(fileURLWithPath: "")
-    }
-    func encode<P: PassModel>(pass: P, db: any Database, encoder: JSONEncoder) async throws -> Data {
-        Data()
     }
 }

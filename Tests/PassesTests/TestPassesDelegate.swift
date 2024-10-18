@@ -3,9 +3,7 @@ import Passes
 import Vapor
 
 final class TestPassesDelegate: PassesDelegate {
-    func encode<P: PassModel>(
-        pass: P, db: any Database, encoder: JSONEncoder
-    ) async throws -> Data {
+    func encode<P: PassModel>(pass: P, db: any Database, encoder: JSONEncoder) async throws -> Data {
         guard
             let passData = try await PassData.query(on: db)
                 .filter(\.$pass.$id == pass.requireID())
@@ -14,8 +12,7 @@ final class TestPassesDelegate: PassesDelegate {
         else {
             throw Abort(.internalServerError)
         }
-        guard let data = try? encoder.encode(PassJSONData(data: passData, pass: passData.pass))
-        else {
+        guard let data = try? encoder.encode(PassJSONData(data: passData, pass: passData.pass)) else {
             throw Abort(.internalServerError)
         }
         return data
