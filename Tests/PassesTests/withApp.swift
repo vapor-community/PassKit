@@ -11,15 +11,14 @@ func withApp(
     _ body: (Application, PassesService) async throws -> Void
 ) async throws {
     let app = try await Application.make(.testing)
-
     try #require(isLoggingConfigured)
 
     app.databases.use(.sqlite(.memory), as: .sqlite)
-
-    let delegate = TestPassesDelegate()
-
     PassesService.register(migrations: app.migrations)
     app.migrations.add(CreatePassData())
+    try await app.autoMigrate()
+
+    let delegate = TestPassesDelegate()
     let passesService = try PassesService(
         app: app,
         delegate: delegate,
@@ -30,10 +29,7 @@ func withApp(
         pushRoutesMiddleware: SecretMiddleware(secret: "foo"),
         logger: app.logger
     )
-
     app.databases.middleware.use(PassDataMiddleware(service: passesService), on: .sqlite)
-
-    try await app.autoMigrate()
 
     Zip.addCustomFileExtension("pkpass")
 

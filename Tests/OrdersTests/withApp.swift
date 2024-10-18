@@ -11,15 +11,14 @@ func withApp(
     _ body: (Application, OrdersService) async throws -> Void
 ) async throws {
     let app = try await Application.make(.testing)
-
     try #require(isLoggingConfigured)
 
     app.databases.use(.sqlite(.memory), as: .sqlite)
-
-    let delegate = TestOrdersDelegate()
-
     OrdersService.register(migrations: app.migrations)
     app.migrations.add(CreateOrderData())
+    try await app.autoMigrate()
+
+    let delegate = TestOrdersDelegate()
     let ordersService = try OrdersService(
         app: app,
         delegate: delegate,
@@ -30,10 +29,7 @@ func withApp(
         pushRoutesMiddleware: SecretMiddleware(secret: "foo"),
         logger: app.logger
     )
-
     app.databases.middleware.use(OrderDataMiddleware(service: ordersService), on: .sqlite)
-
-    try await app.autoMigrate()
 
     Zip.addCustomFileExtension("order")
 
