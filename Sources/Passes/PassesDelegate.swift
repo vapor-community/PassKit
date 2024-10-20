@@ -31,9 +31,10 @@ import Foundation
 
 /// The delegate which is responsible for generating the pass files.
 public protocol PassesDelegate: AnyObject, Sendable {
-    /// Should return a `URL` which points to the template data for the pass.
+    /// Should return a URL path which points to the template data for the pass.
     ///
-    /// The URL should point to a directory containing all the images and localizations for the generated `.pkpass` archive but should *not* contain any of these items:
+    /// The path should point to a directory containing all the images and localizations for the generated `.pkpass` archive
+    /// but should *not* contain any of these items:
     ///  - `manifest.json`
     ///  - `pass.json`
     ///  - `personalization.json`
@@ -43,10 +44,8 @@ public protocol PassesDelegate: AnyObject, Sendable {
     ///   - pass: The pass data from the SQL server.
     ///   - db: The SQL database to query against.
     ///
-    /// - Returns: A `URL` which points to the template data for the pass.
-    ///
-    /// > Important: Be sure to use the `URL(fileURLWithPath:isDirectory:)` constructor.
-    func template<P: PassModel>(for pass: P, db: any Database) async throws -> URL
+    /// - Returns: A URL path which points to the template data for the pass.
+    func template<P: PassModel>(for pass: P, db: any Database) async throws -> String
 
     /// Generates the SSL `signature` file.
     ///

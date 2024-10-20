@@ -378,14 +378,13 @@ struct OrdersTests {
             )
 
             // Test `OrderDataMiddleware` update method
-            /* TODO: Fix this test
-            orderData.title = "Test Order 2"
-            do {
-                try await orderData.update(on: app.db)
-            } catch let error as HTTPClientError {
-                #expect(error.self == .remoteConnectionClosed)
-            }
-            */
+            // TODO: Fix this test
+            // orderData.title = "Test Order 2"
+            // do {
+            //     try await orderData.update(on: app.db)
+            // } catch let error as HTTPClientError {
+            //     #expect(error.self == .remoteConnectionClosed)
+            // }
         }
     }
 
@@ -400,12 +399,8 @@ struct OrdersTests {
     @Test("Default OrdersDelegate Properties")
     func defaultDelegate() {
         final class DefaultOrdersDelegate: OrdersDelegate {
-            func template<O: OrderModel>(for order: O, db: any Database) async throws -> URL {
-                URL(fileURLWithPath: "")
-            }
-            func encode<O: OrderModel>(order: O, db: any Database, encoder: JSONEncoder) async throws -> Data {
-                Data()
-            }
+            func template<O: OrderModel>(for order: O, db: any Database) async throws -> String { "" }
+            func encode<O: OrderModel>(order: O, db: any Database, encoder: JSONEncoder) async throws -> Data { Data() }
         }
 
         #expect(!DefaultOrdersDelegate().generateSignatureFile(in: URL(fileURLWithPath: "")))

@@ -506,14 +506,13 @@ struct PassesTests {
             )
 
             // Test `PassDataMiddleware` update method
-            /* TODO: Fix this test
-            passData.title = "Test Pass 2"
-            do {
-                try await passData.update(on: app.db)
-            } catch let error as HTTPClientError {
-                #expect(error.self == .remoteConnectionClosed)
-            }
-            */
+            // TODO: Fix this test
+            // passData.title = "Test Pass 2"
+            // do {
+            //     try await passData.update(on: app.db)
+            // } catch let error as HTTPClientError {
+            //     #expect(error.self == .remoteConnectionClosed)
+            // }
         }
     }
 
@@ -529,13 +528,8 @@ struct PassesTests {
     @Test("Default PassesDelegate Properties")
     func defaultDelegate() async throws {
         final class DefaultPassesDelegate: PassesDelegate {
-            let sslSigningFilesDirectory = URL(fileURLWithPath: "", isDirectory: true)
-            func template<P: PassModel>(for pass: P, db: any Database) async throws -> URL {
-                URL(fileURLWithPath: "")
-            }
-            func encode<P: PassModel>(pass: P, db: any Database, encoder: JSONEncoder) async throws -> Data {
-                Data()
-            }
+            func template<P: PassModel>(for pass: P, db: any Database) async throws -> String { "" }
+            func encode<P: PassModel>(pass: P, db: any Database, encoder: JSONEncoder) async throws -> Data { Data() }
         }
 
         let defaultDelegate = DefaultPassesDelegate()

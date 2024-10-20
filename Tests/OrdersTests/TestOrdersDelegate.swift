@@ -18,7 +18,7 @@ final class TestOrdersDelegate: OrdersDelegate {
         return data
     }
 
-    func template<O: OrderModel>(for: O, db: any Database) async throws -> URL {
-        URL(fileURLWithPath: "\(FileManager.default.currentDirectoryPath)/Tests/OrdersTests/Templates/", isDirectory: true)
+    func template<O: OrderModel>(for: O, db: any Database) async throws -> String {
+        "\(FileManager.default.currentDirectoryPath)/Tests/OrdersTests/Templates/"
     }
 }

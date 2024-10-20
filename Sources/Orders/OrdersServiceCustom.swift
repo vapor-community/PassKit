@@ -371,13 +371,10 @@ extension OrdersServiceCustom {
     ///   - order: The order to send the notifications for.
     ///   - db: The `Database` to use.
     public func sendPushNotifications(for order: O, on db: any Database) async throws {
-        try await sendPushNotificationsForOrder(
-            id: order.requireID(), of: order.orderTypeIdentifier, on: db)
+        try await sendPushNotificationsForOrder(id: order.requireID(), of: order.orderTypeIdentifier, on: db)
     }
 
-    static func registrationsForOrder(
-        id: UUID, of orderTypeIdentifier: String, on db: any Database
-    ) async throws -> [R] {
+    static func registrationsForOrder(id: UUID, of orderTypeIdentifier: String, on db: any Database) async throws -> [R] {
         // This could be done by enforcing the caller to have a Siblings property wrapper,
         // but there's not really any value to forcing that on them when we can just do the query ourselves like this.
         try await R.query(on: db)
@@ -474,7 +471,7 @@ extension OrdersServiceCustom {
     ///   - db: The `Database` to use.
     /// - Returns: The generated order content as `Data`.
     public func generateOrderContent(for order: O, on db: any Database) async throws -> Data {
-        let templateDirectory = try await delegate.template(for: order, db: db)
+        let templateDirectory = try await URL(fileURLWithPath: delegate.template(for: order, db: db), isDirectory: true)
         guard
             (try? templateDirectory.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? false
         else {
@@ -490,13 +487,9 @@ extension OrdersServiceCustom {
         try await self.delegate.encode(order: order, db: db, encoder: encoder)
             .write(to: root.appendingPathComponent("order.json"))
 
-        try self.generateSignatureFile(
-            for: Self.generateManifestFile(using: encoder, in: root),
-            in: root
-        )
+        try self.generateSignatureFile(for: Self.generateManifestFile(using: encoder, in: root), in: root)
 
-        var files = try FileManager.default.contentsOfDirectory(
-            at: templateDirectory, includingPropertiesForKeys: nil)
+        var files = try FileManager.default.contentsOfDirectory(at: templateDirectory, includingPropertiesForKeys: nil)
         files.append(URL(fileURLWithPath: "order.json", relativeTo: root))
         files.append(URL(fileURLWithPath: "manifest.json", relativeTo: root))
         files.append(URL(fileURLWithPath: "signature", relativeTo: root))

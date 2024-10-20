@@ -477,13 +477,10 @@ extension PassesServiceCustom {
     ///   - pass: The pass to send the notifications for.
     ///   - db: The `Database` to use.
     public func sendPushNotifications(for pass: P, on db: any Database) async throws {
-        try await sendPushNotificationsForPass(
-            id: pass.requireID(), of: pass.passTypeIdentifier, on: db)
+        try await sendPushNotificationsForPass(id: pass.requireID(), of: pass.passTypeIdentifier, on: db)
     }
 
-    static func registrationsForPass(
-        id: UUID, of passTypeIdentifier: String, on db: any Database
-    ) async throws -> [R] {
+    static func registrationsForPass(id: UUID, of passTypeIdentifier: String, on db: any Database) async throws -> [R] {
         // This could be done by enforcing the caller to have a Siblings property wrapper,
         // but there's not really any value to forcing that on them when we can just do the query ourselves like this.
         try await R.query(on: db)
@@ -578,14 +575,12 @@ extension PassesServiceCustom {
     ///   - db: The `Database` to use.
     /// - Returns: The generated pass content as `Data`.
     public func generatePassContent(for pass: P, on db: any Database) async throws -> Data {
-        let templateDirectory = try await delegate.template(for: pass, db: db)
+        let templateDirectory = try await URL(fileURLWithPath: delegate.template(for: pass, db: db), isDirectory: true)
         guard
             (try? templateDirectory.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? false
         else {
             throw PassesError.templateNotDirectory
         }
-        var files = try FileManager.default.contentsOfDirectory(
-            at: templateDirectory, includingPropertiesForKeys: nil)
 
         let tmp = FileManager.default.temporaryDirectory
         let root = tmp.appendingPathComponent(UUID().uuidString, isDirectory: true)
@@ -594,6 +589,8 @@ extension PassesServiceCustom {
 
         try await self.delegate.encode(pass: pass, db: db, encoder: self.encoder)
             .write(to: root.appendingPathComponent("pass.json"))
+
+        var files = try FileManager.default.contentsOfDirectory(at: templateDirectory, includingPropertiesForKeys: nil)
 
         // Pass Personalization
         if let personalizationJSON = try await self.delegate.personalizationJSON(for: pass, db: db) {
