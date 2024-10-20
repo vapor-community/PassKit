@@ -10,7 +10,7 @@ import Zip
 struct OrdersTests {
     let ordersURI = "/api/orders/v1/"
 
-    @Test("Order Generation", arguments: [true, false])
+    @Test("Order Generation", .serialized, arguments: [true, false])
     func orderGeneration(useEncryptedKey: Bool) async throws {
         try await withApp(useEncryptedKey: useEncryptedKey) { app, ordersService in
             let orderData = OrderData(title: "Test Order")
@@ -24,13 +24,11 @@ struct OrdersTests {
             #expect(FileManager.default.fileExists(atPath: orderFolder.path.appending("/signature")))
 
             #expect(FileManager.default.fileExists(atPath: orderFolder.path.appending("/order.json")))
-            /* TODO: Fix this test
             let passJSONData = try String(contentsOfFile: orderFolder.path.appending("/order.json")).data(using: .utf8)
             let passJSON = try JSONSerialization.jsonObject(with: passJSONData!) as! [String: Any]
             #expect(passJSON["authenticationToken"] as? String == order.authenticationToken)
             let orderID = try order.requireID().uuidString
             #expect(passJSON["orderIdentifier"] as? String == orderID)
-            */
 
             let manifestJSONData = try String(contentsOfFile: orderFolder.path.appending("/manifest.json")).data(using: .utf8)
             let manifestJSON = try JSONSerialization.jsonObject(with: manifestJSONData!) as! [String: Any]

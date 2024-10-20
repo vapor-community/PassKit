@@ -10,7 +10,7 @@ import Zip
 struct PassesTests {
     let passesURI = "/api/passes/v1/"
 
-    @Test("Pass Generation", arguments: [true, false])
+    @Test("Pass Generation", .serialized, arguments: [true, false])
     func passGeneration(useEncryptedKey: Bool) async throws {
         try await withApp(useEncryptedKey: useEncryptedKey) { app, passesService in
             let passData = PassData(title: "Test Pass")
@@ -24,14 +24,12 @@ struct PassesTests {
             #expect(FileManager.default.fileExists(atPath: passFolder.path.appending("/signature")))
 
             #expect(FileManager.default.fileExists(atPath: passFolder.path.appending("/pass.json")))
-            /* TODO: Fix this test
             let passJSONData = try String(contentsOfFile: passFolder.path.appending("/pass.json")).data(using: .utf8)
             let passJSON = try JSONSerialization.jsonObject(with: passJSONData!) as! [String: Any]
             #expect(passJSON["authenticationToken"] as? String == pass.authenticationToken)
             let passID = try pass.requireID().uuidString
             #expect(passJSON["serialNumber"] as? String == passID)
             #expect(passJSON["description"] as? String == passData.title)
-            */
 
             let manifestJSONData = try String(contentsOfFile: passFolder.path.appending("/manifest.json")).data(using: .utf8)
             let manifestJSON = try JSONSerialization.jsonObject(with: manifestJSONData!) as! [String: Any]
@@ -80,14 +78,12 @@ struct PassesTests {
             #expect(FileManager.default.fileExists(atPath: passFolder.path.appending("/signature")))
 
             #expect(FileManager.default.fileExists(atPath: passFolder.path.appending("/pass.json")))
-            /* TODO: Fix this test
             let passJSONData = try String(contentsOfFile: passFolder.path.appending("/pass.json")).data(using: .utf8)
             let passJSON = try JSONSerialization.jsonObject(with: passJSONData!) as! [String: Any]
             #expect(passJSON["authenticationToken"] as? String == pass.authenticationToken)
             let passID = try pass.requireID().uuidString
             #expect(passJSON["serialNumber"] as? String == passID)
             #expect(passJSON["description"] as? String == passData.title)
-            */
 
             let personalizationJSONData = try String(contentsOfFile: passFolder.path.appending("/personalization.json")).data(using: .utf8)
             let personalizationJSON = try JSONSerialization.jsonObject(with: personalizationJSONData!) as! [String: Any]
