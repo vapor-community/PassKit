@@ -10,7 +10,7 @@ import Zip
 struct OrdersTests {
     let ordersURI = "/api/orders/v1/"
 
-    @Test("Order Generation", .serialized, arguments: [true, false])
+    @Test("Order Generation", arguments: [true, false])
     func orderGeneration(useEncryptedKey: Bool) async throws {
         try await withApp(useEncryptedKey: useEncryptedKey) { app, ordersService in
             let orderData = OrderData(title: "Test Order")

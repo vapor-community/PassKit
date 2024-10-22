@@ -10,7 +10,7 @@ import Zip
 struct PassesTests {
     let passesURI = "/api/passes/v1/"
 
-    @Test("Pass Generation", .serialized, arguments: [true, false])
+    @Test("Pass Generation", arguments: [true, false])
     func passGeneration(useEncryptedKey: Bool) async throws {
         try await withApp(useEncryptedKey: useEncryptedKey) { app, passesService in
             let passData = PassData(title: "Test Pass")
