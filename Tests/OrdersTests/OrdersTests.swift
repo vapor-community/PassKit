@@ -377,14 +377,15 @@ struct OrdersTests {
                 }
             )
 
-            // Test `OrderDataMiddleware` update method
-            // TODO: Fix this test
-            // orderData.title = "Test Order 2"
-            // do {
-            //     try await orderData.update(on: app.db)
-            // } catch let error as HTTPClientError {
-            //     #expect(error.self == .remoteConnectionClosed)
-            // }
+            if !useEncryptedKey {
+                // Test `OrderDataMiddleware` update method
+                orderData.title = "Test Order 2"
+                do {
+                    try await orderData.update(on: app.db)
+                } catch let error as HTTPClientError {
+                    #expect(error.self == .remoteConnectionClosed)
+                }
+            }
         }
     }
 

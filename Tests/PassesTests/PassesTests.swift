@@ -505,14 +505,15 @@ struct PassesTests {
                 }
             )
 
-            // Test `PassDataMiddleware` update method
-            // TODO: Fix this test
-            // passData.title = "Test Pass 2"
-            // do {
-            //     try await passData.update(on: app.db)
-            // } catch let error as HTTPClientError {
-            //     #expect(error.self == .remoteConnectionClosed)
-            // }
+            if !useEncryptedKey {
+                // Test `PassDataMiddleware` update method
+                passData.title = "Test Pass 2"
+                do {
+                    try await passData.update(on: app.db)
+                } catch let error as HTTPClientError {
+                    #expect(error.self == .remoteConnectionClosed)
+                }
+            }
         }
     }
 

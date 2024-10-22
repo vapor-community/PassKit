@@ -11,30 +11,35 @@ func withApp(
     _ body: (Application, PassesService) async throws -> Void
 ) async throws {
     let app = try await Application.make(.testing)
-    try #require(isLoggingConfigured)
+    do {
+        try #require(isLoggingConfigured)
 
-    app.databases.use(.sqlite(.memory), as: .sqlite)
-    PassesService.register(migrations: app.migrations)
-    app.migrations.add(CreatePassData())
-    try await app.autoMigrate()
+        app.databases.use(.sqlite(.memory), as: .sqlite)
+        PassesService.register(migrations: app.migrations)
+        app.migrations.add(CreatePassData())
+        try await app.autoMigrate()
 
-    let delegate = TestPassesDelegate()
-    let passesService = try PassesService(
-        app: app,
-        delegate: delegate,
-        signingFilesDirectory: "\(FileManager.default.currentDirectoryPath)/Tests/Certificates/",
-        pemCertificate: useEncryptedKey ? "encryptedcert.pem" : "certificate.pem",
-        pemPrivateKey: useEncryptedKey ? "encryptedkey.pem" : "key.pem",
-        pemPrivateKeyPassword: useEncryptedKey ? "password" : nil,
-        pushRoutesMiddleware: SecretMiddleware(secret: "foo"),
-        logger: app.logger
-    )
-    app.databases.middleware.use(PassDataMiddleware(service: passesService), on: .sqlite)
+        let delegate = TestPassesDelegate()
+        let passesService = try PassesService(
+            app: app,
+            delegate: delegate,
+            signingFilesDirectory: "\(FileManager.default.currentDirectoryPath)/Tests/Certificates/",
+            pemCertificate: useEncryptedKey ? "encryptedcert.pem" : "certificate.pem",
+            pemPrivateKey: useEncryptedKey ? "encryptedkey.pem" : "key.pem",
+            pemPrivateKeyPassword: useEncryptedKey ? "password" : nil,
+            pushRoutesMiddleware: SecretMiddleware(secret: "foo"),
+            logger: app.logger
+        )
+        app.databases.middleware.use(PassDataMiddleware(service: passesService), on: .sqlite)
 
-    Zip.addCustomFileExtension("pkpass")
+        Zip.addCustomFileExtension("pkpass")
 
-    try await body(app, passesService)
+        try await body(app, passesService)
 
-    try await app.autoRevert()
+        try await app.autoRevert()
+    } catch {
+        try await app.asyncShutdown()
+        throw error
+    }
     try await app.asyncShutdown()
 }
