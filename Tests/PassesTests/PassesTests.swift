@@ -9,6 +9,7 @@ import Zip
 @Suite("Passes Tests")
 struct PassesTests {
     let passesURI = "/api/passes/v1/"
+    let decoder = JSONDecoder()
 
     @Test("Pass Generation", arguments: [true, false])
     func passGeneration(useEncryptedKey: Bool) async throws {
@@ -25,17 +26,17 @@ struct PassesTests {
 
             #expect(FileManager.default.fileExists(atPath: passFolder.path.appending("/pass.json")))
             let passJSONData = try String(contentsOfFile: passFolder.path.appending("/pass.json")).data(using: .utf8)
-            let passJSON = try JSONSerialization.jsonObject(with: passJSONData!) as! [String: Any]
-            #expect(passJSON["authenticationToken"] as? String == pass.authenticationToken)
+            let passJSON = try decoder.decode(PassJSONData.self, from: passJSONData!)
+            #expect(passJSON.authenticationToken == pass.authenticationToken)
             let passID = try pass.requireID().uuidString
-            #expect(passJSON["serialNumber"] as? String == passID)
-            #expect(passJSON["description"] as? String == passData.title)
+            #expect(passJSON.serialNumber == passID)
+            #expect(passJSON.description == passData.title)
 
             let manifestJSONData = try String(contentsOfFile: passFolder.path.appending("/manifest.json")).data(using: .utf8)
-            let manifestJSON = try JSONSerialization.jsonObject(with: manifestJSONData!) as! [String: Any]
+            let manifestJSON = try decoder.decode([String: String].self, from: manifestJSONData!)
             let iconData = try Data(contentsOf: passFolder.appendingPathComponent("/icon.png"))
             let iconHash = Array(Insecure.SHA1.hash(data: iconData)).hex
-            #expect(manifestJSON["icon.png"] as? String == iconHash)
+            #expect(manifestJSON["icon.png"] == iconHash)
             #expect(manifestJSON["logo.png"] != nil)
             #expect(manifestJSON["personalizationLogo.png"] != nil)
         }
@@ -79,21 +80,21 @@ struct PassesTests {
 
             #expect(FileManager.default.fileExists(atPath: passFolder.path.appending("/pass.json")))
             let passJSONData = try String(contentsOfFile: passFolder.path.appending("/pass.json")).data(using: .utf8)
-            let passJSON = try JSONSerialization.jsonObject(with: passJSONData!) as! [String: Any]
-            #expect(passJSON["authenticationToken"] as? String == pass.authenticationToken)
+            let passJSON = try decoder.decode(PassJSONData.self, from: passJSONData!)
+            #expect(passJSON.authenticationToken == pass.authenticationToken)
             let passID = try pass.requireID().uuidString
-            #expect(passJSON["serialNumber"] as? String == passID)
-            #expect(passJSON["description"] as? String == passData.title)
+            #expect(passJSON.serialNumber == passID)
+            #expect(passJSON.description == passData.title)
 
             let personalizationJSONData = try String(contentsOfFile: passFolder.path.appending("/personalization.json")).data(using: .utf8)
-            let personalizationJSON = try JSONSerialization.jsonObject(with: personalizationJSONData!) as! [String: Any]
-            #expect(personalizationJSON["description"] as? String == "Hello, World!")
+            let personalizationJSON = try decoder.decode(PersonalizationJSON.self, from: personalizationJSONData!)
+            #expect(personalizationJSON.description == "Hello, World!")
 
             let manifestJSONData = try String(contentsOfFile: passFolder.path.appending("/manifest.json")).data(using: .utf8)
-            let manifestJSON = try JSONSerialization.jsonObject(with: manifestJSONData!) as! [String: Any]
+            let manifestJSON = try decoder.decode([String: String].self, from: manifestJSONData!)
             let iconData = try Data(contentsOf: passFolder.appendingPathComponent("/personalizationLogo.png"))
             let iconHash = Array(Insecure.SHA1.hash(data: iconData)).hex
-            #expect(manifestJSON["personalizationLogo.png"] as? String == iconHash)
+            #expect(manifestJSON["personalizationLogo.png"] == iconHash)
         }
     }
 

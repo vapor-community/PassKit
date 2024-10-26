@@ -46,7 +46,11 @@ extension OrderData {
     }
 }
 
-struct OrderJSONData: OrderJSON.Properties {
+extension OrderJSON.SchemaVersion: Decodable {}
+extension OrderJSON.OrderType: Decodable {}
+extension OrderJSON.OrderStatus: Decodable {}
+
+struct OrderJSONData: OrderJSON.Properties, Decodable {
     let schemaVersion = OrderJSON.SchemaVersion.v1
     let orderTypeIdentifier = "order.com.example.pet-store"
     let orderIdentifier: String
@@ -61,11 +65,23 @@ struct OrderJSONData: OrderJSON.Properties {
 
     private let webServiceURL = "https://www.example.com/api/orders/"
 
-    struct MerchantData: OrderJSON.Merchant {
+    enum CodingKeys: String, CodingKey {
+        case schemaVersion
+        case orderTypeIdentifier, orderIdentifier, orderType, orderNumber
+        case createdAt, updatedAt
+        case status, merchant
+        case orderManagementURL, authenticationToken, webServiceURL
+    }
+
+    struct MerchantData: OrderJSON.Merchant, Decodable {
         let merchantIdentifier = "com.example.pet-store"
         let displayName: String
         let url = "https://www.example.com/"
         let logo = "pet_store_logo.png"
+
+        enum CodingKeys: String, CodingKey {
+            case merchantIdentifier, displayName, url, logo
+        }
     }
 
     init(data: OrderData, order: Order) {

@@ -4,7 +4,7 @@
 /// It also contains a description of the program and (optionally) the program’s terms and conditions.
 ///
 /// > Tip: See the [documentation](https://developer.apple.com/library/archive/documentation/UserExperience/Conceptual/PassKit_PG/PassPersonalization.html#//apple_ref/doc/uid/TP40012195-CH12-SW2) to understand the keys.
-public struct PersonalizationJSON: Encodable, Sendable {
+public struct PersonalizationJSON: Codable, Sendable {
     /// The contents of this array define the data requested from the user.
     ///
     /// The signup form’s fields are generated based on these keys.
@@ -42,7 +42,7 @@ public struct PersonalizationJSON: Encodable, Sendable {
 
 extension PersonalizationJSON {
     /// Personal information requested by the signup form.
-    public enum PersonalizationField: String, Encodable, Sendable {
+    public enum PersonalizationField: String, Codable, Sendable {
         /// Prompts the user for their name.
         ///
         /// `fullName`, `givenName`, and `familyName` are submitted in the personalize request.

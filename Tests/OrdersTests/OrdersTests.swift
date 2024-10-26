@@ -9,6 +9,7 @@ import Zip
 @Suite("Orders Tests")
 struct OrdersTests {
     let ordersURI = "/api/orders/v1/"
+    let decoder = JSONDecoder()
 
     @Test("Order Generation", arguments: [true, false])
     func orderGeneration(useEncryptedKey: Bool) async throws {
@@ -24,17 +25,17 @@ struct OrdersTests {
             #expect(FileManager.default.fileExists(atPath: orderFolder.path.appending("/signature")))
 
             #expect(FileManager.default.fileExists(atPath: orderFolder.path.appending("/order.json")))
-            let passJSONData = try String(contentsOfFile: orderFolder.path.appending("/order.json")).data(using: .utf8)
-            let passJSON = try JSONSerialization.jsonObject(with: passJSONData!) as! [String: Any]
-            #expect(passJSON["authenticationToken"] as? String == order.authenticationToken)
+            let orderJSONData = try String(contentsOfFile: orderFolder.path.appending("/order.json")).data(using: .utf8)
+            let orderJSON = try decoder.decode(OrderJSONData.self, from: orderJSONData!)
+            #expect(orderJSON.authenticationToken == order.authenticationToken)
             let orderID = try order.requireID().uuidString
-            #expect(passJSON["orderIdentifier"] as? String == orderID)
+            #expect(orderJSON.orderIdentifier == orderID)
 
             let manifestJSONData = try String(contentsOfFile: orderFolder.path.appending("/manifest.json")).data(using: .utf8)
-            let manifestJSON = try JSONSerialization.jsonObject(with: manifestJSONData!) as! [String: Any]
+            let manifestJSON = try decoder.decode([String: String].self, from: manifestJSONData!)
             let iconData = try Data(contentsOf: orderFolder.appendingPathComponent("/icon.png"))
             let iconHash = Array(SHA256.hash(data: iconData)).hex
-            #expect(manifestJSON["icon.png"] as? String == iconHash)
+            #expect(manifestJSON["icon.png"] == iconHash)
             #expect(manifestJSON["pet_store_logo.png"] != nil)
         }
     }
