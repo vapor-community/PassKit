@@ -161,7 +161,7 @@ extension PassesServiceCustom {
         let deviceLibraryIdentifier = req.parameters.get("deviceLibraryIdentifier")!
         guard
             let pass = try await P.query(on: req.db)
-                .filter(\._$passTypeIdentifier == passTypeIdentifier)
+                .filter(\._$typeIdentifier == passTypeIdentifier)
                 .filter(\._$id == serial)
                 .first()
         else {
@@ -182,14 +182,11 @@ extension PassesServiceCustom {
         }
     }
 
-    private static func createRegistration(
-        device: D,
-        pass: P,
-        db: any Database
-    ) async throws -> HTTPStatus {
+    private static func createRegistration(device: D, pass: P, db: any Database) async throws -> HTTPStatus {
         let r = try await R.for(
             deviceLibraryIdentifier: device.deviceLibraryIdentifier,
-            passTypeIdentifier: pass.passTypeIdentifier, on: db
+            typeIdentifier: pass.typeIdentifier,
+            on: db
         )
         .filter(P.self, \._$id == pass.requireID())
         .first()
@@ -211,7 +208,9 @@ extension PassesServiceCustom {
 
         var query = R.for(
             deviceLibraryIdentifier: deviceLibraryIdentifier,
-            passTypeIdentifier: passTypeIdentifier, on: req.db)
+            typeIdentifier: passTypeIdentifier,
+            on: req.db
+        )
         if let since: TimeInterval = req.query["passesUpdatedSince"] {
             let when = Date(timeIntervalSince1970: since)
             query = query.filter(P.self, \._$updatedAt > when)
@@ -251,7 +250,7 @@ extension PassesServiceCustom {
         guard
             let pass = try await P.query(on: req.db)
                 .filter(\._$id == id)
-                .filter(\._$passTypeIdentifier == passTypeIdentifier)
+                .filter(\._$typeIdentifier == passTypeIdentifier)
                 .first()
         else {
             throw Abort(.notFound)
@@ -284,7 +283,8 @@ extension PassesServiceCustom {
         guard
             let r = try await R.for(
                 deviceLibraryIdentifier: deviceLibraryIdentifier,
-                passTypeIdentifier: passTypeIdentifier, on: req.db
+                typeIdentifier: passTypeIdentifier,
+                on: req.db
             )
             .filter(P.self, \._$id == passId)
             .first()
@@ -324,7 +324,7 @@ extension PassesServiceCustom {
         guard
             let pass = try await P.query(on: req.db)
                 .filter(\._$id == id)
-                .filter(\._$passTypeIdentifier == passTypeIdentifier)
+                .filter(\._$typeIdentifier == passTypeIdentifier)
                 .first()
         else {
             throw Abort(.notFound)
@@ -444,17 +444,14 @@ extension PassesServiceCustom {
     ///
     /// - Parameters:
     ///   - id: The `UUID` of the pass to send the notifications for.
-    ///   - passTypeIdentifier: The type identifier of the pass.
+    ///   - typeIdentifier: The type identifier of the pass.
     ///   - db: The `Database` to use.
-    public func sendPushNotificationsForPass(
-        id: UUID, of passTypeIdentifier: String, on db: any Database
-    ) async throws {
-        let registrations = try await Self.registrationsForPass(
-            id: id, of: passTypeIdentifier, on: db)
+    public func sendPushNotificationsForPass(id: UUID, of typeIdentifier: String, on db: any Database) async throws {
+        let registrations = try await Self.registrationsForPass(id: id, of: typeIdentifier, on: db)
         for reg in registrations {
             let backgroundNotification = APNSBackgroundNotification(
                 expiration: .immediately,
-                topic: reg.pass.passTypeIdentifier,
+                topic: reg.pass.typeIdentifier,
                 payload: EmptyPayload()
             )
             do {
@@ -475,10 +472,10 @@ extension PassesServiceCustom {
     ///   - pass: The pass to send the notifications for.
     ///   - db: The `Database` to use.
     public func sendPushNotifications(for pass: P, on db: any Database) async throws {
-        try await sendPushNotificationsForPass(id: pass.requireID(), of: pass.passTypeIdentifier, on: db)
+        try await sendPushNotificationsForPass(id: pass.requireID(), of: pass.typeIdentifier, on: db)
     }
 
-    private static func registrationsForPass(id: UUID, of passTypeIdentifier: String, on db: any Database) async throws -> [R] {
+    private static func registrationsForPass(id: UUID, of typeIdentifier: String, on db: any Database) async throws -> [R] {
         // This could be done by enforcing the caller to have a Siblings property wrapper,
         // but there's not really any value to forcing that on them when we can just do the query ourselves like this.
         try await R.query(on: db)
@@ -486,7 +483,7 @@ extension PassesServiceCustom {
             .join(parent: \._$device)
             .with(\._$pass)
             .with(\._$device)
-            .filter(P.self, \._$passTypeIdentifier == passTypeIdentifier)
+            .filter(P.self, \._$typeIdentifier == typeIdentifier)
             .filter(P.self, \._$id == id)
             .all()
     }

@@ -146,7 +146,7 @@ import Passes
 
 final class PassDelegate: PassesDelegate {
     func encode<P: PassModel>(pass: P, db: Database, encoder: JSONEncoder) async throws -> Data {
-        // The specific PassData class you use here may vary based on the `pass.passTypeIdentifier`
+        // The specific PassData class you use here may vary based on the `pass.typeIdentifier`
         // if you have multiple different types of passes, and thus multiple types of pass data.
         guard let passData = try await PassData.query(on: db)
             .filter(\.$pass.$id == pass.requireID())
@@ -264,7 +264,7 @@ struct PassDataMiddleware: AsyncModelMiddleware {
     // Create the `Pass` and add it to the `PassData` automatically at creation
     func create(model: PassData, on db: Database, next: AnyAsyncModelResponder) async throws {
         let pass = Pass(
-            passTypeIdentifier: Environment.get("PASS_TYPE_IDENTIFIER")!,
+            typeIdentifier: Environment.get("PASS_TYPE_IDENTIFIER")!,
             authenticationToken: Data([UInt8].random(count: 12)).base64EncodedString())
         try await pass.save(on: db)
         model.$pass.id = try pass.requireID()

@@ -122,7 +122,7 @@ import Orders
 
 final class OrderDelegate: OrdersDelegate {
     func encode<O: OrderModel>(order: O, db: Database, encoder: JSONEncoder) async throws -> Data {
-        // The specific OrderData class you use here may vary based on the `order.orderTypeIdentifier`
+        // The specific OrderData class you use here may vary based on the `order.typeIdentifier`
         // if you have multiple different types of orders, and thus multiple types of order data.
         guard let orderData = try await OrderData.query(on: db)
             .filter(\.$order.$id == order.requireID())
@@ -239,7 +239,7 @@ struct OrderDataMiddleware: AsyncModelMiddleware {
     // Create the `Order` and add it to the `OrderData` automatically at creation
     func create(model: OrderData, on db: Database, next: AnyAsyncModelResponder) async throws {
         let order = Order(
-            orderTypeIdentifier: Environment.get("ORDER_TYPE_IDENTIFIER")!,
+            typeIdentifier: Environment.get("ORDER_TYPE_IDENTIFIER")!,
             authenticationToken: Data([UInt8].random(count: 12)).base64EncodedString())
         try await order.save(on: db)
         model.$order.id = try order.requireID()

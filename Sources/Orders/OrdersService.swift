@@ -75,12 +75,10 @@ public final class OrdersService: Sendable {
     ///
     /// - Parameters:
     ///   - id: The `UUID` of the order to send the notifications for.
-    ///   - orderTypeIdentifier: The type identifier of the order.
+    ///   - typeIdentifier: The type identifier of the order.
     ///   - db: The `Database` to use.
-    public func sendPushNotificationsForOrder(
-        id: UUID, of orderTypeIdentifier: String, on db: any Database
-    ) async throws {
-        try await service.sendPushNotificationsForOrder(id: id, of: orderTypeIdentifier, on: db)
+    public func sendPushNotificationsForOrder(id: UUID, of typeIdentifier: String, on db: any Database) async throws {
+        try await service.sendPushNotificationsForOrder(id: id, of: typeIdentifier, on: db)
     }
 
     /// Sends push notifications for a given order.

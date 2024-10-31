@@ -113,30 +113,24 @@ where O == R.OrderType, D == R.DeviceType {
         )
 
         let v1 = app.grouped("api", "orders", "v1")
-        v1.get(
-            "devices", ":deviceIdentifier", "registrations", ":orderTypeIdentifier",
-            use: { try await self.ordersForDevice(req: $0) })
+        v1.get("devices", ":deviceIdentifier", "registrations", ":orderTypeIdentifier", use: { try await self.ordersForDevice(req: $0) })
         v1.post("log", use: { try await self.logError(req: $0) })
 
         let v1auth = v1.grouped(AppleOrderMiddleware<O>())
         v1auth.post(
-            "devices", ":deviceIdentifier", "registrations", ":orderTypeIdentifier",
-            ":orderIdentifier", use: { try await self.registerDevice(req: $0) })
-        v1auth.get(
-            "orders", ":orderTypeIdentifier", ":orderIdentifier",
-            use: { try await self.latestVersionOfOrder(req: $0) })
+            "devices", ":deviceIdentifier", "registrations", ":orderTypeIdentifier", ":orderIdentifier",
+            use: { try await self.registerDevice(req: $0) }
+        )
+        v1auth.get("orders", ":orderTypeIdentifier", ":orderIdentifier", use: { try await self.latestVersionOfOrder(req: $0) })
         v1auth.delete(
-            "devices", ":deviceIdentifier", "registrations", ":orderTypeIdentifier",
-            ":orderIdentifier", use: { try await self.unregisterDevice(req: $0) })
+            "devices", ":deviceIdentifier", "registrations", ":orderTypeIdentifier", ":orderIdentifier",
+            use: { try await self.unregisterDevice(req: $0) }
+        )
 
         if let pushRoutesMiddleware {
             let pushAuth = v1.grouped(pushRoutesMiddleware)
-            pushAuth.post(
-                "push", ":orderTypeIdentifier", ":orderIdentifier",
-                use: { try await self.pushUpdatesForOrder(req: $0) })
-            pushAuth.get(
-                "push", ":orderTypeIdentifier", ":orderIdentifier",
-                use: { try await self.tokensForOrderUpdate(req: $0) })
+            pushAuth.post("push", ":orderTypeIdentifier", ":orderIdentifier", use: { try await self.pushUpdatesForOrder(req: $0) })
+            pushAuth.get("push", ":orderTypeIdentifier", ":orderIdentifier", use: { try await self.tokensForOrderUpdate(req: $0) })
         }
     }
 }
@@ -159,7 +153,7 @@ extension OrdersServiceCustom {
         guard
             let order = try await O.query(on: req.db)
                 .filter(\._$id == id)
-                .filter(\._$orderTypeIdentifier == orderTypeIdentifier)
+                .filter(\._$typeIdentifier == orderTypeIdentifier)
                 .first()
         else {
             throw Abort(.notFound)
@@ -198,7 +192,7 @@ extension OrdersServiceCustom {
         guard
             let order = try await O.query(on: req.db)
                 .filter(\._$id == orderIdentifier)
-                .filter(\._$orderTypeIdentifier == orderTypeIdentifier)
+                .filter(\._$typeIdentifier == orderTypeIdentifier)
                 .first()
         else {
             throw Abort(.notFound)
@@ -222,7 +216,8 @@ extension OrdersServiceCustom {
     ) async throws -> HTTPStatus {
         let r = try await R.for(
             deviceLibraryIdentifier: device.deviceLibraryIdentifier,
-            orderTypeIdentifier: order.orderTypeIdentifier, on: db
+            typeIdentifier: order.typeIdentifier,
+            on: db
         )
         .filter(O.self, \._$id == order.requireID())
         .first()
@@ -243,8 +238,10 @@ extension OrdersServiceCustom {
         let deviceIdentifier = req.parameters.get("deviceIdentifier")!
 
         var query = R.for(
-            deviceLibraryIdentifier: deviceIdentifier, orderTypeIdentifier: orderTypeIdentifier,
-            on: req.db)
+            deviceLibraryIdentifier: deviceIdentifier,
+            typeIdentifier: orderTypeIdentifier,
+            on: req.db
+        )
         if let since: TimeInterval = req.query["ordersModifiedSince"] {
             let when = Date(timeIntervalSince1970: since)
             query = query.filter(O.self, \._$updatedAt > when)
@@ -297,7 +294,8 @@ extension OrdersServiceCustom {
 
         guard
             let r = try await R.for(
-                deviceLibraryIdentifier: deviceIdentifier, orderTypeIdentifier: orderTypeIdentifier,
+                deviceLibraryIdentifier: deviceIdentifier,
+                typeIdentifier: orderTypeIdentifier,
                 on: req.db
             )
             .filter(O.self, \._$id == orderIdentifier)
@@ -340,17 +338,14 @@ extension OrdersServiceCustom {
     ///
     /// - Parameters:
     ///   - id: The `UUID` of the order to send the notifications for.
-    ///   - orderTypeIdentifier: The type identifier of the order.
+    ///   - typeIdentifier: The type identifier of the order.
     ///   - db: The `Database` to use.
-    public func sendPushNotificationsForOrder(
-        id: UUID, of orderTypeIdentifier: String, on db: any Database
-    ) async throws {
-        let registrations = try await Self.registrationsForOrder(
-            id: id, of: orderTypeIdentifier, on: db)
+    public func sendPushNotificationsForOrder(id: UUID, of typeIdentifier: String, on db: any Database) async throws {
+        let registrations = try await Self.registrationsForOrder(id: id, of: typeIdentifier, on: db)
         for reg in registrations {
             let backgroundNotification = APNSBackgroundNotification(
                 expiration: .immediately,
-                topic: reg.order.orderTypeIdentifier,
+                topic: reg.order.typeIdentifier,
                 payload: EmptyPayload()
             )
             do {
@@ -371,10 +366,10 @@ extension OrdersServiceCustom {
     ///   - order: The order to send the notifications for.
     ///   - db: The `Database` to use.
     public func sendPushNotifications(for order: O, on db: any Database) async throws {
-        try await sendPushNotificationsForOrder(id: order.requireID(), of: order.orderTypeIdentifier, on: db)
+        try await sendPushNotificationsForOrder(id: order.requireID(), of: order.typeIdentifier, on: db)
     }
 
-    private static func registrationsForOrder(id: UUID, of orderTypeIdentifier: String, on db: any Database) async throws -> [R] {
+    private static func registrationsForOrder(id: UUID, of typeIdentifier: String, on db: any Database) async throws -> [R] {
         // This could be done by enforcing the caller to have a Siblings property wrapper,
         // but there's not really any value to forcing that on them when we can just do the query ourselves like this.
         try await R.query(on: db)
@@ -382,7 +377,7 @@ extension OrdersServiceCustom {
             .join(parent: \._$device)
             .with(\._$order)
             .with(\._$device)
-            .filter(O.self, \._$orderTypeIdentifier == orderTypeIdentifier)
+            .filter(O.self, \._$typeIdentifier == typeIdentifier)
             .filter(O.self, \._$id == id)
             .all()
     }

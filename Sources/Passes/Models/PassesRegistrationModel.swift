@@ -62,15 +62,13 @@ extension PassesRegistrationModel {
         return pass
     }
 
-    static func `for`(
-        deviceLibraryIdentifier: String, passTypeIdentifier: String, on db: any Database
-    ) -> QueryBuilder<Self> {
+    static func `for`(deviceLibraryIdentifier: String, typeIdentifier: String, on db: any Database) -> QueryBuilder<Self> {
         Self.query(on: db)
             .join(parent: \._$pass)
             .join(parent: \._$device)
             .with(\._$pass)
             .with(\._$device)
-            .filter(PassType.self, \._$passTypeIdentifier == passTypeIdentifier)
+            .filter(PassType.self, \._$typeIdentifier == typeIdentifier)
             .filter(DeviceType.self, \._$deviceLibraryIdentifier == deviceLibraryIdentifier)
     }
 }

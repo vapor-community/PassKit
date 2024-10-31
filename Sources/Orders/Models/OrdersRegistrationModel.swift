@@ -41,15 +41,13 @@ extension OrdersRegistrationModel {
         return order
     }
 
-    static func `for`(
-        deviceLibraryIdentifier: String, orderTypeIdentifier: String, on db: any Database
-    ) -> QueryBuilder<Self> {
+    static func `for`(deviceLibraryIdentifier: String, typeIdentifier: String, on db: any Database) -> QueryBuilder<Self> {
         Self.query(on: db)
             .join(parent: \._$order)
             .join(parent: \._$device)
             .with(\._$order)
             .with(\._$device)
-            .filter(OrderType.self, \._$orderTypeIdentifier == orderTypeIdentifier)
+            .filter(OrderType.self, \._$typeIdentifier == typeIdentifier)
             .filter(DeviceType.self, \._$deviceLibraryIdentifier == deviceLibraryIdentifier)
     }
 }
