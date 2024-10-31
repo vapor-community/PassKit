@@ -6,7 +6,7 @@ import Zip
 
 @testable import Passes
 
-@Suite("Passes Tests")
+@Suite("Passes Tests", .serialized)
 struct PassesTests {
     let passesURI = "/api/passes/v1/"
     let decoder = JSONDecoder()

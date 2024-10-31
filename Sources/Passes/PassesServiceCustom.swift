@@ -582,8 +582,7 @@ extension PassesServiceCustom {
             throw PassesError.templateNotDirectory
         }
 
-        let tmp = FileManager.default.temporaryDirectory
-        let root = tmp.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
         try FileManager.default.copyItem(at: templateDirectory, to: root)
         defer { _ = try? FileManager.default.removeItem(at: root) }
 

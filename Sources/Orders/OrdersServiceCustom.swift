@@ -33,6 +33,7 @@ where O == R.OrderType, D == R.DeviceType {
     private let pemPrivateKeyPassword: String?
     private let sslBinary: URL
     private let logger: Logger?
+    private let encoder = JSONEncoder()
 
     /// Initializes the service and registers all the routes required for Apple Wallet to work.
     ///
@@ -106,7 +107,7 @@ where O == R.OrderType, D == R.DeviceType {
             apnsConfig,
             eventLoopGroupProvider: .shared(app.eventLoopGroup),
             responseDecoder: JSONDecoder(),
-            requestEncoder: JSONEncoder(),
+            requestEncoder: self.encoder,
             as: .init(string: "orders"),
             isDefault: false
         )
@@ -478,16 +479,14 @@ extension OrdersServiceCustom {
             throw OrdersError.templateNotDirectory
         }
 
-        let tmp = FileManager.default.temporaryDirectory
-        let root = tmp.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
         try FileManager.default.copyItem(at: templateDirectory, to: root)
         defer { _ = try? FileManager.default.removeItem(at: root) }
 
-        let encoder = JSONEncoder()
-        try await self.delegate.encode(order: order, db: db, encoder: encoder)
+        try await self.delegate.encode(order: order, db: db, encoder: self.encoder)
             .write(to: root.appendingPathComponent("order.json"))
 
-        try self.generateSignatureFile(for: Self.generateManifestFile(using: encoder, in: root), in: root)
+        try self.generateSignatureFile(for: Self.generateManifestFile(using: self.encoder, in: root), in: root)
 
         var files = try FileManager.default.contentsOfDirectory(at: templateDirectory, includingPropertiesForKeys: nil)
         files.append(URL(fileURLWithPath: "order.json", relativeTo: root))
