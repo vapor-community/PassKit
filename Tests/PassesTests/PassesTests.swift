@@ -6,36 +6,37 @@ import Zip
 
 @testable import Passes
 
-@Suite("Passes Tests")
+@Suite("Passes Tests", .serialized)
 struct PassesTests {
-    let delegate = TestPassesDelegate()
     let passesURI = "/api/passes/v1/"
+    let decoder = JSONDecoder()
 
-    @Test("Pass Generation")
-    func passGeneration() async throws {
-        try await withApp(delegate: delegate) { app, passesService in
+    @Test("Pass Generation", arguments: [true, false])
+    func passGeneration(useEncryptedKey: Bool) async throws {
+        try await withApp(useEncryptedKey: useEncryptedKey) { app, passesService in
             let passData = PassData(title: "Test Pass")
             try await passData.create(on: app.db)
             let pass = try await passData.$pass.get(on: app.db)
             let data = try await passesService.generatePassContent(for: pass, on: app.db)
-            let passURL = FileManager.default.temporaryDirectory.appendingPathComponent("test.pkpass")
+            let passURL = FileManager.default.temporaryDirectory.appendingPathComponent("\(UUID().uuidString).pkpass")
             try data.write(to: passURL)
-            let passFolder = try Zip.quickUnzipFile(passURL)
+            let passFolder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+            try Zip.unzipFile(passURL, destination: passFolder)
 
             #expect(FileManager.default.fileExists(atPath: passFolder.path.appending("/signature")))
 
+            #expect(FileManager.default.fileExists(atPath: passFolder.path.appending("/pass.json")))
             let passJSONData = try String(contentsOfFile: passFolder.path.appending("/pass.json")).data(using: .utf8)
-            let passJSON = try JSONSerialization.jsonObject(with: passJSONData!) as! [String: Any]
-            #expect(passJSON["authenticationToken"] as? String == pass.authenticationToken)
+            let passJSON = try decoder.decode(PassJSONData.self, from: passJSONData!)
+            #expect(passJSON.authenticationToken == pass.authenticationToken)
             let passID = try pass.requireID().uuidString
-            #expect(passJSON["serialNumber"] as? String == passID)
-            #expect(passJSON["description"] as? String == passData.title)
+            #expect(passJSON.serialNumber == passID)
+            #expect(passJSON.description == passData.title)
 
             let manifestJSONData = try String(contentsOfFile: passFolder.path.appending("/manifest.json")).data(using: .utf8)
-            let manifestJSON = try JSONSerialization.jsonObject(with: manifestJSONData!) as! [String: Any]
+            let manifestJSON = try decoder.decode([String: String].self, from: manifestJSONData!)
             let iconData = try Data(contentsOf: passFolder.appendingPathComponent("/icon.png"))
-            let iconHash = Array(Insecure.SHA1.hash(data: iconData)).hex
-            #expect(manifestJSON["icon.png"] as? String == iconHash)
+            #expect(manifestJSON["icon.png"] == Insecure.SHA1.hash(data: iconData).hex)
             #expect(manifestJSON["logo.png"] != nil)
             #expect(manifestJSON["personalizationLogo.png"] != nil)
         }
@@ -43,7 +44,7 @@ struct PassesTests {
 
     @Test("Generating Multiple Passes")
     func passesGeneration() async throws {
-        try await withApp(delegate: delegate) { app, passesService in
+        try await withApp { app, passesService in
             let passData1 = PassData(title: "Test Pass 1")
             try await passData1.create(on: app.db)
             let pass1 = try await passData1.$pass.get(on: app.db)
@@ -66,44 +67,47 @@ struct PassesTests {
 
     @Test("Personalizable Passes")
     func personalization() async throws {
-        try await withApp(delegate: delegate) { app, passesService in
+        try await withApp { app, passesService in
             let passData = PassData(title: "Personalize")
             try await passData.create(on: app.db)
             let pass = try await passData.$pass.get(on: app.db)
             let data = try await passesService.generatePassContent(for: pass, on: app.db)
-            let passURL = FileManager.default.temporaryDirectory.appendingPathComponent("test.pkpass")
+            let passURL = FileManager.default.temporaryDirectory.appendingPathComponent("\(UUID().uuidString).pkpass")
             try data.write(to: passURL)
-            let passFolder = try Zip.quickUnzipFile(passURL)
+            let passFolder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+            try Zip.unzipFile(passURL, destination: passFolder)
 
+            #expect(FileManager.default.fileExists(atPath: passFolder.path.appending("/signature")))
+
+            #expect(FileManager.default.fileExists(atPath: passFolder.path.appending("/pass.json")))
             let passJSONData = try String(contentsOfFile: passFolder.path.appending("/pass.json")).data(using: .utf8)
-            let passJSON = try JSONSerialization.jsonObject(with: passJSONData!) as! [String: Any]
-            #expect(passJSON["authenticationToken"] as? String == pass.authenticationToken)
+            let passJSON = try decoder.decode(PassJSONData.self, from: passJSONData!)
+            #expect(passJSON.authenticationToken == pass.authenticationToken)
             let passID = try pass.requireID().uuidString
-            #expect(passJSON["serialNumber"] as? String == passID)
-            #expect(passJSON["description"] as? String == passData.title)
+            #expect(passJSON.serialNumber == passID)
+            #expect(passJSON.description == passData.title)
 
             let personalizationJSONData = try String(contentsOfFile: passFolder.path.appending("/personalization.json")).data(using: .utf8)
-            let personalizationJSON = try JSONSerialization.jsonObject(with: personalizationJSONData!) as! [String: Any]
-            #expect(personalizationJSON["description"] as? String == "Hello, World!")
+            let personalizationJSON = try decoder.decode(PersonalizationJSON.self, from: personalizationJSONData!)
+            #expect(personalizationJSON.description == "Hello, World!")
 
             let manifestJSONData = try String(contentsOfFile: passFolder.path.appending("/manifest.json")).data(using: .utf8)
-            let manifestJSON = try JSONSerialization.jsonObject(with: manifestJSONData!) as! [String: Any]
+            let manifestJSON = try decoder.decode([String: String].self, from: manifestJSONData!)
             let iconData = try Data(contentsOf: passFolder.appendingPathComponent("/personalizationLogo.png"))
-            let iconHash = Array(Insecure.SHA1.hash(data: iconData)).hex
-            #expect(manifestJSON["personalizationLogo.png"] as? String == iconHash)
+            #expect(manifestJSON["personalizationLogo.png"] == Insecure.SHA1.hash(data: iconData).hex)
         }
     }
 
     @Test("Getting Pass from Apple Wallet API")
     func getPassFromAPI() async throws {
-        try await withApp(delegate: delegate) { app, passesService in
+        try await withApp { app, passesService in
             let passData = PassData(title: "Test Pass")
             try await passData.create(on: app.db)
             let pass = try await passData.$pass.get(on: app.db)
 
             try await app.test(
                 .GET,
-                "\(passesURI)passes/\(pass.passTypeIdentifier)/\(pass.requireID())",
+                "\(passesURI)passes/\(pass.typeIdentifier)/\(pass.requireID())",
                 headers: [
                     "Authorization": "ApplePass \(pass.authenticationToken)",
                     "If-Modified-Since": "0",
@@ -119,7 +123,7 @@ struct PassesTests {
             // Test call with invalid authentication token
             try await app.test(
                 .GET,
-                "\(passesURI)passes/\(pass.passTypeIdentifier)/\(pass.requireID())",
+                "\(passesURI)passes/\(pass.typeIdentifier)/\(pass.requireID())",
                 headers: [
                     "Authorization": "ApplePass invalid-token",
                     "If-Modified-Since": "0",
@@ -132,7 +136,7 @@ struct PassesTests {
             // Test distant future `If-Modified-Since` date
             try await app.test(
                 .GET,
-                "\(passesURI)passes/\(pass.passTypeIdentifier)/\(pass.requireID())",
+                "\(passesURI)passes/\(pass.typeIdentifier)/\(pass.requireID())",
                 headers: [
                     "Authorization": "ApplePass \(pass.authenticationToken)",
                     "If-Modified-Since": "2147483647",
@@ -145,7 +149,7 @@ struct PassesTests {
             // Test call with invalid pass ID
             try await app.test(
                 .GET,
-                "\(passesURI)passes/\(pass.passTypeIdentifier)/invalid-uuid",
+                "\(passesURI)passes/\(pass.typeIdentifier)/invalid-uuid",
                 headers: [
                     "Authorization": "ApplePass \(pass.authenticationToken)",
                     "If-Modified-Since": "0",
@@ -170,9 +174,9 @@ struct PassesTests {
         }
     }
 
-    @Test("Personalizable Pass Apple Wallet API")
-    func personalizationAPI() async throws {
-        try await withApp(delegate: delegate) { app, passesService in
+    @Test("Personalizable Pass Apple Wallet API", arguments: [true, false])
+    func personalizationAPI(useEncryptedKey: Bool) async throws {
+        try await withApp(useEncryptedKey: useEncryptedKey) { app, passesService in
             let passData = PassData(title: "Personalize")
             try await passData.create(on: app.db)
             let pass = try await passData.$pass.get(on: app.db)
@@ -191,7 +195,7 @@ struct PassesTests {
 
             try await app.test(
                 .POST,
-                "\(passesURI)passes/\(pass.passTypeIdentifier)/\(pass.requireID())/personalize",
+                "\(passesURI)passes/\(pass.typeIdentifier)/\(pass.requireID())/personalize",
                 beforeRequest: { req async throws in
                     try req.content.encode(personalizationDict)
                 },
@@ -217,7 +221,7 @@ struct PassesTests {
             // Test call with invalid pass ID
             try await app.test(
                 .POST,
-                "\(passesURI)passes/\(pass.passTypeIdentifier)/invalid-uuid/personalize",
+                "\(passesURI)passes/\(pass.typeIdentifier)/invalid-uuid/personalize",
                 beforeRequest: { req async throws in
                     try req.content.encode(personalizationDict)
                 },
@@ -242,7 +246,7 @@ struct PassesTests {
 
     @Test("Device Registration API")
     func apiDeviceRegistration() async throws {
-        try await withApp(delegate: delegate) { app, passesService in
+        try await withApp { app, passesService in
             let passData = PassData(title: "Test Pass")
             try await passData.create(on: app.db)
             let pass = try await passData.$pass.get(on: app.db)
@@ -251,7 +255,7 @@ struct PassesTests {
 
             try await app.test(
                 .GET,
-                "\(passesURI)devices/\(deviceLibraryIdentifier)/registrations/\(pass.passTypeIdentifier)?passesUpdatedSince=0",
+                "\(passesURI)devices/\(deviceLibraryIdentifier)/registrations/\(pass.typeIdentifier)?passesUpdatedSince=0",
                 afterResponse: { res async throws in
                     #expect(res.status == .noContent)
                 }
@@ -259,7 +263,7 @@ struct PassesTests {
 
             try await app.test(
                 .DELETE,
-                "\(passesURI)devices/\(deviceLibraryIdentifier)/registrations/\(pass.passTypeIdentifier)/\(pass.requireID())",
+                "\(passesURI)devices/\(deviceLibraryIdentifier)/registrations/\(pass.typeIdentifier)/\(pass.requireID())",
                 headers: ["Authorization": "ApplePass \(pass.authenticationToken)"],
                 afterResponse: { res async throws in
                     #expect(res.status == .notFound)
@@ -269,7 +273,7 @@ struct PassesTests {
             // Test registration without authentication token
             try await app.test(
                 .POST,
-                "\(passesURI)devices/\(deviceLibraryIdentifier)/registrations/\(pass.passTypeIdentifier)/\(pass.requireID())",
+                "\(passesURI)devices/\(deviceLibraryIdentifier)/registrations/\(pass.typeIdentifier)/\(pass.requireID())",
                 beforeRequest: { req async throws in
                     try req.content.encode(RegistrationDTO(pushToken: pushToken))
                 },
@@ -294,7 +298,7 @@ struct PassesTests {
             // Test call without DTO
             try await app.test(
                 .POST,
-                "\(passesURI)devices/\(deviceLibraryIdentifier)/registrations/\(pass.passTypeIdentifier)/\(pass.requireID())",
+                "\(passesURI)devices/\(deviceLibraryIdentifier)/registrations/\(pass.typeIdentifier)/\(pass.requireID())",
                 headers: ["Authorization": "ApplePass \(pass.authenticationToken)"],
                 afterResponse: { res async throws in
                     #expect(res.status == .badRequest)
@@ -304,7 +308,7 @@ struct PassesTests {
             // Test call with invalid UUID
             try await app.test(
                 .POST,
-                "\(passesURI)devices/\(deviceLibraryIdentifier)/registrations/\(pass.passTypeIdentifier)/\("not-a-uuid")",
+                "\(passesURI)devices/\(deviceLibraryIdentifier)/registrations/\(pass.typeIdentifier)/\("not-a-uuid")",
                 headers: ["Authorization": "ApplePass \(pass.authenticationToken)"],
                 beforeRequest: { req async throws in
                     try req.content.encode(RegistrationDTO(pushToken: pushToken))
@@ -316,7 +320,7 @@ struct PassesTests {
 
             try await app.test(
                 .POST,
-                "\(passesURI)devices/\(deviceLibraryIdentifier)/registrations/\(pass.passTypeIdentifier)/\(pass.requireID())",
+                "\(passesURI)devices/\(deviceLibraryIdentifier)/registrations/\(pass.typeIdentifier)/\(pass.requireID())",
                 headers: ["Authorization": "ApplePass \(pass.authenticationToken)"],
                 beforeRequest: { req async throws in
                     try req.content.encode(RegistrationDTO(pushToken: pushToken))
@@ -329,7 +333,7 @@ struct PassesTests {
             // Test registration of an already registered device
             try await app.test(
                 .POST,
-                "\(passesURI)devices/\(deviceLibraryIdentifier)/registrations/\(pass.passTypeIdentifier)/\(pass.requireID())",
+                "\(passesURI)devices/\(deviceLibraryIdentifier)/registrations/\(pass.typeIdentifier)/\(pass.requireID())",
                 headers: ["Authorization": "ApplePass \(pass.authenticationToken)"],
                 beforeRequest: { req async throws in
                     try req.content.encode(RegistrationDTO(pushToken: pushToken))
@@ -341,7 +345,7 @@ struct PassesTests {
 
             try await app.test(
                 .GET,
-                "\(passesURI)devices/\(deviceLibraryIdentifier)/registrations/\(pass.passTypeIdentifier)?passesUpdatedSince=0",
+                "\(passesURI)devices/\(deviceLibraryIdentifier)/registrations/\(pass.typeIdentifier)?passesUpdatedSince=0",
                 afterResponse: { res async throws in
                     let passes = try res.content.decode(PassesForDeviceDTO.self)
                     #expect(passes.serialNumbers.count == 1)
@@ -353,7 +357,7 @@ struct PassesTests {
 
             try await app.test(
                 .GET,
-                "\(passesURI)push/\(pass.passTypeIdentifier)/\(pass.requireID())",
+                "\(passesURI)push/\(pass.typeIdentifier)/\(pass.requireID())",
                 headers: ["X-Secret": "foo"],
                 afterResponse: { res async throws in
                     let pushTokens = try res.content.decode([String].self)
@@ -365,7 +369,7 @@ struct PassesTests {
             // Test call with invalid UUID
             try await app.test(
                 .GET,
-                "\(passesURI)push/\(pass.passTypeIdentifier)/\("not-a-uuid")",
+                "\(passesURI)push/\(pass.typeIdentifier)/\("not-a-uuid")",
                 headers: ["X-Secret": "foo"],
                 afterResponse: { res async throws in
                     #expect(res.status == .badRequest)
@@ -375,7 +379,7 @@ struct PassesTests {
             // Test call with invalid UUID
             try await app.test(
                 .DELETE,
-                "\(passesURI)devices/\(deviceLibraryIdentifier)/registrations/\(pass.passTypeIdentifier)/\("not-a-uuid")",
+                "\(passesURI)devices/\(deviceLibraryIdentifier)/registrations/\(pass.typeIdentifier)/\("not-a-uuid")",
                 headers: ["Authorization": "ApplePass \(pass.authenticationToken)"],
                 afterResponse: { res async throws in
                     #expect(res.status == .badRequest)
@@ -384,7 +388,7 @@ struct PassesTests {
 
             try await app.test(
                 .DELETE,
-                "\(passesURI)devices/\(deviceLibraryIdentifier)/registrations/\(pass.passTypeIdentifier)/\(pass.requireID())",
+                "\(passesURI)devices/\(deviceLibraryIdentifier)/registrations/\(pass.typeIdentifier)/\(pass.requireID())",
                 headers: ["Authorization": "ApplePass \(pass.authenticationToken)"],
                 afterResponse: { res async throws in
                     #expect(res.status == .ok)
@@ -395,7 +399,7 @@ struct PassesTests {
 
     @Test("Error Logging")
     func errorLog() async throws {
-        try await withApp(delegate: delegate) { app, passesService in
+        try await withApp { app, passesService in
             let log1 = "Error 1"
             let log2 = "Error 2"
 
@@ -438,16 +442,16 @@ struct PassesTests {
         }
     }
 
-    @Test("APNS Client")
-    func apnsClient() async throws {
-        try await withApp(delegate: delegate) { app, passesService in
+    @Test("APNS Client", arguments: [true, false])
+    func apnsClient(useEncryptedKey: Bool) async throws {
+        try await withApp(useEncryptedKey: useEncryptedKey) { app, passesService in
             #expect(app.apns.client(.init(string: "passes")) != nil)
 
             let passData = PassData(title: "Test Pass")
             try await passData.create(on: app.db)
             let pass = try await passData._$pass.get(on: app.db)
 
-            try await passesService.sendPushNotificationsForPass(id: pass.requireID(), of: pass.passTypeIdentifier, on: app.db)
+            try await passesService.sendPushNotificationsForPass(id: pass.requireID(), of: pass.typeIdentifier, on: app.db)
 
             let deviceLibraryIdentifier = "abcdefg"
             let pushToken = "1234567890"
@@ -455,7 +459,7 @@ struct PassesTests {
             // Test call with incorrect secret
             try await app.test(
                 .POST,
-                "\(passesURI)push/\(pass.passTypeIdentifier)/\(pass.requireID())",
+                "\(passesURI)push/\(pass.typeIdentifier)/\(pass.requireID())",
                 headers: ["X-Secret": "bar"],
                 afterResponse: { res async throws in
                     #expect(res.status == .unauthorized)
@@ -464,7 +468,7 @@ struct PassesTests {
 
             try await app.test(
                 .POST,
-                "\(passesURI)push/\(pass.passTypeIdentifier)/\(pass.requireID())",
+                "\(passesURI)push/\(pass.typeIdentifier)/\(pass.requireID())",
                 headers: ["X-Secret": "foo"],
                 afterResponse: { res async throws in
                     #expect(res.status == .noContent)
@@ -473,7 +477,7 @@ struct PassesTests {
 
             try await app.test(
                 .POST,
-                "\(passesURI)devices/\(deviceLibraryIdentifier)/registrations/\(pass.passTypeIdentifier)/\(pass.requireID())",
+                "\(passesURI)devices/\(deviceLibraryIdentifier)/registrations/\(pass.typeIdentifier)/\(pass.requireID())",
                 headers: ["Authorization": "ApplePass \(pass.authenticationToken)"],
                 beforeRequest: { req async throws in
                     try req.content.encode(RegistrationDTO(pushToken: pushToken))
@@ -485,7 +489,7 @@ struct PassesTests {
 
             try await app.test(
                 .POST,
-                "\(passesURI)push/\(pass.passTypeIdentifier)/\(pass.requireID())",
+                "\(passesURI)push/\(pass.typeIdentifier)/\(pass.requireID())",
                 headers: ["X-Secret": "foo"],
                 afterResponse: { res async throws in
                     #expect(res.status == .internalServerError)
@@ -495,19 +499,21 @@ struct PassesTests {
             // Test call with invalid UUID
             try await app.test(
                 .POST,
-                "\(passesURI)push/\(pass.passTypeIdentifier)/\("not-a-uuid")",
+                "\(passesURI)push/\(pass.typeIdentifier)/\("not-a-uuid")",
                 headers: ["X-Secret": "foo"],
                 afterResponse: { res async throws in
                     #expect(res.status == .badRequest)
                 }
             )
 
-            // Test `PassDataMiddleware` update method
-            passData.title = "Test Pass 2"
-            do {
-                try await passData.update(on: app.db)
-            } catch let error as HTTPClientError {
-                #expect(error.self == .remoteConnectionClosed)
+            if !useEncryptedKey {
+                // Test `PassDataMiddleware` update method
+                passData.title = "Test Pass 2"
+                do {
+                    try await passData.update(on: app.db)
+                } catch let error as HTTPClientError {
+                    #expect(error.self == .remoteConnectionClosed)
+                }
             }
         }
     }
@@ -523,30 +529,20 @@ struct PassesTests {
 
     @Test("Default PassesDelegate Properties")
     func defaultDelegate() async throws {
+        final class DefaultPassesDelegate: PassesDelegate {
+            func template<P: PassModel>(for pass: P, db: any Database) async throws -> String { "" }
+            func encode<P: PassModel>(pass: P, db: any Database, encoder: JSONEncoder) async throws -> Data { Data() }
+        }
+
         let defaultDelegate = DefaultPassesDelegate()
-        #expect(defaultDelegate.wwdrCertificate == "WWDR.pem")
-        #expect(defaultDelegate.pemCertificate == "passcertificate.pem")
-        #expect(defaultDelegate.pemPrivateKey == "passkey.pem")
-        #expect(defaultDelegate.pemPrivateKeyPassword == nil)
-        #expect(defaultDelegate.sslBinary == URL(fileURLWithPath: "/usr/bin/openssl"))
         #expect(!defaultDelegate.generateSignatureFile(in: URL(fileURLWithPath: "")))
 
-        try await withApp(delegate: delegate) { app, passesService in
+        try await withApp { app, passesService in
             let passData = PassData(title: "Test Pass")
             try await passData.create(on: app.db)
             let pass = try await passData.$pass.get(on: app.db)
-            let data = try await defaultDelegate.encodePersonalization(for: pass, db: app.db, encoder: JSONEncoder())
+            let data = try await defaultDelegate.personalizationJSON(for: pass, db: app.db)
             #expect(data == nil)
         }
-    }
-}
-
-final class DefaultPassesDelegate: PassesDelegate {
-    let sslSigningFilesDirectory = URL(fileURLWithPath: "", isDirectory: true)
-    func template<P: PassModel>(for pass: P, db: any Database) async throws -> URL {
-        URL(fileURLWithPath: "")
-    }
-    func encode<P: PassModel>(pass: P, db: any Database, encoder: JSONEncoder) async throws -> Data {
-        Data()
     }
 }

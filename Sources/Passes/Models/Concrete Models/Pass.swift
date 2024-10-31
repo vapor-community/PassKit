@@ -29,8 +29,8 @@ final public class Pass: PassModel, @unchecked Sendable {
     public var updatedAt: Date?
 
     /// The pass type identifier that’s registered with Apple.
-    @Field(key: Pass.FieldKeys.passTypeIdentifier)
-    public var passTypeIdentifier: String
+    @Field(key: Pass.FieldKeys.typeIdentifier)
+    public var typeIdentifier: String
 
     /// The authentication token to use with the web service in the `webServiceURL` key.
     @Field(key: Pass.FieldKeys.authenticationToken)
@@ -42,8 +42,8 @@ final public class Pass: PassModel, @unchecked Sendable {
 
     public required init() {}
 
-    public required init(passTypeIdentifier: String, authenticationToken: String) {
-        self.passTypeIdentifier = passTypeIdentifier
+    public required init(typeIdentifier: String, authenticationToken: String) {
+        self.typeIdentifier = typeIdentifier
         self.authenticationToken = authenticationToken
     }
 }
@@ -53,7 +53,7 @@ extension Pass: AsyncMigration {
         try await database.schema(Self.schema)
             .id()
             .field(Pass.FieldKeys.updatedAt, .datetime, .required)
-            .field(Pass.FieldKeys.passTypeIdentifier, .string, .required)
+            .field(Pass.FieldKeys.typeIdentifier, .string, .required)
             .field(Pass.FieldKeys.authenticationToken, .string, .required)
             .field(
                 Pass.FieldKeys.userPersonalizationID, .int,
@@ -72,7 +72,7 @@ extension Pass {
     enum FieldKeys {
         static let schemaName = "passes"
         static let updatedAt = FieldKey(stringLiteral: "updated_at")
-        static let passTypeIdentifier = FieldKey(stringLiteral: "pass_type_identifier")
+        static let typeIdentifier = FieldKey(stringLiteral: "type_identifier")
         static let authenticationToken = FieldKey(stringLiteral: "authentication_token")
         static let userPersonalizationID = FieldKey(stringLiteral: "user_personalization_id")
     }

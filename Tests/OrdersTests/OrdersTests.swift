@@ -6,49 +6,50 @@ import Zip
 
 @testable import Orders
 
-@Suite("Orders Tests")
+@Suite("Orders Tests", .serialized)
 struct OrdersTests {
-    let delegate = TestOrdersDelegate()
     let ordersURI = "/api/orders/v1/"
+    let decoder = JSONDecoder()
 
-    @Test("Order Generation")
-    func orderGeneration() async throws {
-        try await withApp(delegate: delegate) { app, ordersService in
+    @Test("Order Generation", arguments: [true, false])
+    func orderGeneration(useEncryptedKey: Bool) async throws {
+        try await withApp(useEncryptedKey: useEncryptedKey) { app, ordersService in
             let orderData = OrderData(title: "Test Order")
             try await orderData.create(on: app.db)
             let order = try await orderData.$order.get(on: app.db)
             let data = try await ordersService.generateOrderContent(for: order, on: app.db)
-            let orderURL = FileManager.default.temporaryDirectory.appendingPathComponent("test.order")
+            let orderURL = FileManager.default.temporaryDirectory.appendingPathComponent("\(UUID().uuidString).order")
             try data.write(to: orderURL)
-            let orderFolder = try Zip.quickUnzipFile(orderURL)
+            let orderFolder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+            try Zip.unzipFile(orderURL, destination: orderFolder)
 
             #expect(FileManager.default.fileExists(atPath: orderFolder.path.appending("/signature")))
 
-            let passJSONData = try String(contentsOfFile: orderFolder.path.appending("/order.json")).data(using: .utf8)
-            let passJSON = try JSONSerialization.jsonObject(with: passJSONData!) as! [String: Any]
-            #expect(passJSON["authenticationToken"] as? String == order.authenticationToken)
+            #expect(FileManager.default.fileExists(atPath: orderFolder.path.appending("/order.json")))
+            let orderJSONData = try String(contentsOfFile: orderFolder.path.appending("/order.json")).data(using: .utf8)
+            let orderJSON = try decoder.decode(OrderJSONData.self, from: orderJSONData!)
+            #expect(orderJSON.authenticationToken == order.authenticationToken)
             let orderID = try order.requireID().uuidString
-            #expect(passJSON["orderIdentifier"] as? String == orderID)
+            #expect(orderJSON.orderIdentifier == orderID)
 
             let manifestJSONData = try String(contentsOfFile: orderFolder.path.appending("/manifest.json")).data(using: .utf8)
-            let manifestJSON = try JSONSerialization.jsonObject(with: manifestJSONData!) as! [String: Any]
+            let manifestJSON = try decoder.decode([String: String].self, from: manifestJSONData!)
             let iconData = try Data(contentsOf: orderFolder.appendingPathComponent("/icon.png"))
-            let iconHash = Array(SHA256.hash(data: iconData)).hex
-            #expect(manifestJSON["icon.png"] as? String == iconHash)
+            #expect(manifestJSON["icon.png"] == SHA256.hash(data: iconData).hex)
             #expect(manifestJSON["pet_store_logo.png"] != nil)
         }
     }
 
     @Test("Getting Order from Apple Wallet API")
     func getOrderFromAPI() async throws {
-        try await withApp(delegate: delegate) { app, ordersService in
+        try await withApp { app, ordersService in
             let orderData = OrderData(title: "Test Order")
             try await orderData.create(on: app.db)
             let order = try await orderData.$order.get(on: app.db)
 
             try await app.test(
                 .GET,
-                "\(ordersURI)orders/\(order.orderTypeIdentifier)/\(order.requireID())",
+                "\(ordersURI)orders/\(order.typeIdentifier)/\(order.requireID())",
                 headers: [
                     "Authorization": "AppleOrder \(order.authenticationToken)",
                     "If-Modified-Since": "0",
@@ -64,7 +65,7 @@ struct OrdersTests {
             // Test call with invalid authentication token
             try await app.test(
                 .GET,
-                "\(ordersURI)orders/\(order.orderTypeIdentifier)/\(order.requireID())",
+                "\(ordersURI)orders/\(order.typeIdentifier)/\(order.requireID())",
                 headers: [
                     "Authorization": "AppleOrder invalidToken",
                     "If-Modified-Since": "0",
@@ -77,7 +78,7 @@ struct OrdersTests {
             // Test distant future `If-Modified-Since` date
             try await app.test(
                 .GET,
-                "\(ordersURI)orders/\(order.orderTypeIdentifier)/\(order.requireID())",
+                "\(ordersURI)orders/\(order.typeIdentifier)/\(order.requireID())",
                 headers: [
                     "Authorization": "AppleOrder \(order.authenticationToken)",
                     "If-Modified-Since": "2147483647",
@@ -90,7 +91,7 @@ struct OrdersTests {
             // Test call with invalid order ID
             try await app.test(
                 .GET,
-                "\(ordersURI)orders/\(order.orderTypeIdentifier)/invalidID",
+                "\(ordersURI)orders/\(order.typeIdentifier)/invalidID",
                 headers: [
                     "Authorization": "AppleOrder \(order.authenticationToken)",
                     "If-Modified-Since": "0",
@@ -117,7 +118,7 @@ struct OrdersTests {
 
     @Test("Device Registration API")
     func apiDeviceRegistration() async throws {
-        try await withApp(delegate: delegate) { app, ordersService in
+        try await withApp { app, ordersService in
             let orderData = OrderData(title: "Test Order")
             try await orderData.create(on: app.db)
             let order = try await orderData.$order.get(on: app.db)
@@ -126,7 +127,7 @@ struct OrdersTests {
 
             try await app.test(
                 .GET,
-                "\(ordersURI)devices/\(deviceLibraryIdentifier)/registrations/\(order.orderTypeIdentifier)?ordersModifiedSince=0",
+                "\(ordersURI)devices/\(deviceLibraryIdentifier)/registrations/\(order.typeIdentifier)?ordersModifiedSince=0",
                 afterResponse: { res async throws in
                     #expect(res.status == .noContent)
                 }
@@ -134,7 +135,7 @@ struct OrdersTests {
 
             try await app.test(
                 .DELETE,
-                "\(ordersURI)devices/\(deviceLibraryIdentifier)/registrations/\(order.orderTypeIdentifier)/\(order.requireID())",
+                "\(ordersURI)devices/\(deviceLibraryIdentifier)/registrations/\(order.typeIdentifier)/\(order.requireID())",
                 headers: ["Authorization": "AppleOrder \(order.authenticationToken)"],
                 afterResponse: { res async throws in
                     #expect(res.status == .notFound)
@@ -144,7 +145,7 @@ struct OrdersTests {
             // Test registration without authentication token
             try await app.test(
                 .POST,
-                "\(ordersURI)devices/\(deviceLibraryIdentifier)/registrations/\(order.orderTypeIdentifier)/\(order.requireID())",
+                "\(ordersURI)devices/\(deviceLibraryIdentifier)/registrations/\(order.typeIdentifier)/\(order.requireID())",
                 beforeRequest: { req async throws in
                     try req.content.encode(RegistrationDTO(pushToken: pushToken))
                 },
@@ -169,7 +170,7 @@ struct OrdersTests {
             // Test call without DTO
             try await app.test(
                 .POST,
-                "\(ordersURI)devices/\(deviceLibraryIdentifier)/registrations/\(order.orderTypeIdentifier)/\(order.requireID())",
+                "\(ordersURI)devices/\(deviceLibraryIdentifier)/registrations/\(order.typeIdentifier)/\(order.requireID())",
                 headers: ["Authorization": "AppleOrder \(order.authenticationToken)"],
                 afterResponse: { res async throws in
                     #expect(res.status == .badRequest)
@@ -179,7 +180,7 @@ struct OrdersTests {
             // Test call with invalid UUID
             try await app.test(
                 .POST,
-                "\(ordersURI)devices/\(deviceLibraryIdentifier)/registrations/\(order.orderTypeIdentifier)/\("not-a-uuid")",
+                "\(ordersURI)devices/\(deviceLibraryIdentifier)/registrations/\(order.typeIdentifier)/\("not-a-uuid")",
                 headers: ["Authorization": "AppleOrder \(order.authenticationToken)"],
                 beforeRequest: { req async throws in
                     try req.content.encode(RegistrationDTO(pushToken: pushToken))
@@ -191,7 +192,7 @@ struct OrdersTests {
 
             try await app.test(
                 .POST,
-                "\(ordersURI)devices/\(deviceLibraryIdentifier)/registrations/\(order.orderTypeIdentifier)/\(order.requireID())",
+                "\(ordersURI)devices/\(deviceLibraryIdentifier)/registrations/\(order.typeIdentifier)/\(order.requireID())",
                 headers: ["Authorization": "AppleOrder \(order.authenticationToken)"],
                 beforeRequest: { req async throws in
                     try req.content.encode(RegistrationDTO(pushToken: pushToken))
@@ -204,7 +205,7 @@ struct OrdersTests {
             // Test registration of an already registered device
             try await app.test(
                 .POST,
-                "\(ordersURI)devices/\(deviceLibraryIdentifier)/registrations/\(order.orderTypeIdentifier)/\(order.requireID())",
+                "\(ordersURI)devices/\(deviceLibraryIdentifier)/registrations/\(order.typeIdentifier)/\(order.requireID())",
                 headers: ["Authorization": "AppleOrder \(order.authenticationToken)"],
                 beforeRequest: { req async throws in
                     try req.content.encode(RegistrationDTO(pushToken: pushToken))
@@ -216,7 +217,7 @@ struct OrdersTests {
 
             try await app.test(
                 .GET,
-                "\(ordersURI)devices/\(deviceLibraryIdentifier)/registrations/\(order.orderTypeIdentifier)?ordersModifiedSince=0",
+                "\(ordersURI)devices/\(deviceLibraryIdentifier)/registrations/\(order.typeIdentifier)?ordersModifiedSince=0",
                 afterResponse: { res async throws in
                     let orders = try res.content.decode(OrdersForDeviceDTO.self)
                     #expect(orders.orderIdentifiers.count == 1)
@@ -228,7 +229,7 @@ struct OrdersTests {
 
             try await app.test(
                 .GET,
-                "\(ordersURI)push/\(order.orderTypeIdentifier)/\(order.requireID())",
+                "\(ordersURI)push/\(order.typeIdentifier)/\(order.requireID())",
                 headers: ["X-Secret": "foo"],
                 afterResponse: { res async throws in
                     let pushTokens = try res.content.decode([String].self)
@@ -240,7 +241,7 @@ struct OrdersTests {
             // Test call with invalid UUID
             try await app.test(
                 .GET,
-                "\(ordersURI)push/\(order.orderTypeIdentifier)/\("not-a-uuid")",
+                "\(ordersURI)push/\(order.typeIdentifier)/\("not-a-uuid")",
                 headers: ["X-Secret": "foo"],
                 afterResponse: { res async throws in
                     #expect(res.status == .badRequest)
@@ -250,7 +251,7 @@ struct OrdersTests {
             // Test call with invalid UUID
             try await app.test(
                 .DELETE,
-                "\(ordersURI)devices/\(deviceLibraryIdentifier)/registrations/\(order.orderTypeIdentifier)/\("not-a-uuid")",
+                "\(ordersURI)devices/\(deviceLibraryIdentifier)/registrations/\(order.typeIdentifier)/\("not-a-uuid")",
                 headers: ["Authorization": "AppleOrder \(order.authenticationToken)"],
                 afterResponse: { res async throws in
                     #expect(res.status == .badRequest)
@@ -259,7 +260,7 @@ struct OrdersTests {
 
             try await app.test(
                 .DELETE,
-                "\(ordersURI)devices/\(deviceLibraryIdentifier)/registrations/\(order.orderTypeIdentifier)/\(order.requireID())",
+                "\(ordersURI)devices/\(deviceLibraryIdentifier)/registrations/\(order.typeIdentifier)/\(order.requireID())",
                 headers: ["Authorization": "AppleOrder \(order.authenticationToken)"],
                 afterResponse: { res async throws in
                     #expect(res.status == .ok)
@@ -270,7 +271,7 @@ struct OrdersTests {
 
     @Test("Error Logging")
     func errorLog() async throws {
-        try await withApp(delegate: delegate) { app, ordersService in
+        try await withApp { app, ordersService in
             let log1 = "Error 1"
             let log2 = "Error 2"
 
@@ -313,16 +314,16 @@ struct OrdersTests {
         }
     }
 
-    @Test("APNS Client")
-    func apnsClient() async throws {
-        try await withApp(delegate: delegate) { app, ordersService in
+    @Test("APNS Client", arguments: [true, false])
+    func apnsClient(useEncryptedKey: Bool) async throws {
+        try await withApp(useEncryptedKey: useEncryptedKey) { app, ordersService in
             #expect(app.apns.client(.init(string: "orders")) != nil)
 
             let orderData = OrderData(title: "Test Order")
             try await orderData.create(on: app.db)
             let order = try await orderData._$order.get(on: app.db)
 
-            try await ordersService.sendPushNotificationsForOrder(id: order.requireID(), of: order.orderTypeIdentifier, on: app.db)
+            try await ordersService.sendPushNotificationsForOrder(id: order.requireID(), of: order.typeIdentifier, on: app.db)
 
             let deviceLibraryIdentifier = "abcdefg"
             let pushToken = "1234567890"
@@ -330,7 +331,7 @@ struct OrdersTests {
             // Test call with incorrect secret
             try await app.test(
                 .POST,
-                "\(ordersURI)push/\(order.orderTypeIdentifier)/\(order.requireID())",
+                "\(ordersURI)push/\(order.typeIdentifier)/\(order.requireID())",
                 headers: ["X-Secret": "bar"],
                 afterResponse: { res async throws in
                     #expect(res.status == .unauthorized)
@@ -339,7 +340,7 @@ struct OrdersTests {
 
             try await app.test(
                 .POST,
-                "\(ordersURI)push/\(order.orderTypeIdentifier)/\(order.requireID())",
+                "\(ordersURI)push/\(order.typeIdentifier)/\(order.requireID())",
                 headers: ["X-Secret": "foo"],
                 afterResponse: { res async throws in
                     #expect(res.status == .noContent)
@@ -348,7 +349,7 @@ struct OrdersTests {
 
             try await app.test(
                 .POST,
-                "\(ordersURI)devices/\(deviceLibraryIdentifier)/registrations/\(order.orderTypeIdentifier)/\(order.requireID())",
+                "\(ordersURI)devices/\(deviceLibraryIdentifier)/registrations/\(order.typeIdentifier)/\(order.requireID())",
                 headers: ["Authorization": "AppleOrder \(order.authenticationToken)"],
                 beforeRequest: { req async throws in
                     try req.content.encode(RegistrationDTO(pushToken: pushToken))
@@ -360,7 +361,7 @@ struct OrdersTests {
 
             try await app.test(
                 .POST,
-                "\(ordersURI)push/\(order.orderTypeIdentifier)/\(order.requireID())",
+                "\(ordersURI)push/\(order.typeIdentifier)/\(order.requireID())",
                 headers: ["X-Secret": "foo"],
                 afterResponse: { res async throws in
                     #expect(res.status == .internalServerError)
@@ -370,19 +371,21 @@ struct OrdersTests {
             // Test call with invalid UUID
             try await app.test(
                 .POST,
-                "\(ordersURI)push/\(order.orderTypeIdentifier)/\("not-a-uuid")",
+                "\(ordersURI)push/\(order.typeIdentifier)/\("not-a-uuid")",
                 headers: ["X-Secret": "foo"],
                 afterResponse: { res async throws in
                     #expect(res.status == .badRequest)
                 }
             )
 
-            // Test `OrderDataMiddleware` update method
-            orderData.title = "Test Order 2"
-            do {
-                try await orderData.update(on: app.db)
-            } catch let error as HTTPClientError {
-                #expect(error.self == .remoteConnectionClosed)
+            if !useEncryptedKey {
+                // Test `OrderDataMiddleware` update method
+                orderData.title = "Test Order 2"
+                do {
+                    try await orderData.update(on: app.db)
+                } catch let error as HTTPClientError {
+                    #expect(error.self == .remoteConnectionClosed)
+                }
             }
         }
     }
@@ -397,22 +400,11 @@ struct OrdersTests {
 
     @Test("Default OrdersDelegate Properties")
     func defaultDelegate() {
-        let delegate = DefaultOrdersDelegate()
-        #expect(delegate.wwdrCertificate == "WWDR.pem")
-        #expect(delegate.pemCertificate == "ordercertificate.pem")
-        #expect(delegate.pemPrivateKey == "orderkey.pem")
-        #expect(delegate.pemPrivateKeyPassword == nil)
-        #expect(delegate.sslBinary == URL(fileURLWithPath: "/usr/bin/openssl"))
-        #expect(!delegate.generateSignatureFile(in: URL(fileURLWithPath: "")))
-    }
-}
+        final class DefaultOrdersDelegate: OrdersDelegate {
+            func template<O: OrderModel>(for order: O, db: any Database) async throws -> String { "" }
+            func encode<O: OrderModel>(order: O, db: any Database, encoder: JSONEncoder) async throws -> Data { Data() }
+        }
 
-final class DefaultOrdersDelegate: OrdersDelegate {
-    let sslSigningFilesDirectory = URL(fileURLWithPath: "", isDirectory: true)
-    func template<O: OrderModel>(for order: O, db: any Database) async throws -> URL {
-        URL(fileURLWithPath: "")
-    }
-    func encode<O: OrderModel>(order: O, db: any Database, encoder: JSONEncoder) async throws -> Data {
-        Data()
+        #expect(!DefaultOrdersDelegate().generateSignatureFile(in: URL(fileURLWithPath: "")))
     }
 }

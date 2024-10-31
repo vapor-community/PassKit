@@ -21,11 +21,11 @@ final public class OrdersDevice: DeviceModel, @unchecked Sendable {
     public var pushToken: String
 
     /// The identifier Apple Wallet provides for the device.
-    @Field(key: OrdersDevice.FieldKeys.deviceLibraryIdentifier)
-    public var deviceLibraryIdentifier: String
+    @Field(key: OrdersDevice.FieldKeys.libraryIdentifier)
+    public var libraryIdentifier: String
 
-    public init(deviceLibraryIdentifier: String, pushToken: String) {
-        self.deviceLibraryIdentifier = deviceLibraryIdentifier
+    public init(libraryIdentifier: String, pushToken: String) {
+        self.libraryIdentifier = libraryIdentifier
         self.pushToken = pushToken
     }
 
@@ -37,10 +37,8 @@ extension OrdersDevice: AsyncMigration {
         try await database.schema(Self.schema)
             .field(.id, .int, .identifier(auto: true))
             .field(OrdersDevice.FieldKeys.pushToken, .string, .required)
-            .field(OrdersDevice.FieldKeys.deviceLibraryIdentifier, .string, .required)
-            .unique(
-                on: OrdersDevice.FieldKeys.pushToken, OrdersDevice.FieldKeys.deviceLibraryIdentifier
-            )
+            .field(OrdersDevice.FieldKeys.libraryIdentifier, .string, .required)
+            .unique(on: OrdersDevice.FieldKeys.pushToken, OrdersDevice.FieldKeys.libraryIdentifier)
             .create()
     }
 
@@ -53,6 +51,6 @@ extension OrdersDevice {
     enum FieldKeys {
         static let schemaName = "orders_devices"
         static let pushToken = FieldKey(stringLiteral: "push_token")
-        static let deviceLibraryIdentifier = FieldKey(stringLiteral: "device_library_identifier")
+        static let libraryIdentifier = FieldKey(stringLiteral: "library_identifier")
     }
 }

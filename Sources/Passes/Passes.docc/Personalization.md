@@ -12,42 +12,19 @@ Pass Personalization lets you create passes, referred to as personalizable passe
 
 Personalizable passes can be distributed like any other pass. For information on personalizable passes, see the [Wallet Developer Guide](https://developer.apple.com/library/archive/documentation/UserExperience/Conceptual/PassKit_PG/PassPersonalization.html#//apple_ref/doc/uid/TP40012195-CH12-SW2) and [Return a Personalized Pass](https://developer.apple.com/documentation/walletpasses/return_a_personalized_pass).
 
-### Model the personalization.json contents
+### Implement the Delegate
+
+You'll have to make a few changes to ``PassesDelegate`` to support personalizable passes.
 
 A personalizable pass is just a standard pass package with the following additional files:
 
 - A `personalization.json` file.
 - A `personalizationLogo@XX.png` file.
 
-Create a `struct` that implements ``PersonalizationJSON/Properties`` which will contain all the fields for the generated `personalization.json` file.
-Create an initializer that takes your custom pass data, the ``Pass`` and everything else you may need.
+Implement the ``PassesDelegate/personalizationJSON(for:db:)`` method, which gives you the ``Pass`` to encode.
+If the pass requires personalization, and if it was not already personalized, create the ``PersonalizationJSON`` struct, which will contain all the fields for the generated `personalization.json` file, and return it, otherwise return `nil`.
 
-```swift
-import Passes
-
-struct PersonalizationJSONData: PersonalizationJSON.Properties {
-    var requiredPersonalizationFields = [
-        PersonalizationJSON.PersonalizationField.name,
-        PersonalizationJSON.PersonalizationField.postalCode,
-        PersonalizationJSON.PersonalizationField.emailAddress,
-        PersonalizationJSON.PersonalizationField.phoneNumber
-    ]
-    var description: String
-
-    init(data: PassData, pass: Pass) {
-        self.description = data.title
-    }
-}
-```
-
-### Implement the Delegate
-
-You'll have to make a few changes to ``PassesDelegate`` to support personalizable passes.
-
-Implement the ``PassesDelegate/encodePersonalization(for:db:encoder:)`` method, which gives you the ``Pass`` to encode.
-If the pass requires personalization, and if it was not already personalized, encode the ``PersonalizationJSON`` and return it, otherwise return `nil`.
-
-In the ``PassesDelegate/template(for:db:)`` method, you have to return two different directory URLs, depending on whether the pass has to be personalized or not. If it does, the directory must contain the `personalizationLogo@XX.png` file.
+In the ``PassesDelegate/template(for:db:)`` method, you have to return two different directory paths, depending on whether the pass has to be personalized or not. If it does, the directory must contain the `personalizationLogo@XX.png` file.
 
 Finally, you have to implement the ``PassesDelegate/encode(pass:db:encoder:)`` method as usual, but remember to use in the ``PassJSON`` initializer the user info that will be saved inside ``Pass/userPersonalization`` after the pass has been personalized.
 
@@ -57,10 +34,6 @@ import Fluent
 import Passes
 
 final class PassDelegate: PassesDelegate {
-    let sslSigningFilesDirectory = URL(fileURLWithPath: "Certificates/Passes/", isDirectory: true)
-
-    let pemPrivateKeyPassword: String? = Environment.get("PASSES_PEM_PRIVATE_KEY_PASSWORD")!
-
     func encode<P: PassModel>(pass: P, db: Database, encoder: JSONEncoder) async throws -> Data {
         // Here encode the pass JSON data as usual.
         guard let passData = try await PassData.query(on: db)
@@ -75,7 +48,7 @@ final class PassDelegate: PassesDelegate {
         return data
     }
 
-    func encodePersonalization<P: PassModel>(for pass: P, db: any Database, encoder: JSONEncoder) async throws -> Data? {
+    func personalizationJSON<P: PassModel>(for pass: P, db: any Database) async throws -> PersonalizationJSON? {
         guard let passData = try await PassData.query(on: db)
             .filter(\.$pass.$id == pass.requireID())
             .with(\.$pass)
@@ -85,18 +58,18 @@ final class PassDelegate: PassesDelegate {
         }
 
         if try await passData.pass.$userPersonalization.get(on: db) == nil {
-            // If the pass requires personalization, encode the personalization JSON data.
-            guard let data = try? encoder.encode(PersonalizationJSONData(data: passData, pass: pass)) else {
-                throw Abort(.internalServerError)
-            }
-            return data
+            // If the pass requires personalization, create the personalization JSON struct.
+            return PersonalizationJSON(
+                requiredPersonalizationFields: [.name, .postalCode, .emailAddress, .phoneNumber],
+                description: "Hello, World!"
+            )
         } else {
             // Otherwise, return `nil`.
             return nil
         }
     }
 
-    func template<P: PassModel>(for pass: P, db: Database) async throws -> URL {
+    func template<P: PassModel>(for pass: P, db: Database) async throws -> String {
         guard let passData = try await PassData.query(on: db)
             .filter(\.$pass.$id == pass.requireID())
             .first()
@@ -105,12 +78,12 @@ final class PassDelegate: PassesDelegate {
         }
 
         if passData.requiresPersonalization {
-            // If the pass requires personalization, return the URL to the personalization template,
+            // If the pass requires personalization, return the URL path to the personalization template,
             // which must contain the `personalizationLogo@XX.png` file.
-            return URL(fileURLWithPath: "Templates/Passes/Personalization/", isDirectory: true)
+            return "Templates/Passes/Personalization/"
         } else {
-            // Otherwise, return the URL to the standard pass template.
-            return URL(fileURLWithPath: "Templates/Passes/Standard/", isDirectory: true)
+            // Otherwise, return the URL path to the standard pass template.
+            return "Templates/Passes/Standard/"
         }
     }
 }
@@ -118,7 +91,7 @@ final class PassDelegate: PassesDelegate {
 
 ### Implement the Web Service
 
-After implementing the JSON `struct` and the delegate, there is nothing else you have to do.
+After implementing the delegate methods, there is nothing else you have to do.
 
 Initializing the ``PassesService`` will automatically set up the endpoints that Apple Wallet expects to exist on your server to handle pass personalization.
 
@@ -130,10 +103,10 @@ Wallet will then send the user personal information to your server, which will b
 Immediately after that, Wallet will request the updated pass.
 This updated pass will contain the user personalization data that was previously saved inside the ``Pass/userPersonalization`` field.
 
-> Important: This updated and personalized pass **must not** contain the `personalization.json` file, so make sure that the ``PassesDelegate/encodePersonalization(for:db:encoder:)`` method returns `nil` when the pass has already been personalized.
+> Important: This updated and personalized pass **must not** contain the `personalization.json` file, so make sure that the ``PassesDelegate/personalizationJSON(for:db:)`` method returns `nil` when the pass has already been personalized.
 
 ## Topics
 
 ### Delegate Method
 
-- ``PassesDelegate/encodePersonalization(for:db:encoder:)``
+- ``PassesDelegate/personalizationJSON(for:db:)``

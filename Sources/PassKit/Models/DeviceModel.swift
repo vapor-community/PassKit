@@ -34,13 +34,13 @@ public protocol DeviceModel: Model where IDValue == Int {
     var pushToken: String { get set }
 
     /// The identifier PassKit provides for the device.
-    var deviceLibraryIdentifier: String { get set }
+    var libraryIdentifier: String { get set }
 
     /// The designated initializer.
     /// - Parameters:
-    ///   - deviceLibraryIdentifier: The device identifier as provided during registration.
+    ///   - libraryIdentifier: The device identifier as provided during registration.
     ///   - pushToken: The push token to use when sending updates via push notifications.
-    init(deviceLibraryIdentifier: String, pushToken: String)
+    init(libraryIdentifier: String, pushToken: String)
 }
 
 extension DeviceModel {
@@ -54,13 +54,13 @@ extension DeviceModel {
         return pushToken
     }
 
-    package var _$deviceLibraryIdentifier: Field<String> {
-        guard let mirror = Mirror(reflecting: self).descendant("_deviceLibraryIdentifier"),
-            let deviceLibraryIdentifier = mirror as? Field<String>
+    package var _$libraryIdentifier: Field<String> {
+        guard let mirror = Mirror(reflecting: self).descendant("_libraryIdentifier"),
+            let libraryIdentifier = mirror as? Field<String>
         else {
-            fatalError("deviceLibraryIdentifier property must be declared using @Field")
+            fatalError("libraryIdentifier property must be declared using @Field")
         }
 
-        return deviceLibraryIdentifier
+        return libraryIdentifier
     }
 }

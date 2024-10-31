@@ -29,44 +29,65 @@ public final class PassesServiceCustom<
 where P == R.PassType, D == R.DeviceType, U == P.UserPersonalizationType {
     private unowned let app: Application
     private unowned let delegate: any PassesDelegate
+    private let signingFilesDirectory: URL
+    private let wwdrCertificate: String
+    private let pemCertificate: String
+    private let pemPrivateKey: String
+    private let pemPrivateKeyPassword: String?
+    private let sslBinary: URL
     private let logger: Logger?
+    private let encoder = JSONEncoder()
 
     /// Initializes the service and registers all the routes required for PassKit to work.
     ///
     /// - Parameters:
     ///   - app: The `Vapor.Application` to use in route handlers and APNs.
     ///   - delegate: The ``PassesDelegate`` to use for pass generation.
+    ///   - signingFilesDirectory: The path of the directory where the signing files (`wwdrCertificate`, `pemCertificate`, `pemPrivateKey`) are located.
+    ///   - wwdrCertificate: The name of Apple's WWDR.pem certificate as contained in `signingFilesDirectory` path. Defaults to `WWDR.pem`.
+    ///   - pemCertificate: The name of the PEM Certificate for signing the pass as contained in `signingFilesDirectory` path. Defaults to `certificate.pem`.
+    ///   - pemPrivateKey: The name of the PEM Certificate's private key for signing the pass as contained in `signingFilesDirectory` path. Defaults to `key.pem`.
+    ///   - pemPrivateKeyPassword: The password to the private key file. If the key is not encrypted it must be `nil`. Defaults to `nil`.
+    ///   - sslBinary: The location of the `openssl` command as a file path.
     ///   - pushRoutesMiddleware: The `Middleware` to use for push notification routes. If `nil`, push routes will not be registered.
     ///   - logger: The `Logger` to use.
     public init(
         app: Application,
         delegate: any PassesDelegate,
+        signingFilesDirectory: String,
+        wwdrCertificate: String = "WWDR.pem",
+        pemCertificate: String = "certificate.pem",
+        pemPrivateKey: String = "key.pem",
+        pemPrivateKeyPassword: String? = nil,
+        sslBinary: String = "/usr/bin/openssl",
         pushRoutesMiddleware: (any Middleware)? = nil,
         logger: Logger? = nil
     ) throws {
         self.app = app
         self.delegate = delegate
+        self.signingFilesDirectory = URL(fileURLWithPath: signingFilesDirectory, isDirectory: true)
+        self.wwdrCertificate = wwdrCertificate
+        self.pemCertificate = pemCertificate
+        self.pemPrivateKey = pemPrivateKey
+        self.pemPrivateKeyPassword = pemPrivateKeyPassword
+        self.sslBinary = URL(fileURLWithPath: sslBinary)
         self.logger = logger
 
-        let privateKeyPath = URL(
-            fileURLWithPath: delegate.pemPrivateKey, relativeTo: delegate.sslSigningFilesDirectory
-        ).path
+        let privateKeyPath = URL(fileURLWithPath: pemPrivateKey, relativeTo: self.signingFilesDirectory).path
         guard FileManager.default.fileExists(atPath: privateKeyPath) else {
             throw PassesError.pemPrivateKeyMissing
         }
-        let pemPath = URL(
-            fileURLWithPath: delegate.pemCertificate, relativeTo: delegate.sslSigningFilesDirectory
-        ).path
+        let pemPath = URL(fileURLWithPath: pemCertificate, relativeTo: self.signingFilesDirectory).path
         guard FileManager.default.fileExists(atPath: pemPath) else {
             throw PassesError.pemCertificateMissing
         }
         let apnsConfig: APNSClientConfiguration
-        if let password = delegate.pemPrivateKeyPassword {
+        if let password = pemPrivateKeyPassword {
             apnsConfig = APNSClientConfiguration(
                 authenticationMethod: try .tls(
                     privateKey: .privateKey(
-                        NIOSSLPrivateKey(file: privateKeyPath, format: .pem) { closure in
-                            closure(password.utf8)
+                        NIOSSLPrivateKey(file: privateKeyPath, format: .pem) { passphraseCallback in
+                            passphraseCallback(password.utf8)
                         }),
                     certificateChain: NIOSSLCertificate.fromPEMFile(pemPath).map {
                         .certificate($0)
@@ -89,7 +110,7 @@ where P == R.PassType, D == R.DeviceType, U == P.UserPersonalizationType {
             apnsConfig,
             eventLoopGroupProvider: .shared(app.eventLoopGroup),
             responseDecoder: JSONDecoder(),
-            requestEncoder: JSONEncoder(),
+            requestEncoder: self.encoder,
             as: .init(string: "passes"),
             isDefault: false
         )
@@ -97,38 +118,33 @@ where P == R.PassType, D == R.DeviceType, U == P.UserPersonalizationType {
         let v1 = app.grouped("api", "passes", "v1")
         v1.get(
             "devices", ":deviceLibraryIdentifier", "registrations", ":passTypeIdentifier",
-            use: { try await self.passesForDevice(req: $0) })
+            use: { try await self.passesForDevice(req: $0) }
+        )
         v1.post("log", use: { try await self.logError(req: $0) })
-        v1.post(
-            "passes", ":passTypeIdentifier", ":passSerial", "personalize",
-            use: { try await self.personalizedPass(req: $0) })
+        v1.post("passes", ":passTypeIdentifier", ":passSerial", "personalize", use: { try await self.personalizedPass(req: $0) })
 
         let v1auth = v1.grouped(ApplePassMiddleware<P>())
         v1auth.post(
-            "devices", ":deviceLibraryIdentifier", "registrations", ":passTypeIdentifier",
-            ":passSerial", use: { try await self.registerDevice(req: $0) })
-        v1auth.get(
-            "passes", ":passTypeIdentifier", ":passSerial",
-            use: { try await self.latestVersionOfPass(req: $0) })
+            "devices", ":deviceLibraryIdentifier", "registrations", ":passTypeIdentifier", ":passSerial",
+            use: { try await self.registerDevice(req: $0) }
+        )
+        v1auth.get("passes", ":passTypeIdentifier", ":passSerial", use: { try await self.latestVersionOfPass(req: $0) })
         v1auth.delete(
-            "devices", ":deviceLibraryIdentifier", "registrations", ":passTypeIdentifier",
-            ":passSerial", use: { try await self.unregisterDevice(req: $0) })
+            "devices", ":deviceLibraryIdentifier", "registrations", ":passTypeIdentifier", ":passSerial",
+            use: { try await self.unregisterDevice(req: $0) }
+        )
 
         if let pushRoutesMiddleware {
             let pushAuth = v1.grouped(pushRoutesMiddleware)
-            pushAuth.post(
-                "push", ":passTypeIdentifier", ":passSerial",
-                use: { try await self.pushUpdatesForPass(req: $0) })
-            pushAuth.get(
-                "push", ":passTypeIdentifier", ":passSerial",
-                use: { try await self.tokensForPassUpdate(req: $0) })
+            pushAuth.post("push", ":passTypeIdentifier", ":passSerial", use: { try await self.pushUpdatesForPass(req: $0) })
+            pushAuth.get("push", ":passTypeIdentifier", ":passSerial", use: { try await self.tokensForPassUpdate(req: $0) })
         }
     }
 }
 
 // MARK: - API Routes
 extension PassesServiceCustom {
-    func registerDevice(req: Request) async throws -> HTTPStatus {
+    fileprivate func registerDevice(req: Request) async throws -> HTTPStatus {
         logger?.debug("Called register device")
 
         let pushToken: String
@@ -145,7 +161,7 @@ extension PassesServiceCustom {
         let deviceLibraryIdentifier = req.parameters.get("deviceLibraryIdentifier")!
         guard
             let pass = try await P.query(on: req.db)
-                .filter(\._$passTypeIdentifier == passTypeIdentifier)
+                .filter(\._$typeIdentifier == passTypeIdentifier)
                 .filter(\._$id == serial)
                 .first()
         else {
@@ -153,27 +169,23 @@ extension PassesServiceCustom {
         }
 
         let device = try await D.query(on: req.db)
-            .filter(\._$deviceLibraryIdentifier == deviceLibraryIdentifier)
+            .filter(\._$libraryIdentifier == deviceLibraryIdentifier)
             .filter(\._$pushToken == pushToken)
             .first()
         if let device = device {
             return try await Self.createRegistration(device: device, pass: pass, db: req.db)
         } else {
-            let newDevice = D(
-                deviceLibraryIdentifier: deviceLibraryIdentifier, pushToken: pushToken)
+            let newDevice = D(libraryIdentifier: deviceLibraryIdentifier, pushToken: pushToken)
             try await newDevice.create(on: req.db)
             return try await Self.createRegistration(device: newDevice, pass: pass, db: req.db)
         }
     }
 
-    private static func createRegistration(
-        device: D,
-        pass: P,
-        db: any Database
-    ) async throws -> HTTPStatus {
+    private static func createRegistration(device: D, pass: P, db: any Database) async throws -> HTTPStatus {
         let r = try await R.for(
-            deviceLibraryIdentifier: device.deviceLibraryIdentifier,
-            passTypeIdentifier: pass.passTypeIdentifier, on: db
+            deviceLibraryIdentifier: device.libraryIdentifier,
+            typeIdentifier: pass.typeIdentifier,
+            on: db
         )
         .filter(P.self, \._$id == pass.requireID())
         .first()
@@ -187,7 +199,7 @@ extension PassesServiceCustom {
         return .created
     }
 
-    func passesForDevice(req: Request) async throws -> PassesForDeviceDTO {
+    fileprivate func passesForDevice(req: Request) async throws -> PassesForDeviceDTO {
         logger?.debug("Called passesForDevice")
 
         let passTypeIdentifier = req.parameters.get("passTypeIdentifier")!
@@ -195,7 +207,9 @@ extension PassesServiceCustom {
 
         var query = R.for(
             deviceLibraryIdentifier: deviceLibraryIdentifier,
-            passTypeIdentifier: passTypeIdentifier, on: req.db)
+            typeIdentifier: passTypeIdentifier,
+            on: req.db
+        )
         if let since: TimeInterval = req.query["passesUpdatedSince"] {
             let when = Date(timeIntervalSince1970: since)
             query = query.filter(P.self, \._$updatedAt > when)
@@ -219,7 +233,7 @@ extension PassesServiceCustom {
         return PassesForDeviceDTO(with: serialNumbers, maxDate: maxDate)
     }
 
-    func latestVersionOfPass(req: Request) async throws -> Response {
+    fileprivate func latestVersionOfPass(req: Request) async throws -> Response {
         logger?.debug("Called latestVersionOfPass")
 
         var ifModifiedSince: TimeInterval = 0
@@ -235,7 +249,7 @@ extension PassesServiceCustom {
         guard
             let pass = try await P.query(on: req.db)
                 .filter(\._$id == id)
-                .filter(\._$passTypeIdentifier == passTypeIdentifier)
+                .filter(\._$typeIdentifier == passTypeIdentifier)
                 .first()
         else {
             throw Abort(.notFound)
@@ -256,7 +270,7 @@ extension PassesServiceCustom {
         )
     }
 
-    func unregisterDevice(req: Request) async throws -> HTTPStatus {
+    fileprivate func unregisterDevice(req: Request) async throws -> HTTPStatus {
         logger?.debug("Called unregisterDevice")
 
         guard let passId = req.parameters.get("passSerial", as: UUID.self) else {
@@ -268,7 +282,8 @@ extension PassesServiceCustom {
         guard
             let r = try await R.for(
                 deviceLibraryIdentifier: deviceLibraryIdentifier,
-                passTypeIdentifier: passTypeIdentifier, on: req.db
+                typeIdentifier: passTypeIdentifier,
+                on: req.db
             )
             .filter(P.self, \._$id == passId)
             .first()
@@ -279,7 +294,7 @@ extension PassesServiceCustom {
         return .ok
     }
 
-    func logError(req: Request) async throws -> HTTPStatus {
+    fileprivate func logError(req: Request) async throws -> HTTPStatus {
         logger?.debug("Called logError")
 
         let body: ErrorLogDTO
@@ -297,7 +312,7 @@ extension PassesServiceCustom {
         return .ok
     }
 
-    func personalizedPass(req: Request) async throws -> Response {
+    fileprivate func personalizedPass(req: Request) async throws -> Response {
         logger?.debug("Called personalizedPass")
 
         guard let passTypeIdentifier = req.parameters.get("passTypeIdentifier"),
@@ -308,7 +323,7 @@ extension PassesServiceCustom {
         guard
             let pass = try await P.query(on: req.db)
                 .filter(\._$id == id)
-                .filter(\._$passTypeIdentifier == passTypeIdentifier)
+                .filter(\._$typeIdentifier == passTypeIdentifier)
                 .first()
         else {
             throw Abort(.notFound)
@@ -329,8 +344,7 @@ extension PassesServiceCustom {
         pass._$userPersonalization.id = try userPersonalization.requireID()
         try await pass.update(on: req.db)
 
-        let tmp = FileManager.default.temporaryDirectory
-        let root = tmp.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         defer { _ = try? FileManager.default.removeItem(at: root) }
 
@@ -338,8 +352,8 @@ extension PassesServiceCustom {
             throw Abort(.internalServerError)
         }
         let signature: Data
-        if let password = delegate.pemPrivateKeyPassword {
-            let sslBinary = delegate.sslBinary
+        if let password = self.pemPrivateKeyPassword {
+            let sslBinary: URL = self.sslBinary
             guard FileManager.default.fileExists(atPath: sslBinary.path) else {
                 throw PassesError.opensslBinaryMissing
             }
@@ -348,13 +362,13 @@ extension PassesServiceCustom {
             try token.write(to: tokenURL)
 
             let proc = Process()
-            proc.currentDirectoryURL = delegate.sslSigningFilesDirectory
+            proc.currentDirectoryURL = self.signingFilesDirectory
             proc.executableURL = sslBinary
             proc.arguments = [
                 "smime", "-binary", "-sign",
-                "-certfile", delegate.wwdrCertificate,
-                "-signer", delegate.pemCertificate,
-                "-inkey", delegate.pemPrivateKey,
+                "-certfile", self.wwdrCertificate,
+                "-signer", self.pemCertificate,
+                "-inkey", self.pemPrivateKey,
                 "-in", tokenURL.path,
                 "-out", root.appendingPathComponent("signature").path,
                 "-outform", "DER",
@@ -370,21 +384,21 @@ extension PassesServiceCustom {
                 additionalIntermediateCertificates: [
                     Certificate(
                         pemEncoded: String(
-                            contentsOf: delegate.sslSigningFilesDirectory
-                                .appendingPathComponent(delegate.wwdrCertificate)
+                            contentsOf: self.signingFilesDirectory
+                                .appendingPathComponent(self.wwdrCertificate)
                         )
                     )
                 ],
                 certificate: Certificate(
                     pemEncoded: String(
-                        contentsOf: delegate.sslSigningFilesDirectory
-                            .appendingPathComponent(delegate.pemCertificate)
+                        contentsOf: self.signingFilesDirectory
+                            .appendingPathComponent(self.pemCertificate)
                     )
                 ),
                 privateKey: .init(
                     pemEncoded: String(
-                        contentsOf: delegate.sslSigningFilesDirectory
-                            .appendingPathComponent(delegate.pemPrivateKey)
+                        contentsOf: self.signingFilesDirectory
+                            .appendingPathComponent(self.pemPrivateKey)
                     )
                 ),
                 signingTime: Date()
@@ -399,7 +413,7 @@ extension PassesServiceCustom {
     }
 
     // MARK: - Push Routes
-    func pushUpdatesForPass(req: Request) async throws -> HTTPStatus {
+    fileprivate func pushUpdatesForPass(req: Request) async throws -> HTTPStatus {
         logger?.debug("Called pushUpdatesForPass")
 
         guard let id = req.parameters.get("passSerial", as: UUID.self) else {
@@ -411,7 +425,7 @@ extension PassesServiceCustom {
         return .noContent
     }
 
-    func tokensForPassUpdate(req: Request) async throws -> [String] {
+    fileprivate func tokensForPassUpdate(req: Request) async throws -> [String] {
         logger?.debug("Called tokensForPassUpdate")
 
         guard let id = req.parameters.get("passSerial", as: UUID.self) else {
@@ -419,8 +433,7 @@ extension PassesServiceCustom {
         }
         let passTypeIdentifier = req.parameters.get("passTypeIdentifier")!
 
-        return try await Self.registrationsForPass(id: id, of: passTypeIdentifier, on: req.db)
-            .map { $0.device.pushToken }
+        return try await Self.registrationsForPass(id: id, of: passTypeIdentifier, on: req.db).map { $0.device.pushToken }
     }
 }
 
@@ -430,17 +443,14 @@ extension PassesServiceCustom {
     ///
     /// - Parameters:
     ///   - id: The `UUID` of the pass to send the notifications for.
-    ///   - passTypeIdentifier: The type identifier of the pass.
+    ///   - typeIdentifier: The type identifier of the pass.
     ///   - db: The `Database` to use.
-    public func sendPushNotificationsForPass(
-        id: UUID, of passTypeIdentifier: String, on db: any Database
-    ) async throws {
-        let registrations = try await Self.registrationsForPass(
-            id: id, of: passTypeIdentifier, on: db)
+    public func sendPushNotificationsForPass(id: UUID, of typeIdentifier: String, on db: any Database) async throws {
+        let registrations = try await Self.registrationsForPass(id: id, of: typeIdentifier, on: db)
         for reg in registrations {
             let backgroundNotification = APNSBackgroundNotification(
                 expiration: .immediately,
-                topic: reg.pass.passTypeIdentifier,
+                topic: reg.pass.typeIdentifier,
                 payload: EmptyPayload()
             )
             do {
@@ -461,13 +471,10 @@ extension PassesServiceCustom {
     ///   - pass: The pass to send the notifications for.
     ///   - db: The `Database` to use.
     public func sendPushNotifications(for pass: P, on db: any Database) async throws {
-        try await sendPushNotificationsForPass(
-            id: pass.requireID(), of: pass.passTypeIdentifier, on: db)
+        try await sendPushNotificationsForPass(id: pass.requireID(), of: pass.typeIdentifier, on: db)
     }
 
-    static func registrationsForPass(
-        id: UUID, of passTypeIdentifier: String, on db: any Database
-    ) async throws -> [R] {
+    private static func registrationsForPass(id: UUID, of typeIdentifier: String, on db: any Database) async throws -> [R] {
         // This could be done by enforcing the caller to have a Siblings property wrapper,
         // but there's not really any value to forcing that on them when we can just do the query ourselves like this.
         try await R.query(on: db)
@@ -475,7 +482,7 @@ extension PassesServiceCustom {
             .join(parent: \._$device)
             .with(\._$pass)
             .with(\._$device)
-            .filter(P.self, \._$passTypeIdentifier == passTypeIdentifier)
+            .filter(P.self, \._$typeIdentifier == typeIdentifier)
             .filter(P.self, \._$id == id)
             .all()
     }
@@ -483,18 +490,16 @@ extension PassesServiceCustom {
 
 // MARK: - pkpass file generation
 extension PassesServiceCustom {
-    private static func generateManifestFile(
-        using encoder: JSONEncoder, in root: URL
-    ) throws -> Data {
+    private static func generateManifestFile(using encoder: JSONEncoder, in root: URL) throws -> Data {
         var manifest: [String: String] = [:]
         let paths = try FileManager.default.subpathsOfDirectory(atPath: root.path)
         for relativePath in paths {
             let file = URL(fileURLWithPath: relativePath, relativeTo: root)
             guard !file.hasDirectoryPath else { continue }
-            let data = try Data(contentsOf: file)
-            let hash = Insecure.SHA1.hash(data: data)
-            manifest[relativePath] = hash.map { "0\(String($0, radix: 16))".suffix(2) }.joined()
+            manifest[relativePath] = try Insecure.SHA1.hash(data: Data(contentsOf: file)).hex
         }
+        // Write the manifest file to the root directory
+        // and return the data for using it in signing.
         let data = try encoder.encode(manifest)
         try data.write(to: root.appendingPathComponent("manifest.json"))
         return data
@@ -505,20 +510,20 @@ extension PassesServiceCustom {
         if delegate.generateSignatureFile(in: root) { return }
 
         // Swift Crypto doesn't support encrypted PEM private keys, so we have to use OpenSSL for that.
-        if let password = delegate.pemPrivateKeyPassword {
-            let sslBinary = delegate.sslBinary
+        if let password = self.pemPrivateKeyPassword {
+            let sslBinary = self.sslBinary
             guard FileManager.default.fileExists(atPath: sslBinary.path) else {
                 throw PassesError.opensslBinaryMissing
             }
 
             let proc = Process()
-            proc.currentDirectoryURL = delegate.sslSigningFilesDirectory
+            proc.currentDirectoryURL = self.signingFilesDirectory
             proc.executableURL = sslBinary
             proc.arguments = [
                 "smime", "-binary", "-sign",
-                "-certfile", delegate.wwdrCertificate,
-                "-signer", delegate.pemCertificate,
-                "-inkey", delegate.pemPrivateKey,
+                "-certfile", self.wwdrCertificate,
+                "-signer", self.pemCertificate,
+                "-inkey", self.pemPrivateKey,
                 "-in", root.appendingPathComponent("manifest.json").path,
                 "-out", root.appendingPathComponent("signature").path,
                 "-outform", "DER",
@@ -535,21 +540,21 @@ extension PassesServiceCustom {
             additionalIntermediateCertificates: [
                 Certificate(
                     pemEncoded: String(
-                        contentsOf: delegate.sslSigningFilesDirectory
-                            .appendingPathComponent(delegate.wwdrCertificate)
+                        contentsOf: self.signingFilesDirectory
+                            .appendingPathComponent(self.wwdrCertificate)
                     )
                 )
             ],
             certificate: Certificate(
                 pemEncoded: String(
-                    contentsOf: delegate.sslSigningFilesDirectory
-                        .appendingPathComponent(delegate.pemCertificate)
+                    contentsOf: self.signingFilesDirectory
+                        .appendingPathComponent(self.pemCertificate)
                 )
             ),
             privateKey: .init(
                 pemEncoded: String(
-                    contentsOf: delegate.sslSigningFilesDirectory
-                        .appendingPathComponent(delegate.pemPrivateKey)
+                    contentsOf: self.signingFilesDirectory
+                        .appendingPathComponent(self.pemPrivateKey)
                 )
             ),
             signingTime: Date()
@@ -564,37 +569,29 @@ extension PassesServiceCustom {
     ///   - db: The `Database` to use.
     /// - Returns: The generated pass content as `Data`.
     public func generatePassContent(for pass: P, on db: any Database) async throws -> Data {
-        let templateDirectory = try await delegate.template(for: pass, db: db)
+        let templateDirectory = try await URL(fileURLWithPath: delegate.template(for: pass, db: db), isDirectory: true)
         guard
             (try? templateDirectory.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? false
         else {
             throw PassesError.templateNotDirectory
         }
-        var files = try FileManager.default.contentsOfDirectory(
-            at: templateDirectory, includingPropertiesForKeys: nil)
 
-        let tmp = FileManager.default.temporaryDirectory
-        let root = tmp.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
         try FileManager.default.copyItem(at: templateDirectory, to: root)
         defer { _ = try? FileManager.default.removeItem(at: root) }
 
-        let encoder = JSONEncoder()
-        try await self.delegate.encode(pass: pass, db: db, encoder: encoder)
+        try await self.delegate.encode(pass: pass, db: db, encoder: self.encoder)
             .write(to: root.appendingPathComponent("pass.json"))
 
+        var files = try FileManager.default.contentsOfDirectory(at: templateDirectory, includingPropertiesForKeys: nil)
+
         // Pass Personalization
-        if let encodedPersonalization = try await self.delegate.encodePersonalization(
-            for: pass, db: db, encoder: encoder)
-        {
-            try encodedPersonalization.write(
-                to: root.appendingPathComponent("personalization.json"))
+        if let personalizationJSON = try await self.delegate.personalizationJSON(for: pass, db: db) {
+            try self.encoder.encode(personalizationJSON).write(to: root.appendingPathComponent("personalization.json"))
             files.append(URL(fileURLWithPath: "personalization.json", relativeTo: root))
         }
 
-        try self.generateSignatureFile(
-            for: Self.generateManifestFile(using: encoder, in: root),
-            in: root
-        )
+        try self.generateSignatureFile(for: Self.generateManifestFile(using: self.encoder, in: root), in: root)
 
         files.append(URL(fileURLWithPath: "pass.json", relativeTo: root))
         files.append(URL(fileURLWithPath: "manifest.json", relativeTo: root))
@@ -617,8 +614,7 @@ extension PassesServiceCustom {
             throw PassesError.invalidNumberOfPasses
         }
 
-        let tmp = FileManager.default.temporaryDirectory
-        let root = tmp.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         defer { _ = try? FileManager.default.removeItem(at: root) }
 

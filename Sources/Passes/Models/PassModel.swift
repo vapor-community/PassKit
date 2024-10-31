@@ -36,7 +36,7 @@ public protocol PassModel: Model where IDValue == UUID {
     associatedtype UserPersonalizationType: UserPersonalizationModel
 
     /// The pass type identifier that’s registered with Apple.
-    var passTypeIdentifier: String { get set }
+    var typeIdentifier: String { get set }
 
     /// The last time the pass was modified.
     var updatedAt: Date? { get set }
@@ -49,9 +49,9 @@ public protocol PassModel: Model where IDValue == UUID {
 
     /// The designated initializer.
     /// - Parameters:
-    ///   - passTypeIdentifier: The pass type identifier that’s registered with Apple.
+    ///   - typeIdentifier: The pass type identifier that’s registered with Apple.
     ///   - authenticationToken: The authentication token to use with the web service in the `webServiceURL` key.
-    init(passTypeIdentifier: String, authenticationToken: String)
+    init(typeIdentifier: String, authenticationToken: String)
 }
 
 extension PassModel {
@@ -65,14 +65,14 @@ extension PassModel {
         return id
     }
 
-    var _$passTypeIdentifier: Field<String> {
-        guard let mirror = Mirror(reflecting: self).descendant("_passTypeIdentifier"),
-            let passTypeIdentifier = mirror as? Field<String>
+    var _$typeIdentifier: Field<String> {
+        guard let mirror = Mirror(reflecting: self).descendant("_typeIdentifier"),
+            let typeIdentifier = mirror as? Field<String>
         else {
-            fatalError("passTypeIdentifier property must be declared using @Field")
+            fatalError("typeIdentifier property must be declared using @Field")
         }
 
-        return passTypeIdentifier
+        return typeIdentifier
     }
 
     var _$updatedAt: Timestamp<DefaultTimestampFormat> {

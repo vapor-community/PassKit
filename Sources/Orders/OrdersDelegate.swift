@@ -10,9 +10,10 @@ import Foundation
 
 /// The delegate which is responsible for generating the order files.
 public protocol OrdersDelegate: AnyObject, Sendable {
-    /// Should return a `URL` which points to the template data for the order.
+    /// Should return a URL path which points to the template data for the order.
     ///
-    /// The URL should point to a directory containing all the images and localizations for the generated `.order` archive but should *not* contain any of these items:
+    /// The path should point to a directory containing all the images and localizations for the generated `.order` archive
+    /// but should *not* contain any of these items:
     ///  - `manifest.json`
     ///  - `order.json`
     ///  - `signature`
@@ -21,10 +22,8 @@ public protocol OrdersDelegate: AnyObject, Sendable {
     ///   - order: The order data from the SQL server.
     ///   - db: The SQL database to query against.
     ///
-    /// - Returns: A `URL` which points to the template data for the order.
-    ///
-    /// > Important: Be sure to use the `URL(fileURLWithPath:isDirectory:)` constructor.
-    func template<O: OrderModel>(for order: O, db: any Database) async throws -> URL
+    /// - Returns: A URL path which points to the template data for the order.
+    func template<O: OrderModel>(for order: O, db: any Database) async throws -> String
 
     /// Generates the SSL `signature` file.
     ///
@@ -51,62 +50,9 @@ public protocol OrdersDelegate: AnyObject, Sendable {
     func encode<O: OrderModel>(
         order: O, db: any Database, encoder: JSONEncoder
     ) async throws -> Data
-
-    /// Should return a `URL` which points to the template data for the order.
-    ///
-    /// The URL should point to a directory containing the files specified by these keys:
-    /// - `wwdrCertificate`
-    /// - `pemCertificate`
-    /// - `pemPrivateKey`
-    ///
-    /// > Important: Be sure to use the `URL(fileURLWithPath:isDirectory:)` initializer!
-    var sslSigningFilesDirectory: URL { get }
-
-    /// The location of the `openssl` command as a file URL.
-    ///
-    /// > Important: Be sure to use the `URL(fileURLWithPath:)` constructor.
-    var sslBinary: URL { get }
-
-    /// The name of Apple's WWDR.pem certificate as contained in `sslSigningFiles` path.
-    ///
-    /// Defaults to `WWDR.pem`
-    var wwdrCertificate: String { get }
-
-    /// The name of the PEM Certificate for signing the order as contained in `sslSigningFiles` path.
-    ///
-    /// Defaults to `ordercertificate.pem`
-    var pemCertificate: String { get }
-
-    /// The name of the PEM Certificate's private key for signing the order as contained in `sslSigningFiles` path.
-    ///
-    /// Defaults to `orderkey.pem`
-    var pemPrivateKey: String { get }
-
-    /// The password to the private key file.
-    var pemPrivateKeyPassword: String? { get }
 }
 
 extension OrdersDelegate {
-    public var wwdrCertificate: String {
-        return "WWDR.pem"
-    }
-
-    public var pemCertificate: String {
-        return "ordercertificate.pem"
-    }
-
-    public var pemPrivateKey: String {
-        return "orderkey.pem"
-    }
-
-    public var pemPrivateKeyPassword: String? {
-        return nil
-    }
-
-    public var sslBinary: URL {
-        return URL(fileURLWithPath: "/usr/bin/openssl")
-    }
-
     public func generateSignatureFile(in root: URL) -> Bool {
         return false
     }

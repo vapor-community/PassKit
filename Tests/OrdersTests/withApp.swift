@@ -7,32 +7,39 @@ import Vapor
 import Zip
 
 func withApp(
-    delegate: some OrdersDelegate,
+    useEncryptedKey: Bool = false,
     _ body: (Application, OrdersService) async throws -> Void
 ) async throws {
     let app = try await Application.make(.testing)
+    do {
+        try #require(isLoggingConfigured)
 
-    try #require(isLoggingConfigured)
+        app.databases.use(.sqlite(.memory), as: .sqlite)
+        OrdersService.register(migrations: app.migrations)
+        app.migrations.add(CreateOrderData())
+        try await app.autoMigrate()
 
-    app.databases.use(.sqlite(.memory), as: .sqlite)
+        let delegate = TestOrdersDelegate()
+        let ordersService = try OrdersService(
+            app: app,
+            delegate: delegate,
+            signingFilesDirectory: "\(FileManager.default.currentDirectoryPath)/Tests/Certificates/",
+            pemCertificate: useEncryptedKey ? "encryptedcert.pem" : "certificate.pem",
+            pemPrivateKey: useEncryptedKey ? "encryptedkey.pem" : "key.pem",
+            pemPrivateKeyPassword: useEncryptedKey ? "password" : nil,
+            pushRoutesMiddleware: SecretMiddleware(secret: "foo"),
+            logger: app.logger
+        )
+        app.databases.middleware.use(OrderDataMiddleware(service: ordersService), on: .sqlite)
 
-    OrdersService.register(migrations: app.migrations)
-    app.migrations.add(CreateOrderData())
-    let passesService = try OrdersService(
-        app: app,
-        delegate: delegate,
-        pushRoutesMiddleware: SecretMiddleware(secret: "foo"),
-        logger: app.logger
-    )
+        Zip.addCustomFileExtension("order")
 
-    app.databases.middleware.use(OrderDataMiddleware(service: passesService), on: .sqlite)
+        try await body(app, ordersService)
 
-    try await app.autoMigrate()
-
-    Zip.addCustomFileExtension("order")
-
-    try await body(app, passesService)
-
-    try await app.autoRevert()
+        try await app.autoRevert()
+    } catch {
+        try await app.asyncShutdown()
+        throw error
+    }
     try await app.asyncShutdown()
 }

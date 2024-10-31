@@ -21,11 +21,11 @@ final public class PassesDevice: DeviceModel, @unchecked Sendable {
     public var pushToken: String
 
     /// The identifier PassKit provides for the device.
-    @Field(key: PassesDevice.FieldKeys.deviceLibraryIdentifier)
-    public var deviceLibraryIdentifier: String
+    @Field(key: PassesDevice.FieldKeys.libraryIdentifier)
+    public var libraryIdentifier: String
 
-    public init(deviceLibraryIdentifier: String, pushToken: String) {
-        self.deviceLibraryIdentifier = deviceLibraryIdentifier
+    public init(libraryIdentifier: String, pushToken: String) {
+        self.libraryIdentifier = libraryIdentifier
         self.pushToken = pushToken
     }
 
@@ -37,10 +37,8 @@ extension PassesDevice: AsyncMigration {
         try await database.schema(Self.schema)
             .field(.id, .int, .identifier(auto: true))
             .field(PassesDevice.FieldKeys.pushToken, .string, .required)
-            .field(PassesDevice.FieldKeys.deviceLibraryIdentifier, .string, .required)
-            .unique(
-                on: PassesDevice.FieldKeys.pushToken, PassesDevice.FieldKeys.deviceLibraryIdentifier
-            )
+            .field(PassesDevice.FieldKeys.libraryIdentifier, .string, .required)
+            .unique(on: PassesDevice.FieldKeys.pushToken, PassesDevice.FieldKeys.libraryIdentifier)
             .create()
     }
 
@@ -53,6 +51,6 @@ extension PassesDevice {
     enum FieldKeys {
         static let schemaName = "passes_devices"
         static let pushToken = FieldKey(stringLiteral: "push_token")
-        static let deviceLibraryIdentifier = FieldKey(stringLiteral: "device_library_identifier")
+        static let libraryIdentifier = FieldKey(stringLiteral: "library_identifier")
     }
 }

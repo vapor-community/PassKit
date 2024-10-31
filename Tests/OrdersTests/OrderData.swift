@@ -22,28 +22,6 @@ final class OrderData: OrderDataModel, @unchecked Sendable {
         self.id = id
         self.title = title
     }
-
-    func toDTO() -> OrderDataDTO {
-        .init(
-            id: self.id,
-            title: self.$title.value
-        )
-    }
-}
-
-struct OrderDataDTO: Content {
-    var id: UUID?
-    var title: String?
-
-    func toModel() -> OrderData {
-        let model = OrderData()
-
-        model.id = self.id
-        if let title = self.title {
-            model.title = title
-        }
-        return model
-    }
 }
 
 struct CreateOrderData: AsyncMigration {
@@ -51,10 +29,7 @@ struct CreateOrderData: AsyncMigration {
         try await database.schema(OrderData.FieldKeys.schemaName)
             .id()
             .field(OrderData.FieldKeys.title, .string, .required)
-            .field(
-                OrderData.FieldKeys.orderID, .uuid, .required,
-                .references(Order.schema, .id, onDelete: .cascade)
-            )
+            .field(OrderData.FieldKeys.orderID, .uuid, .required, .references(Order.schema, .id, onDelete: .cascade))
             .create()
     }
 
@@ -71,7 +46,11 @@ extension OrderData {
     }
 }
 
-struct OrderJSONData: OrderJSON.Properties {
+extension OrderJSON.SchemaVersion: Decodable {}
+extension OrderJSON.OrderType: Decodable {}
+extension OrderJSON.OrderStatus: Decodable {}
+
+struct OrderJSONData: OrderJSON.Properties, Decodable {
     let schemaVersion = OrderJSON.SchemaVersion.v1
     let orderTypeIdentifier = "order.com.example.pet-store"
     let orderIdentifier: String
@@ -86,11 +65,23 @@ struct OrderJSONData: OrderJSON.Properties {
 
     private let webServiceURL = "https://www.example.com/api/orders/"
 
-    struct MerchantData: OrderJSON.Merchant {
+    enum CodingKeys: String, CodingKey {
+        case schemaVersion
+        case orderTypeIdentifier, orderIdentifier, orderType, orderNumber
+        case createdAt, updatedAt
+        case status, merchant
+        case orderManagementURL, authenticationToken, webServiceURL
+    }
+
+    struct MerchantData: OrderJSON.Merchant, Decodable {
         let merchantIdentifier = "com.example.pet-store"
         let displayName: String
         let url = "https://www.example.com/"
         let logo = "pet_store_logo.png"
+
+        enum CodingKeys: String, CodingKey {
+            case merchantIdentifier, displayName, url, logo
+        }
     }
 
     init(data: OrderData, order: Order) {
@@ -111,20 +102,17 @@ struct OrderDataMiddleware: AsyncModelMiddleware {
         self.service = service
     }
 
-    func create(
-        model: OrderData, on db: any Database, next: any AnyAsyncModelResponder
-    ) async throws {
+    func create(model: OrderData, on db: any Database, next: any AnyAsyncModelResponder) async throws {
         let order = Order(
-            orderTypeIdentifier: "order.com.example.pet-store",
-            authenticationToken: Data([UInt8].random(count: 12)).base64EncodedString())
+            typeIdentifier: "order.com.example.pet-store",
+            authenticationToken: Data([UInt8].random(count: 12)).base64EncodedString()
+        )
         try await order.save(on: db)
         model.$order.id = try order.requireID()
         try await next.create(model, on: db)
     }
 
-    func update(
-        model: OrderData, on db: any Database, next: any AnyAsyncModelResponder
-    ) async throws {
+    func update(model: OrderData, on db: any Database, next: any AnyAsyncModelResponder) async throws {
         let order = try await model.$order.get(on: db)
         order.updatedAt = Date()
         try await order.save(on: db)

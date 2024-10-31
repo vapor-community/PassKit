@@ -111,12 +111,6 @@ struct OrderJSONData: OrderJSON.Properties {
 ### Implement the Delegate
 
 Create a delegate class that implements ``OrdersDelegate``.
-In the ``OrdersDelegate/sslSigningFilesDirectory`` you specify there must be the `WWDR.pem`, `ordercertificate.pem` and `orderkey.pem` files.
-If they are named like that you're good to go, otherwise you have to specify the custom name.
-
-> Tip: Obtaining the three certificates files could be a bit tricky. You could get some guidance from [this guide](https://github.com/alexandercerutti/passkit-generator/wiki/Generating-Certificates) and [this video](https://www.youtube.com/watch?v=rJZdPoXHtzI). Those guides are for Wallet passes, but the process is similar for Wallet orders.
-
-There are other fields available which have reasonable default values. See ``OrdersDelegate``'s documentation.
 
 Because the files for your order's template and the method of encoding might vary by order type, you'll be provided the ``Order`` for those methods.
 In the ``OrdersDelegate/encode(order:db:encoder:)`` method, you'll want to encode a `struct` that conforms to ``OrderJSON``.
@@ -127,12 +121,8 @@ import Fluent
 import Orders
 
 final class OrderDelegate: OrdersDelegate {
-    let sslSigningFilesDirectory = URL(fileURLWithPath: "Certificates/Orders/", isDirectory: true)
-
-    let pemPrivateKeyPassword: String? = Environment.get("ORDERS_PEM_PRIVATE_KEY_PASSWORD")!
-
     func encode<O: OrderModel>(order: O, db: Database, encoder: JSONEncoder) async throws -> Data {
-        // The specific OrderData class you use here may vary based on the `order.orderTypeIdentifier`
+        // The specific OrderData class you use here may vary based on the `order.typeIdentifier`
         // if you have multiple different types of orders, and thus multiple types of order data.
         guard let orderData = try await OrderData.query(on: db)
             .filter(\.$order.$id == order.requireID())
@@ -146,19 +136,21 @@ final class OrderDelegate: OrdersDelegate {
         return data
     }
 
-    func template<O: OrderModel>(for order: O, db: Database) async throws -> URL {
+    func template<O: OrderModel>(for order: O, db: Database) async throws -> String {
         // The location might vary depending on the type of order.
-        URL(fileURLWithPath: "Templates/Orders/", isDirectory: true)
+        "Templates/Orders/"
     }
 }
 ```
-
-> Important: If you have an encrypted PEM private key, you **must** explicitly declare ``OrdersDelegate/pemPrivateKeyPassword`` as a `String?` or Swift will ignore it as it'll think it's a `String` instead.
 
 ### Initialize the Service
 
 Next, initialize the ``OrdersService`` inside the `configure.swift` file.
 This will implement all of the routes that Apple Wallet expects to exist on your server.
+In the `signingFilesDirectory` you specify there must be the `WWDR.pem`, `certificate.pem` and `key.pem` files.
+If they are named like that you're good to go, otherwise you have to specify the custom name.
+
+> Tip: Obtaining the three certificates files could be a bit tricky. You could get some guidance from [this guide](https://github.com/alexandercerutti/passkit-generator/wiki/Generating-Certificates) and [this video](https://www.youtube.com/watch?v=rJZdPoXHtzI). Those guides are for Wallet passes, but the process is similar for Wallet orders.
 
 ```swift
 import Fluent
@@ -169,7 +161,11 @@ let orderDelegate = OrderDelegate()
 
 public func configure(_ app: Application) async throws {
     ...
-    let ordersService = try OrdersService(app: app, delegate: orderDelegate)
+    let ordersService = try OrdersService(
+        app: app,
+        delegate: orderDelegate,
+        signingFilesDirectory: "Certificates/Orders/"
+    )
 }
 ```
 
@@ -199,7 +195,16 @@ let orderDelegate = OrderDelegate()
 
 public func configure(_ app: Application) async throws {
     ...
-    let ordersService = try OrdersServiceCustom<MyOrderType, MyDeviceType, MyOrdersRegistrationType, MyErrorLogType>(app: app, delegate: orderDelegate)
+    let ordersService = try OrdersServiceCustom<
+        MyOrderType,
+        MyDeviceType,
+        MyOrdersRegistrationType,
+        MyErrorLogType
+    >(
+        app: app,
+        delegate: orderDelegate,
+        signingFilesDirectory: "Certificates/Orders/"
+    )
 }
 ```
 
@@ -234,7 +239,7 @@ struct OrderDataMiddleware: AsyncModelMiddleware {
     // Create the `Order` and add it to the `OrderData` automatically at creation
     func create(model: OrderData, on db: Database, next: AnyAsyncModelResponder) async throws {
         let order = Order(
-            orderTypeIdentifier: Environment.get("ORDER_TYPE_IDENTIFIER")!,
+            typeIdentifier: Environment.get("ORDER_TYPE_IDENTIFIER")!,
             authenticationToken: Data([UInt8].random(count: 12)).base64EncodedString())
         try await order.save(on: db)
         model.$order.id = try order.requireID()

@@ -28,8 +28,8 @@ final public class Order: OrderModel, @unchecked Sendable {
     public var updatedAt: Date?
 
     /// An identifier for the order type associated with the order.
-    @Field(key: Order.FieldKeys.orderTypeIdentifier)
-    public var orderTypeIdentifier: String
+    @Field(key: Order.FieldKeys.typeIdentifier)
+    public var typeIdentifier: String
 
     /// The authentication token supplied to your web service.
     @Field(key: Order.FieldKeys.authenticationToken)
@@ -37,8 +37,8 @@ final public class Order: OrderModel, @unchecked Sendable {
 
     public required init() {}
 
-    public required init(orderTypeIdentifier: String, authenticationToken: String) {
-        self.orderTypeIdentifier = orderTypeIdentifier
+    public required init(typeIdentifier: String, authenticationToken: String) {
+        self.typeIdentifier = typeIdentifier
         self.authenticationToken = authenticationToken
     }
 }
@@ -49,7 +49,7 @@ extension Order: AsyncMigration {
             .id()
             .field(Order.FieldKeys.createdAt, .datetime, .required)
             .field(Order.FieldKeys.updatedAt, .datetime, .required)
-            .field(Order.FieldKeys.orderTypeIdentifier, .string, .required)
+            .field(Order.FieldKeys.typeIdentifier, .string, .required)
             .field(Order.FieldKeys.authenticationToken, .string, .required)
             .create()
     }
@@ -64,7 +64,7 @@ extension Order {
         static let schemaName = "orders"
         static let createdAt = FieldKey(stringLiteral: "created_at")
         static let updatedAt = FieldKey(stringLiteral: "updated_at")
-        static let orderTypeIdentifier = FieldKey(stringLiteral: "order_type_identifier")
+        static let typeIdentifier = FieldKey(stringLiteral: "type_identifier")
         static let authenticationToken = FieldKey(stringLiteral: "authentication_token")
     }
 }
