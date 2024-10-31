@@ -199,13 +199,13 @@ extension OrdersServiceCustom {
         }
 
         let device = try await D.query(on: req.db)
-            .filter(\._$deviceLibraryIdentifier == deviceIdentifier)
+            .filter(\._$libraryIdentifier == deviceIdentifier)
             .filter(\._$pushToken == pushToken)
             .first()
         if let device = device {
             return try await Self.createRegistration(device: device, order: order, db: req.db)
         } else {
-            let newDevice = D(deviceLibraryIdentifier: deviceIdentifier, pushToken: pushToken)
+            let newDevice = D(libraryIdentifier: deviceIdentifier, pushToken: pushToken)
             try await newDevice.create(on: req.db)
             return try await Self.createRegistration(device: newDevice, order: order, db: req.db)
         }
@@ -215,7 +215,7 @@ extension OrdersServiceCustom {
         device: D, order: O, db: any Database
     ) async throws -> HTTPStatus {
         let r = try await R.for(
-            deviceLibraryIdentifier: device.deviceLibraryIdentifier,
+            deviceLibraryIdentifier: device.libraryIdentifier,
             typeIdentifier: order.typeIdentifier,
             on: db
         )

@@ -69,6 +69,6 @@ extension PassesRegistrationModel {
             .with(\._$pass)
             .with(\._$device)
             .filter(PassType.self, \._$typeIdentifier == typeIdentifier)
-            .filter(DeviceType.self, \._$deviceLibraryIdentifier == deviceLibraryIdentifier)
+            .filter(DeviceType.self, \._$libraryIdentifier == deviceLibraryIdentifier)
     }
 }

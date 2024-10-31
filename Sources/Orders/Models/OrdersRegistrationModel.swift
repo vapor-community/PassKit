@@ -48,6 +48,6 @@ extension OrdersRegistrationModel {
             .with(\._$order)
             .with(\._$device)
             .filter(OrderType.self, \._$typeIdentifier == typeIdentifier)
-            .filter(DeviceType.self, \._$deviceLibraryIdentifier == deviceLibraryIdentifier)
+            .filter(DeviceType.self, \._$libraryIdentifier == deviceLibraryIdentifier)
     }
 }

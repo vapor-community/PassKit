@@ -169,14 +169,13 @@ extension PassesServiceCustom {
         }
 
         let device = try await D.query(on: req.db)
-            .filter(\._$deviceLibraryIdentifier == deviceLibraryIdentifier)
+            .filter(\._$libraryIdentifier == deviceLibraryIdentifier)
             .filter(\._$pushToken == pushToken)
             .first()
         if let device = device {
             return try await Self.createRegistration(device: device, pass: pass, db: req.db)
         } else {
-            let newDevice = D(
-                deviceLibraryIdentifier: deviceLibraryIdentifier, pushToken: pushToken)
+            let newDevice = D(libraryIdentifier: deviceLibraryIdentifier, pushToken: pushToken)
             try await newDevice.create(on: req.db)
             return try await Self.createRegistration(device: newDevice, pass: pass, db: req.db)
         }
@@ -184,7 +183,7 @@ extension PassesServiceCustom {
 
     private static func createRegistration(device: D, pass: P, db: any Database) async throws -> HTTPStatus {
         let r = try await R.for(
-            deviceLibraryIdentifier: device.deviceLibraryIdentifier,
+            deviceLibraryIdentifier: device.libraryIdentifier,
             typeIdentifier: pass.typeIdentifier,
             on: db
         )
