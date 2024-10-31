@@ -502,10 +502,10 @@ extension PassesServiceCustom {
         for relativePath in paths {
             let file = URL(fileURLWithPath: relativePath, relativeTo: root)
             guard !file.hasDirectoryPath else { continue }
-            let data = try Data(contentsOf: file)
-            let hash = Insecure.SHA1.hash(data: data)
-            manifest[relativePath] = hash.map { "0\(String($0, radix: 16))".suffix(2) }.joined()
+            manifest[relativePath] = try Insecure.SHA1.hash(data: Data(contentsOf: file)).hex
         }
+        // Write the manifest file to the root directory
+        // and return the data for using it in signing.
         let data = try encoder.encode(manifest)
         try data.write(to: root.appendingPathComponent("manifest.json"))
         return data

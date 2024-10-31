@@ -34,7 +34,7 @@ struct OrdersTests {
             let manifestJSONData = try String(contentsOfFile: orderFolder.path.appending("/manifest.json")).data(using: .utf8)
             let manifestJSON = try decoder.decode([String: String].self, from: manifestJSONData!)
             let iconData = try Data(contentsOf: orderFolder.appendingPathComponent("/icon.png"))
-            let iconHash = Array(SHA256.hash(data: iconData)).hex
+            let iconHash = SHA256.hash(data: iconData).hex
             #expect(manifestJSON["icon.png"] == iconHash)
             #expect(manifestJSON["pet_store_logo.png"] != nil)
         }

@@ -391,18 +391,16 @@ extension OrdersServiceCustom {
 
 // MARK: - order file generation
 extension OrdersServiceCustom {
-    private static func generateManifestFile(
-        using encoder: JSONEncoder, in root: URL
-    ) throws -> Data {
+    private static func generateManifestFile(using encoder: JSONEncoder, in root: URL) throws -> Data {
         var manifest: [String: String] = [:]
         let paths = try FileManager.default.subpathsOfDirectory(atPath: root.path)
         for relativePath in paths {
             let file = URL(fileURLWithPath: relativePath, relativeTo: root)
             guard !file.hasDirectoryPath else { continue }
-            let data = try Data(contentsOf: file)
-            let hash = SHA256.hash(data: data)
-            manifest[relativePath] = hash.map { "0\(String($0, radix: 16))".suffix(2) }.joined()
+            manifest[relativePath] = try SHA256.hash(data: Data(contentsOf: file)).hex
         }
+        // Write the manifest file to the root directory
+        // and return the data for using it in signing.
         let data = try encoder.encode(manifest)
         try data.write(to: root.appendingPathComponent("manifest.json"))
         return data

@@ -35,7 +35,7 @@ struct PassesTests {
             let manifestJSONData = try String(contentsOfFile: passFolder.path.appending("/manifest.json")).data(using: .utf8)
             let manifestJSON = try decoder.decode([String: String].self, from: manifestJSONData!)
             let iconData = try Data(contentsOf: passFolder.appendingPathComponent("/icon.png"))
-            let iconHash = Array(Insecure.SHA1.hash(data: iconData)).hex
+            let iconHash = Insecure.SHA1.hash(data: iconData).hex
             #expect(manifestJSON["icon.png"] == iconHash)
             #expect(manifestJSON["logo.png"] != nil)
             #expect(manifestJSON["personalizationLogo.png"] != nil)
@@ -93,7 +93,7 @@ struct PassesTests {
             let manifestJSONData = try String(contentsOfFile: passFolder.path.appending("/manifest.json")).data(using: .utf8)
             let manifestJSON = try decoder.decode([String: String].self, from: manifestJSONData!)
             let iconData = try Data(contentsOf: passFolder.appendingPathComponent("/personalizationLogo.png"))
-            let iconHash = Array(Insecure.SHA1.hash(data: iconData)).hex
+            let iconHash = Insecure.SHA1.hash(data: iconData).hex
             #expect(manifestJSON["personalizationLogo.png"] == iconHash)
         }
     }
