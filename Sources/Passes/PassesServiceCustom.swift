@@ -86,8 +86,8 @@ where P == R.PassType, D == R.DeviceType, U == P.UserPersonalizationType {
             apnsConfig = APNSClientConfiguration(
                 authenticationMethod: try .tls(
                     privateKey: .privateKey(
-                        NIOSSLPrivateKey(file: privateKeyPath, format: .pem) { closure in
-                            closure(password.utf8)
+                        NIOSSLPrivateKey(file: privateKeyPath, format: .pem) { passphraseCallback in
+                            passphraseCallback(password.utf8)
                         }),
                     certificateChain: NIOSSLCertificate.fromPEMFile(pemPath).map {
                         .certificate($0)
@@ -144,7 +144,7 @@ where P == R.PassType, D == R.DeviceType, U == P.UserPersonalizationType {
 
 // MARK: - API Routes
 extension PassesServiceCustom {
-    func registerDevice(req: Request) async throws -> HTTPStatus {
+    fileprivate func registerDevice(req: Request) async throws -> HTTPStatus {
         logger?.debug("Called register device")
 
         let pushToken: String
@@ -203,7 +203,7 @@ extension PassesServiceCustom {
         return .created
     }
 
-    func passesForDevice(req: Request) async throws -> PassesForDeviceDTO {
+    fileprivate func passesForDevice(req: Request) async throws -> PassesForDeviceDTO {
         logger?.debug("Called passesForDevice")
 
         let passTypeIdentifier = req.parameters.get("passTypeIdentifier")!
@@ -235,7 +235,7 @@ extension PassesServiceCustom {
         return PassesForDeviceDTO(with: serialNumbers, maxDate: maxDate)
     }
 
-    func latestVersionOfPass(req: Request) async throws -> Response {
+    fileprivate func latestVersionOfPass(req: Request) async throws -> Response {
         logger?.debug("Called latestVersionOfPass")
 
         var ifModifiedSince: TimeInterval = 0
@@ -272,7 +272,7 @@ extension PassesServiceCustom {
         )
     }
 
-    func unregisterDevice(req: Request) async throws -> HTTPStatus {
+    fileprivate func unregisterDevice(req: Request) async throws -> HTTPStatus {
         logger?.debug("Called unregisterDevice")
 
         guard let passId = req.parameters.get("passSerial", as: UUID.self) else {
@@ -295,7 +295,7 @@ extension PassesServiceCustom {
         return .ok
     }
 
-    func logError(req: Request) async throws -> HTTPStatus {
+    fileprivate func logError(req: Request) async throws -> HTTPStatus {
         logger?.debug("Called logError")
 
         let body: ErrorLogDTO
@@ -313,7 +313,7 @@ extension PassesServiceCustom {
         return .ok
     }
 
-    func personalizedPass(req: Request) async throws -> Response {
+    fileprivate func personalizedPass(req: Request) async throws -> Response {
         logger?.debug("Called personalizedPass")
 
         guard let passTypeIdentifier = req.parameters.get("passTypeIdentifier"),
@@ -345,8 +345,7 @@ extension PassesServiceCustom {
         pass._$userPersonalization.id = try userPersonalization.requireID()
         try await pass.update(on: req.db)
 
-        let tmp = FileManager.default.temporaryDirectory
-        let root = tmp.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         defer { _ = try? FileManager.default.removeItem(at: root) }
 
@@ -415,7 +414,7 @@ extension PassesServiceCustom {
     }
 
     // MARK: - Push Routes
-    func pushUpdatesForPass(req: Request) async throws -> HTTPStatus {
+    fileprivate func pushUpdatesForPass(req: Request) async throws -> HTTPStatus {
         logger?.debug("Called pushUpdatesForPass")
 
         guard let id = req.parameters.get("passSerial", as: UUID.self) else {
@@ -427,7 +426,7 @@ extension PassesServiceCustom {
         return .noContent
     }
 
-    func tokensForPassUpdate(req: Request) async throws -> [String] {
+    fileprivate func tokensForPassUpdate(req: Request) async throws -> [String] {
         logger?.debug("Called tokensForPassUpdate")
 
         guard let id = req.parameters.get("passSerial", as: UUID.self) else {
@@ -435,8 +434,7 @@ extension PassesServiceCustom {
         }
         let passTypeIdentifier = req.parameters.get("passTypeIdentifier")!
 
-        return try await Self.registrationsForPass(id: id, of: passTypeIdentifier, on: req.db)
-            .map { $0.device.pushToken }
+        return try await Self.registrationsForPass(id: id, of: passTypeIdentifier, on: req.db).map { $0.device.pushToken }
     }
 }
 
@@ -480,7 +478,7 @@ extension PassesServiceCustom {
         try await sendPushNotificationsForPass(id: pass.requireID(), of: pass.passTypeIdentifier, on: db)
     }
 
-    static func registrationsForPass(id: UUID, of passTypeIdentifier: String, on db: any Database) async throws -> [R] {
+    private static func registrationsForPass(id: UUID, of passTypeIdentifier: String, on db: any Database) async throws -> [R] {
         // This could be done by enforcing the caller to have a Siblings property wrapper,
         // but there's not really any value to forcing that on them when we can just do the query ourselves like this.
         try await R.query(on: db)
@@ -620,8 +618,7 @@ extension PassesServiceCustom {
             throw PassesError.invalidNumberOfPasses
         }
 
-        let tmp = FileManager.default.temporaryDirectory
-        let root = tmp.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         defer { _ = try? FileManager.default.removeItem(at: root) }
 

@@ -18,9 +18,10 @@ struct PassesTests {
             try await passData.create(on: app.db)
             let pass = try await passData.$pass.get(on: app.db)
             let data = try await passesService.generatePassContent(for: pass, on: app.db)
-            let passURL = FileManager.default.temporaryDirectory.appendingPathComponent("test.pkpass")
+            let passURL = FileManager.default.temporaryDirectory.appendingPathComponent("\(UUID().uuidString).pkpass")
             try data.write(to: passURL)
-            let passFolder = try Zip.quickUnzipFile(passURL)
+            let passFolder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+            try Zip.unzipFile(passURL, destination: passFolder)
 
             #expect(FileManager.default.fileExists(atPath: passFolder.path.appending("/signature")))
 
@@ -35,8 +36,7 @@ struct PassesTests {
             let manifestJSONData = try String(contentsOfFile: passFolder.path.appending("/manifest.json")).data(using: .utf8)
             let manifestJSON = try decoder.decode([String: String].self, from: manifestJSONData!)
             let iconData = try Data(contentsOf: passFolder.appendingPathComponent("/icon.png"))
-            let iconHash = Insecure.SHA1.hash(data: iconData).hex
-            #expect(manifestJSON["icon.png"] == iconHash)
+            #expect(manifestJSON["icon.png"] == Insecure.SHA1.hash(data: iconData).hex)
             #expect(manifestJSON["logo.png"] != nil)
             #expect(manifestJSON["personalizationLogo.png"] != nil)
         }
@@ -72,9 +72,10 @@ struct PassesTests {
             try await passData.create(on: app.db)
             let pass = try await passData.$pass.get(on: app.db)
             let data = try await passesService.generatePassContent(for: pass, on: app.db)
-            let passURL = FileManager.default.temporaryDirectory.appendingPathComponent("test.pkpass")
+            let passURL = FileManager.default.temporaryDirectory.appendingPathComponent("\(UUID().uuidString).pkpass")
             try data.write(to: passURL)
-            let passFolder = try Zip.quickUnzipFile(passURL)
+            let passFolder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+            try Zip.unzipFile(passURL, destination: passFolder)
 
             #expect(FileManager.default.fileExists(atPath: passFolder.path.appending("/signature")))
 
@@ -93,8 +94,7 @@ struct PassesTests {
             let manifestJSONData = try String(contentsOfFile: passFolder.path.appending("/manifest.json")).data(using: .utf8)
             let manifestJSON = try decoder.decode([String: String].self, from: manifestJSONData!)
             let iconData = try Data(contentsOf: passFolder.appendingPathComponent("/personalizationLogo.png"))
-            let iconHash = Insecure.SHA1.hash(data: iconData).hex
-            #expect(manifestJSON["personalizationLogo.png"] == iconHash)
+            #expect(manifestJSON["personalizationLogo.png"] == Insecure.SHA1.hash(data: iconData).hex)
         }
     }
 

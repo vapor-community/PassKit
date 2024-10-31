@@ -83,8 +83,8 @@ where O == R.OrderType, D == R.DeviceType {
             apnsConfig = APNSClientConfiguration(
                 authenticationMethod: try .tls(
                     privateKey: .privateKey(
-                        NIOSSLPrivateKey(file: privateKeyPath, format: .pem) { closure in
-                            closure(password.utf8)
+                        NIOSSLPrivateKey(file: privateKeyPath, format: .pem) { passphraseCallback in
+                            passphraseCallback(password.utf8)
                         }),
                     certificateChain: NIOSSLCertificate.fromPEMFile(pemPath).map {
                         .certificate($0)
@@ -143,7 +143,7 @@ where O == R.OrderType, D == R.DeviceType {
 
 // MARK: - API Routes
 extension OrdersServiceCustom {
-    func latestVersionOfOrder(req: Request) async throws -> Response {
+    fileprivate func latestVersionOfOrder(req: Request) async throws -> Response {
         logger?.debug("Called latestVersionOfOrder")
 
         var ifModifiedSince: TimeInterval = 0
@@ -180,7 +180,7 @@ extension OrdersServiceCustom {
         )
     }
 
-    func registerDevice(req: Request) async throws -> HTTPStatus {
+    fileprivate func registerDevice(req: Request) async throws -> HTTPStatus {
         logger?.debug("Called register device")
 
         let pushToken: String
@@ -236,7 +236,7 @@ extension OrdersServiceCustom {
         return .created
     }
 
-    func ordersForDevice(req: Request) async throws -> OrdersForDeviceDTO {
+    fileprivate func ordersForDevice(req: Request) async throws -> OrdersForDeviceDTO {
         logger?.debug("Called ordersForDevice")
 
         let orderTypeIdentifier = req.parameters.get("orderTypeIdentifier")!
@@ -268,7 +268,7 @@ extension OrdersServiceCustom {
         return OrdersForDeviceDTO(with: orderIdentifiers, maxDate: maxDate)
     }
 
-    func logError(req: Request) async throws -> HTTPStatus {
+    fileprivate func logError(req: Request) async throws -> HTTPStatus {
         logger?.debug("Called logError")
 
         let body: ErrorLogDTO
@@ -286,7 +286,7 @@ extension OrdersServiceCustom {
         return .ok
     }
 
-    func unregisterDevice(req: Request) async throws -> HTTPStatus {
+    fileprivate func unregisterDevice(req: Request) async throws -> HTTPStatus {
         logger?.debug("Called unregisterDevice")
 
         guard let orderIdentifier = req.parameters.get("orderIdentifier", as: UUID.self) else {
@@ -310,7 +310,7 @@ extension OrdersServiceCustom {
     }
 
     // MARK: - Push Routes
-    func pushUpdatesForOrder(req: Request) async throws -> HTTPStatus {
+    fileprivate func pushUpdatesForOrder(req: Request) async throws -> HTTPStatus {
         logger?.debug("Called pushUpdatesForOrder")
 
         guard let id = req.parameters.get("orderIdentifier", as: UUID.self) else {
@@ -322,7 +322,7 @@ extension OrdersServiceCustom {
         return .noContent
     }
 
-    func tokensForOrderUpdate(req: Request) async throws -> [String] {
+    fileprivate func tokensForOrderUpdate(req: Request) async throws -> [String] {
         logger?.debug("Called tokensForOrderUpdate")
 
         guard let id = req.parameters.get("orderIdentifier", as: UUID.self) else {
@@ -330,8 +330,7 @@ extension OrdersServiceCustom {
         }
         let orderTypeIdentifier = req.parameters.get("orderTypeIdentifier")!
 
-        return try await Self.registrationsForOrder(id: id, of: orderTypeIdentifier, on: req.db)
-            .map { $0.device.pushToken }
+        return try await Self.registrationsForOrder(id: id, of: orderTypeIdentifier, on: req.db).map { $0.device.pushToken }
     }
 }
 
@@ -375,7 +374,7 @@ extension OrdersServiceCustom {
         try await sendPushNotificationsForOrder(id: order.requireID(), of: order.orderTypeIdentifier, on: db)
     }
 
-    static func registrationsForOrder(id: UUID, of orderTypeIdentifier: String, on db: any Database) async throws -> [R] {
+    private static func registrationsForOrder(id: UUID, of orderTypeIdentifier: String, on db: any Database) async throws -> [R] {
         // This could be done by enforcing the caller to have a Siblings property wrapper,
         // but there's not really any value to forcing that on them when we can just do the query ourselves like this.
         try await R.query(on: db)

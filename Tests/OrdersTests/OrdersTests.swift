@@ -18,9 +18,10 @@ struct OrdersTests {
             try await orderData.create(on: app.db)
             let order = try await orderData.$order.get(on: app.db)
             let data = try await ordersService.generateOrderContent(for: order, on: app.db)
-            let orderURL = FileManager.default.temporaryDirectory.appendingPathComponent("test.order")
+            let orderURL = FileManager.default.temporaryDirectory.appendingPathComponent("\(UUID().uuidString).order")
             try data.write(to: orderURL)
-            let orderFolder = try Zip.quickUnzipFile(orderURL)
+            let orderFolder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+            try Zip.unzipFile(orderURL, destination: orderFolder)
 
             #expect(FileManager.default.fileExists(atPath: orderFolder.path.appending("/signature")))
 
@@ -34,8 +35,7 @@ struct OrdersTests {
             let manifestJSONData = try String(contentsOfFile: orderFolder.path.appending("/manifest.json")).data(using: .utf8)
             let manifestJSON = try decoder.decode([String: String].self, from: manifestJSONData!)
             let iconData = try Data(contentsOf: orderFolder.appendingPathComponent("/icon.png"))
-            let iconHash = SHA256.hash(data: iconData).hex
-            #expect(manifestJSON["icon.png"] == iconHash)
+            #expect(manifestJSON["icon.png"] == SHA256.hash(data: iconData).hex)
             #expect(manifestJSON["pet_store_logo.png"] != nil)
         }
     }
