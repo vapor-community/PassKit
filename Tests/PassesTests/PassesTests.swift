@@ -25,6 +25,11 @@ struct PassesTests {
 
             #expect(FileManager.default.fileExists(atPath: passFolder.path.appending("/signature")))
 
+            #expect(FileManager.default.fileExists(atPath: passFolder.path.appending("/logo.png")))
+            #expect(FileManager.default.fileExists(atPath: passFolder.path.appending("/personalizationLogo.png")))
+            #expect(FileManager.default.fileExists(atPath: passFolder.path.appending("/it-IT.lproj/logo.png")))
+            #expect(FileManager.default.fileExists(atPath: passFolder.path.appending("/it-IT.lproj/personalizationLogo.png")))
+
             #expect(FileManager.default.fileExists(atPath: passFolder.path.appending("/pass.json")))
             let passJSONData = try String(contentsOfFile: passFolder.path.appending("/pass.json")).data(using: .utf8)
             let passJSON = try decoder.decode(PassJSONData.self, from: passJSONData!)
@@ -39,6 +44,8 @@ struct PassesTests {
             #expect(manifestJSON["icon.png"] == Insecure.SHA1.hash(data: iconData).hex)
             #expect(manifestJSON["logo.png"] != nil)
             #expect(manifestJSON["personalizationLogo.png"] != nil)
+            #expect(manifestJSON["it-IT.lproj/logo.png"] != nil)
+            #expect(manifestJSON["it-IT.lproj/personalizationLogo.png"] != nil)
         }
     }
 
@@ -78,7 +85,12 @@ struct PassesTests {
             try Zip.unzipFile(passURL, destination: passFolder)
 
             #expect(FileManager.default.fileExists(atPath: passFolder.path.appending("/signature")))
-
+            
+            #expect(FileManager.default.fileExists(atPath: passFolder.path.appending("/logo.png")))
+            #expect(FileManager.default.fileExists(atPath: passFolder.path.appending("/personalizationLogo.png")))
+            #expect(FileManager.default.fileExists(atPath: passFolder.path.appending("/it-IT.lproj/logo.png")))
+            #expect(FileManager.default.fileExists(atPath: passFolder.path.appending("/it-IT.lproj/personalizationLogo.png")))
+            
             #expect(FileManager.default.fileExists(atPath: passFolder.path.appending("/pass.json")))
             let passJSONData = try String(contentsOfFile: passFolder.path.appending("/pass.json")).data(using: .utf8)
             let passJSON = try decoder.decode(PassJSONData.self, from: passJSONData!)
@@ -93,8 +105,10 @@ struct PassesTests {
 
             let manifestJSONData = try String(contentsOfFile: passFolder.path.appending("/manifest.json")).data(using: .utf8)
             let manifestJSON = try decoder.decode([String: String].self, from: manifestJSONData!)
-            let iconData = try Data(contentsOf: passFolder.appendingPathComponent("/personalizationLogo.png"))
-            #expect(manifestJSON["personalizationLogo.png"] == Insecure.SHA1.hash(data: iconData).hex)
+            let personalizationLogoData = try Data(contentsOf: passFolder.appendingPathComponent("/personalizationLogo.png"))
+            let personalizationLogoHash = Insecure.SHA1.hash(data: personalizationLogoData).hex
+            #expect(manifestJSON["personalizationLogo.png"] == personalizationLogoHash)
+            #expect(manifestJSON["it-IT.lproj/personalizationLogo.png"] == personalizationLogoHash)
         }
     }
 

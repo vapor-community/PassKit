@@ -25,6 +25,9 @@ struct OrdersTests {
 
             #expect(FileManager.default.fileExists(atPath: orderFolder.path.appending("/signature")))
 
+            #expect(FileManager.default.fileExists(atPath: orderFolder.path.appending("/pet_store_logo.png")))
+            #expect(FileManager.default.fileExists(atPath: orderFolder.path.appending("/it-IT.lproj/pet_store_logo.png")))
+
             #expect(FileManager.default.fileExists(atPath: orderFolder.path.appending("/order.json")))
             let orderJSONData = try String(contentsOfFile: orderFolder.path.appending("/order.json")).data(using: .utf8)
             let orderJSON = try decoder.decode(OrderJSONData.self, from: orderJSONData!)
@@ -37,6 +40,7 @@ struct OrdersTests {
             let iconData = try Data(contentsOf: orderFolder.appendingPathComponent("/icon.png"))
             #expect(manifestJSON["icon.png"] == SHA256.hash(data: iconData).hex)
             #expect(manifestJSON["pet_store_logo.png"] != nil)
+            #expect(manifestJSON["it-IT.lproj/pet_store_logo.png"] != nil)
         }
     }
 
