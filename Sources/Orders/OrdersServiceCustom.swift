@@ -26,13 +26,14 @@ public final class OrdersServiceCustom<O, D, R: OrdersRegistrationModel, E: Erro
 where O == R.OrderType, D == R.DeviceType {
     private unowned let app: Application
     private unowned let delegate: any OrdersDelegate
-    private let signingFilesDirectory: URL
-    private let wwdrCertificate: String
+    private let logger: Logger?
+
+    private let pemWWDRCertificate: String
     private let pemCertificate: String
     private let pemPrivateKey: String
     private let pemPrivateKeyPassword: String?
-    private let sslBinary: URL
-    private let logger: Logger?
+    private let openSSLURL: URL
+
     private let encoder = JSONEncoder()
 
     /// Initializes the service and registers all the routes required for Apple Wallet to work.
@@ -40,65 +41,54 @@ where O == R.OrderType, D == R.DeviceType {
     /// - Parameters:
     ///   - app: The `Vapor.Application` to use in route handlers and APNs.
     ///   - delegate: The ``OrdersDelegate`` to use for order generation.
-    ///   - signingFilesDirectory: The path of the directory where the signing files (`wwdrCertificate`, `pemCertificate`, `pemPrivateKey`) are located.
-    ///   - wwdrCertificate: The name of Apple's WWDR.pem certificate as contained in `signingFilesDirectory` path. Defaults to `WWDR.pem`.
-    ///   - pemCertificate: The name of the PEM Certificate for signing the pass as contained in `signingFilesDirectory` path. Defaults to `certificate.pem`.
-    ///   - pemPrivateKey: The name of the PEM Certificate's private key for signing the pass as contained in `signingFilesDirectory` path. Defaults to `key.pem`.
-    ///   - pemPrivateKeyPassword: The password to the private key file. If the key is not encrypted it must be `nil`. Defaults to `nil`.
-    ///   - sslBinary: The location of the `openssl` command as a file path.
     ///   - pushRoutesMiddleware: The `Middleware` to use for push notification routes. If `nil`, push routes will not be registered.
     ///   - logger: The `Logger` to use.
+    ///   - pemWWDRCertificate: Apple's WWDR.pem certificate in PEM format.
+    ///   - pemCertificate: The PEM Certificate for signing orders.
+    ///   - pemPrivateKey: The PEM Certificate's private key for signing orders.
+    ///   - pemPrivateKeyPassword: The password to the private key. If the key is not encrypted it must be `nil`. Defaults to `nil`.
+    ///   - openSSLURL: The location of the `openssl` command as a file path.
     public init(
         app: Application,
         delegate: any OrdersDelegate,
-        signingFilesDirectory: String,
-        wwdrCertificate: String = "WWDR.pem",
-        pemCertificate: String = "certificate.pem",
-        pemPrivateKey: String = "key.pem",
-        pemPrivateKeyPassword: String? = nil,
-        sslBinary: String = "/usr/bin/openssl",
         pushRoutesMiddleware: (any Middleware)? = nil,
-        logger: Logger? = nil
+        logger: Logger? = nil,
+        pemWWDRCertificate: String,
+        pemCertificate: String,
+        pemPrivateKey: String,
+        pemPrivateKeyPassword: String? = nil,
+        openSSLURL: String = "/usr/bin/openssl"
     ) throws {
         self.app = app
         self.delegate = delegate
-        self.signingFilesDirectory = URL(fileURLWithPath: signingFilesDirectory, isDirectory: true)
-        self.wwdrCertificate = wwdrCertificate
+        self.logger = logger
+
+        self.pemWWDRCertificate = pemWWDRCertificate
         self.pemCertificate = pemCertificate
         self.pemPrivateKey = pemPrivateKey
         self.pemPrivateKeyPassword = pemPrivateKeyPassword
-        self.sslBinary = URL(fileURLWithPath: sslBinary)
-        self.logger = logger
+        self.openSSLURL = URL(fileURLWithPath: openSSLURL)
 
-        let privateKeyPath = URL(fileURLWithPath: pemPrivateKey, relativeTo: self.signingFilesDirectory).path
-        guard FileManager.default.fileExists(atPath: privateKeyPath) else {
-            throw OrdersError.pemPrivateKeyMissing
-        }
-        let pemPath = URL(fileURLWithPath: pemCertificate, relativeTo: self.signingFilesDirectory).path
-        guard FileManager.default.fileExists(atPath: pemPath) else {
-            throw OrdersError.pemCertificateMissing
-        }
+        let privateKeyBytes = pemPrivateKey.data(using: .utf8)!.map { UInt8($0) }
+        let certificateBytes = pemCertificate.data(using: .utf8)!.map { UInt8($0) }
         let apnsConfig: APNSClientConfiguration
-        if let password = pemPrivateKeyPassword {
+        if let pemPrivateKeyPassword {
             apnsConfig = APNSClientConfiguration(
                 authenticationMethod: try .tls(
                     privateKey: .privateKey(
-                        NIOSSLPrivateKey(file: privateKeyPath, format: .pem) { passphraseCallback in
-                            passphraseCallback(password.utf8)
-                        }),
-                    certificateChain: NIOSSLCertificate.fromPEMFile(pemPath).map {
-                        .certificate($0)
-                    }
+                        NIOSSLPrivateKey(bytes: privateKeyBytes, format: .pem) { passphraseCallback in
+                            passphraseCallback(pemPrivateKeyPassword.utf8)
+                        }
+                    ),
+                    certificateChain: NIOSSLCertificate.fromPEMBytes(certificateBytes).map { .certificate($0) }
                 ),
                 environment: .production
             )
         } else {
             apnsConfig = APNSClientConfiguration(
                 authenticationMethod: try .tls(
-                    privateKey: .privateKey(NIOSSLPrivateKey(file: privateKeyPath, format: .pem)),
-                    certificateChain: NIOSSLCertificate.fromPEMFile(pemPath).map {
-                        .certificate($0)
-                    }
+                    privateKey: .privateKey(NIOSSLPrivateKey(bytes: privateKeyBytes, format: .pem)),
+                    certificateChain: NIOSSLCertificate.fromPEMBytes(certificateBytes).map { .certificate($0) }
                 ),
                 environment: .production
             )
@@ -170,7 +160,7 @@ extension OrdersServiceCustom {
         return try await Response(
             status: .ok,
             headers: headers,
-            body: Response.Body(data: self.generateOrderContent(for: order, on: req.db))
+            body: Response.Body(data: self.build(order: order, on: req.db))
         )
     }
 
@@ -385,76 +375,65 @@ extension OrdersServiceCustom {
 
 // MARK: - order file generation
 extension OrdersServiceCustom {
-    private static func generateManifestFile(using encoder: JSONEncoder, in root: URL) throws -> Data {
+    private func manifest(for directory: URL) throws -> Data {
         var manifest: [String: String] = [:]
-        let paths = try FileManager.default.subpathsOfDirectory(atPath: root.path)
+
+        let paths = try FileManager.default.subpathsOfDirectory(atPath: directory.path)
         for relativePath in paths {
-            let file = URL(fileURLWithPath: relativePath, relativeTo: root)
-            guard !file.hasDirectoryPath else { continue }
-            manifest[relativePath] = try SHA256.hash(data: Data(contentsOf: file)).hex
-        }
-        // Write the manifest file to the root directory
-        // and return the data for using it in signing.
-        let data = try encoder.encode(manifest)
-        try data.write(to: root.appendingPathComponent("manifest.json"))
-        return data
-    }
-
-    private func generateSignatureFile(for manifest: Data, in root: URL) throws {
-        // If the caller's delegate generated a file we don't have to do it.
-        if delegate.generateSignatureFile(in: root) { return }
-
-        // Swift Crypto doesn't support encrypted PEM private keys, so we have to use OpenSSL for that.
-        if let password = self.pemPrivateKeyPassword {
-            let sslBinary = self.sslBinary
-            guard FileManager.default.fileExists(atPath: sslBinary.path) else {
-                throw OrdersError.opensslBinaryMissing
+            let file = URL(fileURLWithPath: relativePath, relativeTo: directory)
+            guard !file.hasDirectoryPath else {
+                continue
             }
 
-            let proc = Process()
-            proc.currentDirectoryURL = self.signingFilesDirectory
-            proc.executableURL = sslBinary
-            proc.arguments = [
-                "smime", "-binary", "-sign",
-                "-certfile", self.wwdrCertificate,
-                "-signer", self.pemCertificate,
-                "-inkey", self.pemPrivateKey,
-                "-in", root.appendingPathComponent("manifest.json").path,
-                "-out", root.appendingPathComponent("signature").path,
-                "-outform", "DER",
-                "-passin", "pass:\(password)",
-            ]
-            try proc.run()
-            proc.waitUntilExit()
-            return
+            let hash = try SHA256.hash(data: Data(contentsOf: file))
+            manifest[relativePath] = hash.map { "0\(String($0, radix: 16))".suffix(2) }.joined()
         }
 
-        let signature = try CMS.sign(
-            manifest,
-            signatureAlgorithm: .sha256WithRSAEncryption,
-            additionalIntermediateCertificates: [
-                Certificate(
-                    pemEncoded: String(
-                        contentsOf: self.signingFilesDirectory
-                            .appendingPathComponent(self.wwdrCertificate)
-                    )
-                )
-            ],
-            certificate: Certificate(
-                pemEncoded: String(
-                    contentsOf: self.signingFilesDirectory
-                        .appendingPathComponent(self.pemCertificate)
-                )
-            ),
-            privateKey: .init(
-                pemEncoded: String(
-                    contentsOf: self.signingFilesDirectory
-                        .appendingPathComponent(self.pemPrivateKey)
-                )
-            ),
-            signingTime: Date()
-        )
-        try Data(signature).write(to: root.appendingPathComponent("signature"))
+        return try encoder.encode(manifest)
+    }
+
+    private func signature(for manifest: Data) throws -> Data {
+        // Swift Crypto doesn't support encrypted PEM private keys, so we have to use OpenSSL for that.
+        if let pemPrivateKeyPassword {
+            let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+            try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            defer { try? FileManager.default.removeItem(at: dir) }
+
+            try manifest.write(to: dir.appendingPathComponent("manifest.json"))
+            try self.pemWWDRCertificate.write(to: dir.appendingPathComponent("wwdr.pem"), atomically: true, encoding: .utf8)
+            try self.pemCertificate.write(to: dir.appendingPathComponent("certificate.pem"), atomically: true, encoding: .utf8)
+            try self.pemPrivateKey.write(to: dir.appendingPathComponent("private.pem"), atomically: true, encoding: .utf8)
+
+            let process = Process()
+            process.currentDirectoryURL = dir
+            process.executableURL = self.openSSLURL
+            process.arguments = [
+                "smime", "-binary", "-sign",
+                "-certfile", dir.appendingPathComponent("wwdr.pem").path,
+                "-signer", dir.appendingPathComponent("certificate.pem").path,
+                "-inkey", dir.appendingPathComponent("private.pem").path,
+                "-in", dir.appendingPathComponent("manifest.json").path,
+                "-out", dir.appendingPathComponent("signature").path,
+                "-outform", "DER",
+                "-passin", "pass:\(pemPrivateKeyPassword)",
+            ]
+            try process.run()
+            process.waitUntilExit()
+
+            return try Data(contentsOf: dir.appendingPathComponent("signature"))
+        } else {
+            let signature = try CMS.sign(
+                manifest,
+                signatureAlgorithm: .sha256WithRSAEncryption,
+                additionalIntermediateCertificates: [
+                    Certificate(pemEncoded: self.pemWWDRCertificate)
+                ],
+                certificate: Certificate(pemEncoded: self.pemCertificate),
+                privateKey: .init(pemEncoded: self.pemPrivateKey),
+                signingTime: Date()
+            )
+            return Data(signature)
+        }
     }
 
     /// Generates the order content bundle for a given order.
@@ -462,28 +441,42 @@ extension OrdersServiceCustom {
     /// - Parameters:
     ///   - order: The order to generate the content for.
     ///   - db: The `Database` to use.
+    ///
     /// - Returns: The generated order content as `Data`.
-    public func generateOrderContent(for order: O, on db: any Database) async throws -> Data {
-        let templateDirectory = try await URL(fileURLWithPath: delegate.template(for: order, db: db), isDirectory: true)
+    public func build(order: O, on db: any Database) async throws -> Data {
+        let filesDirectory = try await URL(fileURLWithPath: delegate.template(for: order, db: db), isDirectory: true)
         guard
-            (try? templateDirectory.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? false
+            (try? filesDirectory.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? false
         else {
-            throw OrdersError.templateNotDirectory
+            throw OrdersError.noSourceFiles
         }
 
-        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
-        try FileManager.default.copyItem(at: templateDirectory, to: root)
-        defer { _ = try? FileManager.default.removeItem(at: root) }
+        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.copyItem(at: filesDirectory, to: tempDir)
+        defer { try? FileManager.default.removeItem(at: tempDir) }
 
-        try await self.delegate.encode(order: order, db: db, encoder: self.encoder)
-            .write(to: root.appendingPathComponent("order.json"))
+        var files: [ArchiveFile] = []
 
-        try self.generateSignatureFile(for: Self.generateManifestFile(using: self.encoder, in: root), in: root)
+        let orderJSON = try await self.delegate.encode(order: order, db: db, encoder: self.encoder)
+        try orderJSON.write(to: tempDir.appendingPathComponent("order.json"))
+        files.append(ArchiveFile(filename: "order.json", data: orderJSON))
 
-        var files = try FileManager.default.contentsOfDirectory(at: templateDirectory, includingPropertiesForKeys: nil)
-        files.append(URL(fileURLWithPath: "order.json", relativeTo: root))
-        files.append(URL(fileURLWithPath: "manifest.json", relativeTo: root))
-        files.append(URL(fileURLWithPath: "signature", relativeTo: root))
-        return try Data(contentsOf: Zip.quickZipFiles(files, fileName: UUID().uuidString))
+        let manifest = try self.manifest(for: tempDir)
+        files.append(ArchiveFile(filename: "manifest.json", data: manifest))
+        try files.append(ArchiveFile(filename: "signature", data: self.signature(for: manifest)))
+
+        let paths = try FileManager.default.subpathsOfDirectory(atPath: filesDirectory.path)
+        for relativePath in paths {
+            let file = URL(fileURLWithPath: relativePath, relativeTo: tempDir)
+            guard !file.hasDirectoryPath else {
+                continue
+            }
+
+            try files.append(ArchiveFile(filename: relativePath, data: Data(contentsOf: file)))
+        }
+
+        let zipFile = tempDir.appendingPathComponent("\(UUID().uuidString).order")
+        try Zip.zipData(archiveFiles: files, zipFilePath: zipFile)
+        return try Data(contentsOf: zipFile)
     }
 }

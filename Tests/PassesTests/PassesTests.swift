@@ -17,7 +17,7 @@ struct PassesTests {
             let passData = PassData(title: "Test Pass")
             try await passData.create(on: app.db)
             let pass = try await passData.$pass.get(on: app.db)
-            let data = try await passesService.generatePassContent(for: pass, on: app.db)
+            let data = try await passesService.build(pass: pass, on: app.db)
             let passURL = FileManager.default.temporaryDirectory.appendingPathComponent("\(UUID().uuidString).pkpass")
             try data.write(to: passURL)
             let passFolder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
@@ -60,11 +60,11 @@ struct PassesTests {
             try await passData2.create(on: app.db)
             let pass2 = try await passData2._$pass.get(on: app.db)
 
-            let data = try await passesService.generatePassesContent(for: [pass1, pass2], on: app.db)
+            let data = try await passesService.build(passes: [pass1, pass2], on: app.db)
             #expect(data != nil)
 
             do {
-                let data = try await passesService.generatePassesContent(for: [pass1], on: app.db)
+                let data = try await passesService.build(passes: [pass1], on: app.db)
                 Issue.record("Expected error, got \(data)")
             } catch let error as PassesError {
                 #expect(error == .invalidNumberOfPasses)
@@ -78,19 +78,19 @@ struct PassesTests {
             let passData = PassData(title: "Personalize")
             try await passData.create(on: app.db)
             let pass = try await passData.$pass.get(on: app.db)
-            let data = try await passesService.generatePassContent(for: pass, on: app.db)
+            let data = try await passesService.build(pass: pass, on: app.db)
             let passURL = FileManager.default.temporaryDirectory.appendingPathComponent("\(UUID().uuidString).pkpass")
             try data.write(to: passURL)
             let passFolder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
             try Zip.unzipFile(passURL, destination: passFolder)
 
             #expect(FileManager.default.fileExists(atPath: passFolder.path.appending("/signature")))
-            
+
             #expect(FileManager.default.fileExists(atPath: passFolder.path.appending("/logo.png")))
             #expect(FileManager.default.fileExists(atPath: passFolder.path.appending("/personalizationLogo.png")))
             #expect(FileManager.default.fileExists(atPath: passFolder.path.appending("/it-IT.lproj/logo.png")))
             #expect(FileManager.default.fileExists(atPath: passFolder.path.appending("/it-IT.lproj/personalizationLogo.png")))
-            
+
             #expect(FileManager.default.fileExists(atPath: passFolder.path.appending("/pass.json")))
             let passJSONData = try String(contentsOfFile: passFolder.path.appending("/pass.json")).data(using: .utf8)
             let passJSON = try decoder.decode(PassJSONData.self, from: passJSONData!)
@@ -534,10 +534,8 @@ struct PassesTests {
 
     @Test("PassesError")
     func passesError() {
-        #expect(PassesError.templateNotDirectory.description == "PassesError(errorType: templateNotDirectory)")
-        #expect(PassesError.pemCertificateMissing.description == "PassesError(errorType: pemCertificateMissing)")
-        #expect(PassesError.pemPrivateKeyMissing.description == "PassesError(errorType: pemPrivateKeyMissing)")
-        #expect(PassesError.opensslBinaryMissing.description == "PassesError(errorType: opensslBinaryMissing)")
+        #expect(PassesError.noSourceFiles.description == "PassesError(errorType: noSourceFiles)")
+        #expect(PassesError.noOpenSSLExecutable.description == "PassesError(errorType: noOpenSSLExecutable)")
         #expect(PassesError.invalidNumberOfPasses.description == "PassesError(errorType: invalidNumberOfPasses)")
     }
 
@@ -549,7 +547,6 @@ struct PassesTests {
         }
 
         let defaultDelegate = DefaultPassesDelegate()
-        #expect(!defaultDelegate.generateSignatureFile(in: URL(fileURLWithPath: "")))
 
         try await withApp { app, passesService in
             let passData = PassData(title: "Test Pass")

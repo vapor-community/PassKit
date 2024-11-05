@@ -97,7 +97,7 @@ Initializing the ``PassesService`` will automatically set up the endpoints that 
 
 Adding the ``PassesService/register(migrations:)`` method to your `configure.swift` file will automatically set up the database table that stores the user personalization data.
 
-Generate the pass bundle with ``PassesService/generatePassContent(for:on:)`` as usual and distribute it.
+Generate the pass bundle with ``PassesService/build(pass:on:)`` as usual and distribute it.
 The user will be prompted to provide the required personal information when they add the pass.
 Wallet will then send the user personal information to your server, which will be saved in the ``UserPersonalization`` table.
 Immediately after that, Wallet will request the updated pass.

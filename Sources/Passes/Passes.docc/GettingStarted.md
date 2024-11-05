@@ -171,8 +171,6 @@ final class PassDelegate: PassesDelegate {
 
 Next, initialize the ``PassesService`` inside the `configure.swift` file.
 This will implement all of the routes that Apple Wallet expects to exist on your server.
-In the `signingFilesDirectory` you specify there must be the `WWDR.pem`, `certificate.pem` and `key.pem` files.
-If they are named like that you're good to go, otherwise you have to specify the custom name.
 
 > Tip: Obtaining the three certificates files could be a bit tricky. You could get some guidance from [this guide](https://github.com/alexandercerutti/passkit-generator/wiki/Generating-Certificates) and [this video](https://www.youtube.com/watch?v=rJZdPoXHtzI).
 
@@ -188,7 +186,9 @@ public func configure(_ app: Application) async throws {
     let passesService = try PassesService(
         app: app,
         delegate: passDelegate,
-        signingFilesDirectory: "Certificates/Passes/"
+        pemWWDRCertificate: Environment.get("PEM_WWDR_CERTIFICATE")!,
+        pemCertificate: Environment.get("PEM_CERTIFICATE")!,
+        pemPrivateKey: Environment.get("PEM_PRIVATE_KEY")!
     )
 }
 ```
@@ -228,7 +228,9 @@ public func configure(_ app: Application) async throws {
     >(
         app: app,
         delegate: passDelegate,
-        signingFilesDirectory: "Certificates/Passes/"
+        pemWWDRCertificate: Environment.get("PEM_WWDR_CERTIFICATE")!,
+        pemCertificate: Environment.get("PEM_CERTIFICATE")!,
+        pemPrivateKey: Environment.get("PEM_PRIVATE_KEY")!
     )
 }
 ```
@@ -309,7 +311,7 @@ struct PassesController: RouteCollection {
 
 > Note: You'll have to register the `PassesController` in the `configure.swift` file, in order to pass it the ``PassesService`` object.
 
-Then use the object inside your route handlers to generate the pass bundle with the ``PassesService/generatePassContent(for:on:)`` method and distribute it with the "`application/vnd.apple.pkpass`" MIME type.
+Then use the object inside your route handlers to generate the pass bundle with the ``PassesService/build(pass:on:)`` method and distribute it with the "`application/vnd.apple.pkpass`" MIME type.
 
 ```swift
 fileprivate func passHandler(_ req: Request) async throws -> Response {
@@ -322,7 +324,7 @@ fileprivate func passHandler(_ req: Request) async throws -> Response {
         throw Abort(.notFound)
     }
 
-    let bundle = try await passesService.generatePassContent(for: passData.pass, on: req.db)
+    let bundle = try await passesService.build(pass: passData.pass, on: req.db)
     let body = Response.Body(data: bundle)
     var headers = HTTPHeaders()
     headers.add(name: .contentType, value: "application/vnd.apple.pkpass")
@@ -336,7 +338,7 @@ fileprivate func passHandler(_ req: Request) async throws -> Response {
 ### Create a Bundle of Passes
 
 You can also create a bundle of passes to enable your user to download multiple passes at once.
-Use the ``PassesService/generatePassesContent(for:on:)`` method to generate the bundle and serve it to the user.
+Use the ``PassesService/build(passes:on:)`` method to generate the bundle and serve it to the user.
 The MIME type for a bundle of passes is "`application/vnd.apple.pkpasses`".
 
 > Note: You can have up to 10 passes or 150 MB for a bundle of passes.
@@ -347,7 +349,7 @@ fileprivate func passesHandler(_ req: Request) async throws -> Response {
     let passesData = try await PassData.query(on: req.db).with(\.$pass).all()
     let passes = passesData.map { $0.pass }
 
-    let bundle = try await passesService.generatePassesContent(for: passes, on: req.db)
+    let bundle = try await passesService.build(passes: passes, on: req.db)
     let body = Response.Body(data: bundle)
     var headers = HTTPHeaders()
     headers.add(name: .contentType, value: "application/vnd.apple.pkpasses")

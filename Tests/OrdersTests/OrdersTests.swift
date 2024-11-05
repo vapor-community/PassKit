@@ -17,7 +17,7 @@ struct OrdersTests {
             let orderData = OrderData(title: "Test Order")
             try await orderData.create(on: app.db)
             let order = try await orderData.$order.get(on: app.db)
-            let data = try await ordersService.generateOrderContent(for: order, on: app.db)
+            let data = try await ordersService.build(order: order, on: app.db)
             let orderURL = FileManager.default.temporaryDirectory.appendingPathComponent("\(UUID().uuidString).order")
             try data.write(to: orderURL)
             let orderFolder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
@@ -396,19 +396,7 @@ struct OrdersTests {
 
     @Test("OrdersError")
     func ordersError() {
-        #expect(OrdersError.templateNotDirectory.description == "OrdersError(errorType: templateNotDirectory)")
-        #expect(OrdersError.pemCertificateMissing.description == "OrdersError(errorType: pemCertificateMissing)")
-        #expect(OrdersError.pemPrivateKeyMissing.description == "OrdersError(errorType: pemPrivateKeyMissing)")
-        #expect(OrdersError.opensslBinaryMissing.description == "OrdersError(errorType: opensslBinaryMissing)")
-    }
-
-    @Test("Default OrdersDelegate Properties")
-    func defaultDelegate() {
-        final class DefaultOrdersDelegate: OrdersDelegate {
-            func template<O: OrderModel>(for order: O, db: any Database) async throws -> String { "" }
-            func encode<O: OrderModel>(order: O, db: any Database, encoder: JSONEncoder) async throws -> Data { Data() }
-        }
-
-        #expect(!DefaultOrdersDelegate().generateSignatureFile(in: URL(fileURLWithPath: "")))
+        #expect(OrdersError.noSourceFiles.description == "OrdersError(errorType: noSourceFiles)")
+        #expect(OrdersError.noOpenSSLExecutable.description == "OrdersError(errorType: noOpenSSLExecutable)")
     }
 }

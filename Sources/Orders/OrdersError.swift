@@ -10,10 +10,8 @@ public struct OrdersError: Error, Sendable {
     /// The type of the errors that can be thrown by Apple Wallet orders.
     public struct ErrorType: Sendable, Hashable, CustomStringConvertible {
         enum Base: String, Sendable {
-            case templateNotDirectory
-            case pemCertificateMissing
-            case pemPrivateKeyMissing
-            case opensslBinaryMissing
+            case noSourceFiles
+            case noOpenSSLExecutable
         }
 
         let base: Base
@@ -22,14 +20,10 @@ public struct OrdersError: Error, Sendable {
             self.base = base
         }
 
-        /// The template path is not a directory.
-        public static let templateNotDirectory = Self(.templateNotDirectory)
-        /// The `pemCertificate` file is missing.
-        public static let pemCertificateMissing = Self(.pemCertificateMissing)
-        /// The `pemPrivateKey` file is missing.
-        public static let pemPrivateKeyMissing = Self(.pemPrivateKeyMissing)
-        /// The path to the `openssl` binary is incorrect.
-        public static let opensslBinaryMissing = Self(.opensslBinaryMissing)
+        /// The path for the source files is not a directory.
+        public static let noSourceFiles = Self(.noSourceFiles)
+        /// The `openssl` executable is missing.
+        public static let noOpenSSLExecutable = Self(.noOpenSSLExecutable)
 
         /// A textual representation of this error.
         public var description: String {
@@ -54,17 +48,11 @@ public struct OrdersError: Error, Sendable {
         self.backing = .init(errorType: errorType)
     }
 
-    /// The template path is not a directory.
-    public static let templateNotDirectory = Self(errorType: .templateNotDirectory)
+    /// The path for the source files is not a directory.
+    public static let noSourceFiles = Self(errorType: .noSourceFiles)
 
-    /// The `pemCertificate` file is missing.
-    public static let pemCertificateMissing = Self(errorType: .pemCertificateMissing)
-
-    /// The `pemPrivateKey` file is missing.
-    public static let pemPrivateKeyMissing = Self(errorType: .pemPrivateKeyMissing)
-
-    /// The path to the `openssl` binary is incorrect.
-    public static let opensslBinaryMissing = Self(errorType: .opensslBinaryMissing)
+    /// The `openssl` executable is missing.
+    public static let noOpenSSLExecutable = Self(errorType: .noOpenSSLExecutable)
 }
 
 extension OrdersError: CustomStringConvertible {

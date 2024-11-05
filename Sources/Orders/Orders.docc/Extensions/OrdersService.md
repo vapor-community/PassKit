@@ -4,7 +4,7 @@
 
 ### Essentials
 
-- ``generateOrderContent(for:on:)``
+- ``build(order:on:)``
 - ``register(migrations:)``
 
 ### Push Notifications

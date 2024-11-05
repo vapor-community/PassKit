@@ -10,10 +10,8 @@ public struct PassesError: Error, Sendable, Equatable {
     /// The type of the errors that can be thrown by PassKit passes.
     public struct ErrorType: Sendable, Hashable, CustomStringConvertible, Equatable {
         enum Base: String, Sendable, Equatable {
-            case templateNotDirectory
-            case pemCertificateMissing
-            case pemPrivateKeyMissing
-            case opensslBinaryMissing
+            case noSourceFiles
+            case noOpenSSLExecutable
             case invalidNumberOfPasses
         }
 
@@ -23,14 +21,10 @@ public struct PassesError: Error, Sendable, Equatable {
             self.base = base
         }
 
-        /// The template path is not a directory.
-        public static let templateNotDirectory = Self(.templateNotDirectory)
-        /// The `pemCertificate` file is missing.
-        public static let pemCertificateMissing = Self(.pemCertificateMissing)
-        /// The `pemPrivateKey` file is missing.
-        public static let pemPrivateKeyMissing = Self(.pemPrivateKeyMissing)
-        /// The path to the `openssl` binary is incorrect.
-        public static let opensslBinaryMissing = Self(.opensslBinaryMissing)
+        /// The path for the source files is not a directory.
+        public static let noSourceFiles = Self(.noSourceFiles)
+        /// The `openssl` executable is missing.
+        public static let noOpenSSLExecutable = Self(.noOpenSSLExecutable)
         /// The number of passes to bundle is invalid.
         public static let invalidNumberOfPasses = Self(.invalidNumberOfPasses)
 
@@ -61,17 +55,11 @@ public struct PassesError: Error, Sendable, Equatable {
         self.backing = .init(errorType: errorType)
     }
 
-    /// The template path is not a directory.
-    public static let templateNotDirectory = Self(errorType: .templateNotDirectory)
+    /// The path for the source files is not a directory.
+    public static let noSourceFiles = Self(errorType: .noSourceFiles)
 
-    /// The `pemCertificate` file is missing.
-    public static let pemCertificateMissing = Self(errorType: .pemCertificateMissing)
-
-    /// The `pemPrivateKey` file is missing.
-    public static let pemPrivateKeyMissing = Self(errorType: .pemPrivateKeyMissing)
-
-    /// The path to the `openssl` binary is incorrect.
-    public static let opensslBinaryMissing = Self(errorType: .opensslBinaryMissing)
+    /// The `openssl` executable is missing.
+    public static let noOpenSSLExecutable = Self(errorType: .noOpenSSLExecutable)
 
     /// The number of passes to bundle is invalid.
     public static let invalidNumberOfPasses = Self(errorType: .invalidNumberOfPasses)
