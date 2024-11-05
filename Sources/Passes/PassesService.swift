@@ -109,16 +109,6 @@ public final class PassesService: Sendable {
     /// Sends push notifications for a given pass.
     ///
     /// - Parameters:
-    ///   - id: The `UUID` of the pass to send the notifications for.
-    ///   - typeIdentifier: The type identifier of the pass.
-    ///   - db: The `Database` to use.
-    public func sendPushNotificationsForPass(id: UUID, of typeIdentifier: String, on db: any Database) async throws {
-        try await service.sendPushNotificationsForPass(id: id, of: typeIdentifier, on: db)
-    }
-
-    /// Sends push notifications for a given pass.
-    ///
-    /// - Parameters:
     ///   - pass: The pass to send the notifications for.
     ///   - db: The `Database` to use.
     public func sendPushNotifications(for pass: Pass, on db: any Database) async throws {

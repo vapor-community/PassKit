@@ -351,7 +351,16 @@ extension PassesServiceCustom {
         }
         let passTypeIdentifier = req.parameters.get("passTypeIdentifier")!
 
-        try await sendPushNotificationsForPass(id: id, of: passTypeIdentifier, on: req.db)
+        guard
+            let pass = try await P.query(on: req.db)
+                .filter(\._$id == id)
+                .filter(\._$typeIdentifier == passTypeIdentifier)
+                .first()
+        else {
+            throw Abort(.notFound)
+        }
+
+        try await sendPushNotifications(for: pass, on: req.db)
         return .noContent
     }
 
@@ -363,7 +372,16 @@ extension PassesServiceCustom {
         }
         let passTypeIdentifier = req.parameters.get("passTypeIdentifier")!
 
-        return try await Self.registrationsForPass(id: id, of: passTypeIdentifier, on: req.db).map { $0.device.pushToken }
+        guard
+            let pass = try await P.query(on: req.db)
+                .filter(\._$id == id)
+                .filter(\._$typeIdentifier == passTypeIdentifier)
+                .first()
+        else {
+            throw Abort(.notFound)
+        }
+
+        return try await Self.registrations(for: pass, on: req.db).map { $0.device.pushToken }
     }
 }
 
@@ -372,11 +390,10 @@ extension PassesServiceCustom {
     /// Sends push notifications for a given pass.
     ///
     /// - Parameters:
-    ///   - id: The `UUID` of the pass to send the notifications for.
-    ///   - typeIdentifier: The type identifier of the pass.
+    ///   - pass: The pass to send the notifications for.
     ///   - db: The `Database` to use.
-    public func sendPushNotificationsForPass(id: UUID, of typeIdentifier: String, on db: any Database) async throws {
-        let registrations = try await Self.registrationsForPass(id: id, of: typeIdentifier, on: db)
+    public func sendPushNotifications(for pass: P, on db: any Database) async throws {
+        let registrations = try await Self.registrations(for: pass, on: db)
         for reg in registrations {
             let backgroundNotification = APNSBackgroundNotification(
                 expiration: .immediately,
@@ -395,16 +412,7 @@ extension PassesServiceCustom {
         }
     }
 
-    /// Sends push notifications for a given pass.
-    ///
-    /// - Parameters:
-    ///   - pass: The pass to send the notifications for.
-    ///   - db: The `Database` to use.
-    public func sendPushNotifications(for pass: P, on db: any Database) async throws {
-        try await sendPushNotificationsForPass(id: pass.requireID(), of: pass.typeIdentifier, on: db)
-    }
-
-    private static func registrationsForPass(id: UUID, of typeIdentifier: String, on db: any Database) async throws -> [R] {
+    private static func registrations(for pass: P, on db: any Database) async throws -> [R] {
         // This could be done by enforcing the caller to have a Siblings property wrapper,
         // but there's not really any value to forcing that on them when we can just do the query ourselves like this.
         try await R.query(on: db)
@@ -412,8 +420,8 @@ extension PassesServiceCustom {
             .join(parent: \._$device)
             .with(\._$pass)
             .with(\._$device)
-            .filter(P.self, \._$typeIdentifier == typeIdentifier)
-            .filter(P.self, \._$id == id)
+            .filter(P.self, \._$typeIdentifier == pass._$typeIdentifier.value!)
+            .filter(P.self, \._$id == pass.requireID())
             .all()
     }
 }

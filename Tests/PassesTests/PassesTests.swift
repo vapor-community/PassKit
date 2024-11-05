@@ -465,7 +465,7 @@ struct PassesTests {
             try await passData.create(on: app.db)
             let pass = try await passData._$pass.get(on: app.db)
 
-            try await passesService.sendPushNotificationsForPass(id: pass.requireID(), of: pass.typeIdentifier, on: app.db)
+            try await passesService.sendPushNotifications(for: pass, on: app.db)
 
             let deviceLibraryIdentifier = "abcdefg"
             let pushToken = "1234567890"

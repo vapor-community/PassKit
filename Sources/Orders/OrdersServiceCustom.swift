@@ -306,7 +306,16 @@ extension OrdersServiceCustom {
         }
         let orderTypeIdentifier = req.parameters.get("orderTypeIdentifier")!
 
-        try await sendPushNotificationsForOrder(id: id, of: orderTypeIdentifier, on: req.db)
+        guard
+            let order = try await O.query(on: req.db)
+                .filter(\._$id == id)
+                .filter(\._$typeIdentifier == orderTypeIdentifier)
+                .first()
+        else {
+            throw Abort(.notFound)
+        }
+
+        try await sendPushNotifications(for: order, on: req.db)
         return .noContent
     }
 
@@ -318,7 +327,16 @@ extension OrdersServiceCustom {
         }
         let orderTypeIdentifier = req.parameters.get("orderTypeIdentifier")!
 
-        return try await Self.registrationsForOrder(id: id, of: orderTypeIdentifier, on: req.db).map { $0.device.pushToken }
+        guard
+            let order = try await O.query(on: req.db)
+                .filter(\._$id == id)
+                .filter(\._$typeIdentifier == orderTypeIdentifier)
+                .first()
+        else {
+            throw Abort(.notFound)
+        }
+
+        return try await Self.registrations(for: order, on: req.db).map { $0.device.pushToken }
     }
 }
 
@@ -327,11 +345,10 @@ extension OrdersServiceCustom {
     /// Sends push notifications for a given order.
     ///
     /// - Parameters:
-    ///   - id: The `UUID` of the order to send the notifications for.
-    ///   - typeIdentifier: The type identifier of the order.
+    ///   - order: The order to send the notifications for.
     ///   - db: The `Database` to use.
-    public func sendPushNotificationsForOrder(id: UUID, of typeIdentifier: String, on db: any Database) async throws {
-        let registrations = try await Self.registrationsForOrder(id: id, of: typeIdentifier, on: db)
+    public func sendPushNotifications(for order: O, on db: any Database) async throws {
+        let registrations = try await Self.registrations(for: order, on: db)
         for reg in registrations {
             let backgroundNotification = APNSBackgroundNotification(
                 expiration: .immediately,
@@ -350,16 +367,7 @@ extension OrdersServiceCustom {
         }
     }
 
-    /// Sends push notifications for a given order.
-    ///
-    /// - Parameters:
-    ///   - order: The order to send the notifications for.
-    ///   - db: The `Database` to use.
-    public func sendPushNotifications(for order: O, on db: any Database) async throws {
-        try await sendPushNotificationsForOrder(id: order.requireID(), of: order.typeIdentifier, on: db)
-    }
-
-    private static func registrationsForOrder(id: UUID, of typeIdentifier: String, on db: any Database) async throws -> [R] {
+    private static func registrations(for order: O, on db: any Database) async throws -> [R] {
         // This could be done by enforcing the caller to have a Siblings property wrapper,
         // but there's not really any value to forcing that on them when we can just do the query ourselves like this.
         try await R.query(on: db)
@@ -367,8 +375,8 @@ extension OrdersServiceCustom {
             .join(parent: \._$device)
             .with(\._$order)
             .with(\._$device)
-            .filter(O.self, \._$typeIdentifier == typeIdentifier)
-            .filter(O.self, \._$id == id)
+            .filter(O.self, \._$typeIdentifier == order._$typeIdentifier.value!)
+            .filter(O.self, \._$id == order.requireID())
             .all()
     }
 }

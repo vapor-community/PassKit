@@ -327,7 +327,7 @@ struct OrdersTests {
             try await orderData.create(on: app.db)
             let order = try await orderData._$order.get(on: app.db)
 
-            try await ordersService.sendPushNotificationsForOrder(id: order.requireID(), of: order.typeIdentifier, on: app.db)
+            try await ordersService.sendPushNotifications(for: order, on: app.db)
 
             let deviceLibraryIdentifier = "abcdefg"
             let pushToken = "1234567890"
