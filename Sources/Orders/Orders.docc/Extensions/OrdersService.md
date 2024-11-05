@@ -10,4 +10,3 @@
 ### Push Notifications
 
 - ``sendPushNotifications(for:on:)``
-- ``sendPushNotificationsForOrder(id:of:on:)``

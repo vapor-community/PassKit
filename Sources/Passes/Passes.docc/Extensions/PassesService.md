@@ -11,4 +11,3 @@
 ### Push Notifications
 
 - ``sendPushNotifications(for:on:)``
-- ``sendPushNotificationsForPass(id:of:on:)``
