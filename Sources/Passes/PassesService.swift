@@ -44,7 +44,7 @@ public final class PassesService: Sendable {
     ///   - pemCertificate: The PEM Certificate for signing passes.
     ///   - pemPrivateKey: The PEM Certificate's private key for signing passes.
     ///   - pemPrivateKeyPassword: The password to the private key. If the key is not encrypted it must be `nil`. Defaults to `nil`.
-    ///   - openSSLURL: The location of the `openssl` command as a file path.
+    ///   - openSSLPath: The location of the `openssl` command as a file path.
     public init(
         app: Application,
         delegate: any PassesDelegate,
@@ -54,7 +54,7 @@ public final class PassesService: Sendable {
         pemCertificate: String,
         pemPrivateKey: String,
         pemPrivateKeyPassword: String? = nil,
-        openSSLURL: String = "/usr/bin/openssl"
+        openSSLPath: String = "/usr/bin/openssl"
     ) throws {
         self.service = try .init(
             app: app,
@@ -65,7 +65,7 @@ public final class PassesService: Sendable {
             pemCertificate: pemCertificate,
             pemPrivateKey: pemPrivateKey,
             pemPrivateKeyPassword: pemPrivateKeyPassword,
-            openSSLURL: openSSLURL
+            openSSLPath: openSSLPath
         )
     }
 

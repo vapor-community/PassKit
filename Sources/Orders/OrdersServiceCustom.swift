@@ -47,7 +47,7 @@ where O == R.OrderType, D == R.DeviceType {
     ///   - pemCertificate: The PEM Certificate for signing orders.
     ///   - pemPrivateKey: The PEM Certificate's private key for signing orders.
     ///   - pemPrivateKeyPassword: The password to the private key. If the key is not encrypted it must be `nil`. Defaults to `nil`.
-    ///   - openSSLURL: The location of the `openssl` command as a file path.
+    ///   - openSSLPath: The location of the `openssl` command as a file path.
     public init(
         app: Application,
         delegate: any OrdersDelegate,
@@ -57,7 +57,7 @@ where O == R.OrderType, D == R.DeviceType {
         pemCertificate: String,
         pemPrivateKey: String,
         pemPrivateKeyPassword: String? = nil,
-        openSSLURL: String = "/usr/bin/openssl"
+        openSSLPath: String = "/usr/bin/openssl"
     ) throws {
         self.app = app
         self.delegate = delegate
@@ -67,7 +67,7 @@ where O == R.OrderType, D == R.DeviceType {
         self.pemCertificate = pemCertificate
         self.pemPrivateKey = pemPrivateKey
         self.pemPrivateKeyPassword = pemPrivateKeyPassword
-        self.openSSLURL = URL(fileURLWithPath: openSSLURL)
+        self.openSSLURL = URL(fileURLWithPath: openSSLPath)
 
         let privateKeyBytes = pemPrivateKey.data(using: .utf8)!.map { UInt8($0) }
         let certificateBytes = pemCertificate.data(using: .utf8)!.map { UInt8($0) }
@@ -403,6 +403,10 @@ extension OrdersServiceCustom {
     private func signature(for manifest: Data) throws -> Data {
         // Swift Crypto doesn't support encrypted PEM private keys, so we have to use OpenSSL for that.
         if let pemPrivateKeyPassword {
+            guard FileManager.default.fileExists(atPath: self.openSSLURL.path) else {
+                throw OrdersError.noOpenSSLExecutable
+            }
+
             let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
             try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
             defer { try? FileManager.default.removeItem(at: dir) }

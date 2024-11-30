@@ -48,7 +48,7 @@ where P == R.PassType, D == R.DeviceType, U == P.UserPersonalizationType {
     ///   - pemCertificate: The PEM Certificate for signing passes.
     ///   - pemPrivateKey: The PEM Certificate's private key for signing passes.
     ///   - pemPrivateKeyPassword: The password to the private key. If the key is not encrypted it must be `nil`. Defaults to `nil`.
-    ///   - openSSLURL: The location of the `openssl` command as a file path.
+    ///   - openSSLPath: The location of the `openssl` command as a file path.
     public init(
         app: Application,
         delegate: any PassesDelegate,
@@ -58,7 +58,7 @@ where P == R.PassType, D == R.DeviceType, U == P.UserPersonalizationType {
         pemCertificate: String,
         pemPrivateKey: String,
         pemPrivateKeyPassword: String? = nil,
-        openSSLURL: String = "/usr/bin/openssl"
+        openSSLPath: String = "/usr/bin/openssl"
     ) throws {
         self.app = app
         self.delegate = delegate
@@ -68,7 +68,7 @@ where P == R.PassType, D == R.DeviceType, U == P.UserPersonalizationType {
         self.pemCertificate = pemCertificate
         self.pemPrivateKey = pemPrivateKey
         self.pemPrivateKeyPassword = pemPrivateKeyPassword
-        self.openSSLURL = URL(fileURLWithPath: openSSLURL)
+        self.openSSLURL = URL(fileURLWithPath: openSSLPath)
 
         let privateKeyBytes = pemPrivateKey.data(using: .utf8)!.map { UInt8($0) }
         let certificateBytes = pemCertificate.data(using: .utf8)!.map { UInt8($0) }
