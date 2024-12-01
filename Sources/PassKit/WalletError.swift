@@ -1,13 +1,13 @@
 //
-//  PassesError.swift
+//  WalletError.swift
 //  PassKit
 //
 //  Created by Francesco Paolo Severino on 04/07/24.
 //
 
-/// Errors that can be thrown by PassKit passes.
-public struct PassesError: Error, Sendable, Equatable {
-    /// The type of the errors that can be thrown by PassKit passes.
+/// Errors that can be thrown by Apple Wallet passes and orders.
+public struct WalletError: Error, Sendable, Equatable {
+    /// The type of the errors that can be thrown by Apple Wallet passes and orders.
     public struct ErrorType: Sendable, Hashable, CustomStringConvertible, Equatable {
         enum Base: String, Sendable, Equatable {
             case noSourceFiles
@@ -41,7 +41,7 @@ public struct PassesError: Error, Sendable, Equatable {
             self.errorType = errorType
         }
 
-        static func == (lhs: PassesError.Backing, rhs: PassesError.Backing) -> Bool {
+        static func == (lhs: WalletError.Backing, rhs: WalletError.Backing) -> Bool {
             lhs.errorType == rhs.errorType
         }
     }
@@ -64,13 +64,13 @@ public struct PassesError: Error, Sendable, Equatable {
     /// The number of passes to bundle is invalid.
     public static let invalidNumberOfPasses = Self(errorType: .invalidNumberOfPasses)
 
-    public static func == (lhs: PassesError, rhs: PassesError) -> Bool {
+    public static func == (lhs: WalletError, rhs: WalletError) -> Bool {
         lhs.backing == rhs.backing
     }
 }
 
-extension PassesError: CustomStringConvertible {
+extension WalletError: CustomStringConvertible {
     public var description: String {
-        "PassesError(errorType: \(self.errorType))"
+        "WalletError(errorType: \(self.errorType))"
     }
 }

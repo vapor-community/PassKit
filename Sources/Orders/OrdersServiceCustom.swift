@@ -404,7 +404,7 @@ extension OrdersServiceCustom {
         // Swift Crypto doesn't support encrypted PEM private keys, so we have to use OpenSSL for that.
         if let pemPrivateKeyPassword {
             guard FileManager.default.fileExists(atPath: self.openSSLURL.path) else {
-                throw OrdersError.noOpenSSLExecutable
+                throw WalletError.noOpenSSLExecutable
             }
 
             let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
@@ -460,7 +460,7 @@ extension OrdersServiceCustom {
         guard
             (try? filesDirectory.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? false
         else {
-            throw OrdersError.noSourceFiles
+            throw WalletError.noSourceFiles
         }
 
         let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)

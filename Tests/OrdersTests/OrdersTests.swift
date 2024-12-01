@@ -393,10 +393,4 @@ struct OrdersTests {
             }
         }
     }
-
-    @Test("OrdersError")
-    func ordersError() {
-        #expect(OrdersError.noSourceFiles.description == "OrdersError(errorType: noSourceFiles)")
-        #expect(OrdersError.noOpenSSLExecutable.description == "OrdersError(errorType: noOpenSSLExecutable)")
-    }
 }

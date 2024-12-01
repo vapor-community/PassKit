@@ -450,7 +450,7 @@ extension PassesServiceCustom {
         // Swift Crypto doesn't support encrypted PEM private keys, so we have to use OpenSSL for that.
         if let pemPrivateKeyPassword {
             guard FileManager.default.fileExists(atPath: self.openSSLURL.path) else {
-                throw PassesError.noOpenSSLExecutable
+                throw WalletError.noOpenSSLExecutable
             }
 
             let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
@@ -506,7 +506,7 @@ extension PassesServiceCustom {
         guard
             (try? filesDirectory.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? false
         else {
-            throw PassesError.noSourceFiles
+            throw WalletError.noSourceFiles
         }
 
         let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
@@ -558,7 +558,7 @@ extension PassesServiceCustom {
     /// - Returns: The bundle of passes as `Data`.
     public func build(passes: [P], on db: any Database) async throws -> Data {
         guard passes.count > 1 && passes.count <= 10 else {
-            throw PassesError.invalidNumberOfPasses
+            throw WalletError.invalidNumberOfPasses
         }
 
         var files: [ArchiveFile] = []
