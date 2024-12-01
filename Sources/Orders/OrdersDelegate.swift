@@ -25,15 +25,6 @@ public protocol OrdersDelegate: AnyObject, Sendable {
     /// - Returns: A URL path which points to the template data for the order.
     func template<O: OrderModel>(for order: O, db: any Database) async throws -> String
 
-    /// Generates the SSL `signature` file.
-    ///
-    /// If you need to implement custom S/Mime signing you can use this
-    /// method to do so. You must generate a detached DER signature of the `manifest.json` file.
-    ///
-    /// - Parameter root: The location of the `manifest.json` and where to write the `signature` to.
-    /// - Returns: Return `true` if you generated a custom `signature`, otherwise `false`.
-    func generateSignatureFile(in root: URL) -> Bool
-
     /// Encode the order into JSON.
     ///
     /// This method should generate the entire order JSON. You are provided with
@@ -50,10 +41,4 @@ public protocol OrdersDelegate: AnyObject, Sendable {
     func encode<O: OrderModel>(
         order: O, db: any Database, encoder: JSONEncoder
     ) async throws -> Data
-}
-
-extension OrdersDelegate {
-    public func generateSignatureFile(in root: URL) -> Bool {
-        return false
-    }
 }

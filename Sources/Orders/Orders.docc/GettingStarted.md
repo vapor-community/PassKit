@@ -147,8 +147,6 @@ final class OrderDelegate: OrdersDelegate {
 
 Next, initialize the ``OrdersService`` inside the `configure.swift` file.
 This will implement all of the routes that Apple Wallet expects to exist on your server.
-In the `signingFilesDirectory` you specify there must be the `WWDR.pem`, `certificate.pem` and `key.pem` files.
-If they are named like that you're good to go, otherwise you have to specify the custom name.
 
 > Tip: Obtaining the three certificates files could be a bit tricky. You could get some guidance from [this guide](https://github.com/alexandercerutti/passkit-generator/wiki/Generating-Certificates) and [this video](https://www.youtube.com/watch?v=rJZdPoXHtzI). Those guides are for Wallet passes, but the process is similar for Wallet orders.
 
@@ -164,7 +162,9 @@ public func configure(_ app: Application) async throws {
     let ordersService = try OrdersService(
         app: app,
         delegate: orderDelegate,
-        signingFilesDirectory: "Certificates/Orders/"
+        pemWWDRCertificate: Environment.get("PEM_WWDR_CERTIFICATE")!,
+        pemCertificate: Environment.get("PEM_CERTIFICATE")!,
+        pemPrivateKey: Environment.get("PEM_PRIVATE_KEY")!
     )
 }
 ```
@@ -203,7 +203,9 @@ public func configure(_ app: Application) async throws {
     >(
         app: app,
         delegate: orderDelegate,
-        signingFilesDirectory: "Certificates/Orders/"
+        pemWWDRCertificate: Environment.get("PEM_WWDR_CERTIFICATE")!,
+        pemCertificate: Environment.get("PEM_CERTIFICATE")!,
+        pemPrivateKey: Environment.get("PEM_PRIVATE_KEY")!
     )
 }
 ```
@@ -284,7 +286,7 @@ struct OrdersController: RouteCollection {
 
 > Note: You'll have to register the `OrdersController` in the `configure.swift` file, in order to pass it the ``OrdersService`` object.
 
-Then use the object inside your route handlers to generate the order bundle with the ``OrdersService/generateOrderContent(for:on:)`` method and distribute it with the "`application/vnd.apple.order`" MIME type.
+Then use the object inside your route handlers to generate the order bundle with the ``OrdersService/build(order:on:)`` method and distribute it with the "`application/vnd.apple.order`" MIME type.
 
 ```swift
 fileprivate func orderHandler(_ req: Request) async throws -> Response {
@@ -297,7 +299,7 @@ fileprivate func orderHandler(_ req: Request) async throws -> Response {
         throw Abort(.notFound)
     }
 
-    let bundle = try await ordersService.generateOrderContent(for: orderData.order, on: req.db)
+    let bundle = try await ordersService.build(order: orderData.order, on: req.db)
     let body = Response.Body(data: bundle)
     var headers = HTTPHeaders()
     headers.add(name: .contentType, value: "application/vnd.apple.order")

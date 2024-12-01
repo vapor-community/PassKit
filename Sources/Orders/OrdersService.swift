@@ -17,37 +17,34 @@ public final class OrdersService: Sendable {
     /// - Parameters:
     ///   - app: The `Vapor.Application` to use in route handlers and APNs.
     ///   - delegate: The ``OrdersDelegate`` to use for order generation.
-    ///   - signingFilesDirectory: The path of the directory where the signing files (`wwdrCertificate`, `pemCertificate`, `pemPrivateKey`) are located.
-    ///   - wwdrCertificate: The name of Apple's WWDR.pem certificate as contained in `signingFilesDirectory` path. Defaults to `WWDR.pem`.
-    ///   - pemCertificate: The name of the PEM Certificate for signing the pass as contained in `signingFilesDirectory` path. Defaults to `certificate.pem`.
-    ///   - pemPrivateKey: The name of the PEM Certificate's private key for signing the pass as contained in `signingFilesDirectory` path. Defaults to `key.pem`.
-    ///   - pemPrivateKeyPassword: The password to the private key file. If the key is not encrypted it must be `nil`. Defaults to `nil`.
-    ///   - sslBinary: The location of the `openssl` command as a file path.
     ///   - pushRoutesMiddleware: The `Middleware` to use for push notification routes. If `nil`, push routes will not be registered.
     ///   - logger: The `Logger` to use.
+    ///   - pemWWDRCertificate: Apple's WWDR.pem certificate in PEM format.
+    ///   - pemCertificate: The PEM Certificate for signing orders.
+    ///   - pemPrivateKey: The PEM Certificate's private key for signing orders.
+    ///   - pemPrivateKeyPassword: The password to the private key. If the key is not encrypted it must be `nil`. Defaults to `nil`.
+    ///   - openSSLPath: The location of the `openssl` command as a file path.
     public init(
         app: Application,
         delegate: any OrdersDelegate,
-        signingFilesDirectory: String,
-        wwdrCertificate: String = "WWDR.pem",
-        pemCertificate: String = "certificate.pem",
-        pemPrivateKey: String = "key.pem",
-        pemPrivateKeyPassword: String? = nil,
-        sslBinary: String = "/usr/bin/openssl",
         pushRoutesMiddleware: (any Middleware)? = nil,
-        logger: Logger? = nil
+        logger: Logger? = nil,
+        pemWWDRCertificate: String,
+        pemCertificate: String,
+        pemPrivateKey: String,
+        pemPrivateKeyPassword: String? = nil,
+        openSSLPath: String = "/usr/bin/openssl"
     ) throws {
         self.service = try .init(
             app: app,
             delegate: delegate,
-            signingFilesDirectory: signingFilesDirectory,
-            wwdrCertificate: wwdrCertificate,
+            pushRoutesMiddleware: pushRoutesMiddleware,
+            logger: logger,
+            pemWWDRCertificate: pemWWDRCertificate,
             pemCertificate: pemCertificate,
             pemPrivateKey: pemPrivateKey,
             pemPrivateKeyPassword: pemPrivateKeyPassword,
-            sslBinary: sslBinary,
-            pushRoutesMiddleware: pushRoutesMiddleware,
-            logger: logger
+            openSSLPath: openSSLPath
         )
     }
 
@@ -56,9 +53,10 @@ public final class OrdersService: Sendable {
     /// - Parameters:
     ///   - order: The order to generate the content for.
     ///   - db: The `Database` to use.
+    ///
     /// - Returns: The generated order content.
-    public func generateOrderContent(for order: Order, on db: any Database) async throws -> Data {
-        try await service.generateOrderContent(for: order, on: db)
+    public func build(order: Order, on db: any Database) async throws -> Data {
+        try await service.build(order: order, on: db)
     }
 
     /// Adds the migrations for Wallet orders models.
@@ -69,16 +67,6 @@ public final class OrdersService: Sendable {
         migrations.add(OrdersDevice())
         migrations.add(OrdersRegistration())
         migrations.add(OrdersErrorLog())
-    }
-
-    /// Sends push notifications for a given order.
-    ///
-    /// - Parameters:
-    ///   - id: The `UUID` of the order to send the notifications for.
-    ///   - typeIdentifier: The type identifier of the order.
-    ///   - db: The `Database` to use.
-    public func sendPushNotificationsForOrder(id: UUID, of typeIdentifier: String, on db: any Database) async throws {
-        try await service.sendPushNotificationsForOrder(id: id, of: typeIdentifier, on: db)
     }
 
     /// Sends push notifications for a given order.

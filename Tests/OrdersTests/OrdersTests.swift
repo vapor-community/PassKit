@@ -17,13 +17,16 @@ struct OrdersTests {
             let orderData = OrderData(title: "Test Order")
             try await orderData.create(on: app.db)
             let order = try await orderData.$order.get(on: app.db)
-            let data = try await ordersService.generateOrderContent(for: order, on: app.db)
+            let data = try await ordersService.build(order: order, on: app.db)
             let orderURL = FileManager.default.temporaryDirectory.appendingPathComponent("\(UUID().uuidString).order")
             try data.write(to: orderURL)
             let orderFolder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
             try Zip.unzipFile(orderURL, destination: orderFolder)
 
             #expect(FileManager.default.fileExists(atPath: orderFolder.path.appending("/signature")))
+
+            #expect(FileManager.default.fileExists(atPath: orderFolder.path.appending("/pet_store_logo.png")))
+            #expect(FileManager.default.fileExists(atPath: orderFolder.path.appending("/it-IT.lproj/pet_store_logo.png")))
 
             #expect(FileManager.default.fileExists(atPath: orderFolder.path.appending("/order.json")))
             let orderJSONData = try String(contentsOfFile: orderFolder.path.appending("/order.json")).data(using: .utf8)
@@ -37,6 +40,7 @@ struct OrdersTests {
             let iconData = try Data(contentsOf: orderFolder.appendingPathComponent("/icon.png"))
             #expect(manifestJSON["icon.png"] == SHA256.hash(data: iconData).hex)
             #expect(manifestJSON["pet_store_logo.png"] != nil)
+            #expect(manifestJSON["it-IT.lproj/pet_store_logo.png"] != nil)
         }
     }
 
@@ -323,7 +327,7 @@ struct OrdersTests {
             try await orderData.create(on: app.db)
             let order = try await orderData._$order.get(on: app.db)
 
-            try await ordersService.sendPushNotificationsForOrder(id: order.requireID(), of: order.typeIdentifier, on: app.db)
+            try await ordersService.sendPushNotifications(for: order, on: app.db)
 
             let deviceLibraryIdentifier = "abcdefg"
             let pushToken = "1234567890"
@@ -388,23 +392,5 @@ struct OrdersTests {
                 }
             }
         }
-    }
-
-    @Test("OrdersError")
-    func ordersError() {
-        #expect(OrdersError.templateNotDirectory.description == "OrdersError(errorType: templateNotDirectory)")
-        #expect(OrdersError.pemCertificateMissing.description == "OrdersError(errorType: pemCertificateMissing)")
-        #expect(OrdersError.pemPrivateKeyMissing.description == "OrdersError(errorType: pemPrivateKeyMissing)")
-        #expect(OrdersError.opensslBinaryMissing.description == "OrdersError(errorType: opensslBinaryMissing)")
-    }
-
-    @Test("Default OrdersDelegate Properties")
-    func defaultDelegate() {
-        final class DefaultOrdersDelegate: OrdersDelegate {
-            func template<O: OrderModel>(for order: O, db: any Database) async throws -> String { "" }
-            func encode<O: OrderModel>(order: O, db: any Database, encoder: JSONEncoder) async throws -> Data { Data() }
-        }
-
-        #expect(!DefaultOrdersDelegate().generateSignatureFile(in: URL(fileURLWithPath: "")))
     }
 }

@@ -43,10 +43,6 @@ For information on Apple Wallet passes, see the [Apple Developer Documentation](
 - ``PassesRegistrationModel``
 - ``PassDataModel``
 
-### Errors
-
-- ``PassesError``
-
 ### Personalized Passes (⚠️ WIP)
 
 - <doc:Personalization>

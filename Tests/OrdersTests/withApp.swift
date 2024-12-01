@@ -23,12 +23,12 @@ func withApp(
         let ordersService = try OrdersService(
             app: app,
             delegate: delegate,
-            signingFilesDirectory: "\(FileManager.default.currentDirectoryPath)/Tests/Certificates/",
-            pemCertificate: useEncryptedKey ? "encryptedcert.pem" : "certificate.pem",
-            pemPrivateKey: useEncryptedKey ? "encryptedkey.pem" : "key.pem",
-            pemPrivateKeyPassword: useEncryptedKey ? "password" : nil,
             pushRoutesMiddleware: SecretMiddleware(secret: "foo"),
-            logger: app.logger
+            logger: app.logger,
+            pemWWDRCertificate: TestCertificate.pemWWDRCertificate,
+            pemCertificate: useEncryptedKey ? TestCertificate.encryptedPemCertificate : TestCertificate.pemCertificate,
+            pemPrivateKey: useEncryptedKey ? TestCertificate.encryptedPemPrivateKey : TestCertificate.pemPrivateKey,
+            pemPrivateKeyPassword: useEncryptedKey ? "password" : nil
         )
         app.databases.middleware.use(OrderDataMiddleware(service: ordersService), on: .sqlite)
 

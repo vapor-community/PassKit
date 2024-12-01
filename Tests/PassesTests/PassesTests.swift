@@ -17,13 +17,18 @@ struct PassesTests {
             let passData = PassData(title: "Test Pass")
             try await passData.create(on: app.db)
             let pass = try await passData.$pass.get(on: app.db)
-            let data = try await passesService.generatePassContent(for: pass, on: app.db)
+            let data = try await passesService.build(pass: pass, on: app.db)
             let passURL = FileManager.default.temporaryDirectory.appendingPathComponent("\(UUID().uuidString).pkpass")
             try data.write(to: passURL)
             let passFolder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
             try Zip.unzipFile(passURL, destination: passFolder)
 
             #expect(FileManager.default.fileExists(atPath: passFolder.path.appending("/signature")))
+
+            #expect(FileManager.default.fileExists(atPath: passFolder.path.appending("/logo.png")))
+            #expect(FileManager.default.fileExists(atPath: passFolder.path.appending("/personalizationLogo.png")))
+            #expect(FileManager.default.fileExists(atPath: passFolder.path.appending("/it-IT.lproj/logo.png")))
+            #expect(FileManager.default.fileExists(atPath: passFolder.path.appending("/it-IT.lproj/personalizationLogo.png")))
 
             #expect(FileManager.default.fileExists(atPath: passFolder.path.appending("/pass.json")))
             let passJSONData = try String(contentsOfFile: passFolder.path.appending("/pass.json")).data(using: .utf8)
@@ -39,6 +44,8 @@ struct PassesTests {
             #expect(manifestJSON["icon.png"] == Insecure.SHA1.hash(data: iconData).hex)
             #expect(manifestJSON["logo.png"] != nil)
             #expect(manifestJSON["personalizationLogo.png"] != nil)
+            #expect(manifestJSON["it-IT.lproj/logo.png"] != nil)
+            #expect(manifestJSON["it-IT.lproj/personalizationLogo.png"] != nil)
         }
     }
 
@@ -53,13 +60,13 @@ struct PassesTests {
             try await passData2.create(on: app.db)
             let pass2 = try await passData2._$pass.get(on: app.db)
 
-            let data = try await passesService.generatePassesContent(for: [pass1, pass2], on: app.db)
+            let data = try await passesService.build(passes: [pass1, pass2], on: app.db)
             #expect(data != nil)
 
             do {
-                let data = try await passesService.generatePassesContent(for: [pass1], on: app.db)
+                let data = try await passesService.build(passes: [pass1], on: app.db)
                 Issue.record("Expected error, got \(data)")
-            } catch let error as PassesError {
+            } catch let error as WalletError {
                 #expect(error == .invalidNumberOfPasses)
             }
         }
@@ -71,13 +78,18 @@ struct PassesTests {
             let passData = PassData(title: "Personalize")
             try await passData.create(on: app.db)
             let pass = try await passData.$pass.get(on: app.db)
-            let data = try await passesService.generatePassContent(for: pass, on: app.db)
+            let data = try await passesService.build(pass: pass, on: app.db)
             let passURL = FileManager.default.temporaryDirectory.appendingPathComponent("\(UUID().uuidString).pkpass")
             try data.write(to: passURL)
             let passFolder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
             try Zip.unzipFile(passURL, destination: passFolder)
 
             #expect(FileManager.default.fileExists(atPath: passFolder.path.appending("/signature")))
+
+            #expect(FileManager.default.fileExists(atPath: passFolder.path.appending("/logo.png")))
+            #expect(FileManager.default.fileExists(atPath: passFolder.path.appending("/personalizationLogo.png")))
+            #expect(FileManager.default.fileExists(atPath: passFolder.path.appending("/it-IT.lproj/logo.png")))
+            #expect(FileManager.default.fileExists(atPath: passFolder.path.appending("/it-IT.lproj/personalizationLogo.png")))
 
             #expect(FileManager.default.fileExists(atPath: passFolder.path.appending("/pass.json")))
             let passJSONData = try String(contentsOfFile: passFolder.path.appending("/pass.json")).data(using: .utf8)
@@ -93,8 +105,10 @@ struct PassesTests {
 
             let manifestJSONData = try String(contentsOfFile: passFolder.path.appending("/manifest.json")).data(using: .utf8)
             let manifestJSON = try decoder.decode([String: String].self, from: manifestJSONData!)
-            let iconData = try Data(contentsOf: passFolder.appendingPathComponent("/personalizationLogo.png"))
-            #expect(manifestJSON["personalizationLogo.png"] == Insecure.SHA1.hash(data: iconData).hex)
+            let personalizationLogoData = try Data(contentsOf: passFolder.appendingPathComponent("/personalizationLogo.png"))
+            let personalizationLogoHash = Insecure.SHA1.hash(data: personalizationLogoData).hex
+            #expect(manifestJSON["personalizationLogo.png"] == personalizationLogoHash)
+            #expect(manifestJSON["it-IT.lproj/personalizationLogo.png"] == personalizationLogoHash)
         }
     }
 
@@ -451,7 +465,7 @@ struct PassesTests {
             try await passData.create(on: app.db)
             let pass = try await passData._$pass.get(on: app.db)
 
-            try await passesService.sendPushNotificationsForPass(id: pass.requireID(), of: pass.typeIdentifier, on: app.db)
+            try await passesService.sendPushNotifications(for: pass, on: app.db)
 
             let deviceLibraryIdentifier = "abcdefg"
             let pushToken = "1234567890"
@@ -518,13 +532,14 @@ struct PassesTests {
         }
     }
 
-    @Test("PassesError")
-    func passesError() {
-        #expect(PassesError.templateNotDirectory.description == "PassesError(errorType: templateNotDirectory)")
-        #expect(PassesError.pemCertificateMissing.description == "PassesError(errorType: pemCertificateMissing)")
-        #expect(PassesError.pemPrivateKeyMissing.description == "PassesError(errorType: pemPrivateKeyMissing)")
-        #expect(PassesError.opensslBinaryMissing.description == "PassesError(errorType: opensslBinaryMissing)")
-        #expect(PassesError.invalidNumberOfPasses.description == "PassesError(errorType: invalidNumberOfPasses)")
+    @Test("WalletError")
+    func walletError() {
+        #expect(WalletError.noSourceFiles.description == "WalletError(errorType: noSourceFiles)")
+        #expect(WalletError.noOpenSSLExecutable.description == "WalletError(errorType: noOpenSSLExecutable)")
+        #expect(WalletError.invalidNumberOfPasses.description == "WalletError(errorType: invalidNumberOfPasses)")
+
+        #expect(WalletError.noSourceFiles == WalletError.noSourceFiles)
+        #expect(WalletError.noOpenSSLExecutable != WalletError.invalidNumberOfPasses)
     }
 
     @Test("Default PassesDelegate Properties")
@@ -535,7 +550,6 @@ struct PassesTests {
         }
 
         let defaultDelegate = DefaultPassesDelegate()
-        #expect(!defaultDelegate.generateSignatureFile(in: URL(fileURLWithPath: "")))
 
         try await withApp { app, passesService in
             let passData = PassData(title: "Test Pass")

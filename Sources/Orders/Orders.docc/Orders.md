@@ -34,7 +34,3 @@ For information on Apple Wallet orders, see the [Apple Developer Documentation](
 - ``OrderModel``
 - ``OrdersRegistrationModel``
 - ``OrderDataModel``
-
-### Errors
-
-- ``OrdersError``

@@ -47,15 +47,6 @@ public protocol PassesDelegate: AnyObject, Sendable {
     /// - Returns: A URL path which points to the template data for the pass.
     func template<P: PassModel>(for pass: P, db: any Database) async throws -> String
 
-    /// Generates the SSL `signature` file.
-    ///
-    /// If you need to implement custom S/Mime signing you can use this
-    /// method to do so. You must generate a detached DER signature of the `manifest.json` file.
-    ///
-    /// - Parameter root: The location of the `manifest.json` and where to write the `signature` to.
-    /// - Returns: Return `true` if you generated a custom `signature`, otherwise `false`.
-    func generateSignatureFile(in root: URL) -> Bool
-
     /// Encode the pass into JSON.
     ///
     /// This method should generate the entire pass JSON. You are provided with
@@ -90,10 +81,6 @@ public protocol PassesDelegate: AnyObject, Sendable {
 }
 
 extension PassesDelegate {
-    public func generateSignatureFile(in root: URL) -> Bool {
-        return false
-    }
-
     public func personalizationJSON<P: PassModel>(for pass: P, db: any Database) async throws -> PersonalizationJSON? {
         return nil
     }
