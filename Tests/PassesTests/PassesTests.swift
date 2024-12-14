@@ -80,7 +80,7 @@ struct PassesTests {
             let pass = try await passData.$pass.get(on: app.db)
 
             let data = try await passesService.build(pass: passData, on: app.db)
-            
+
             let passURL = FileManager.default.temporaryDirectory.appendingPathComponent("\(UUID().uuidString).pkpass")
             try data.write(to: passURL)
             let passFolder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)

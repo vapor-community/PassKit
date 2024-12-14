@@ -9,7 +9,7 @@ import FluentKit
 import Vapor
 
 /// The main class that handles Wallet orders.
-public final class OrdersService<OD: OrderDataModel>: Sendable where Order == OD.OrderType{
+public final class OrdersService<OD: OrderDataModel>: Sendable where Order == OD.OrderType {
     private let service: OrdersServiceCustom<OD, Order, OrdersDevice, OrdersRegistration, OrdersErrorLog>
 
     /// Initializes the service and registers all the routes required for Apple Wallet to work.

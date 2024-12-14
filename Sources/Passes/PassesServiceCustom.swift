@@ -241,9 +241,10 @@ extension PassesServiceCustom {
             throw Abort(.notModified)
         }
 
-        guard let passData = try await PD.query(on: req.db)
-            .filter(\._$pass.$id == id)
-            .first()
+        guard
+            let passData = try await PD.query(on: req.db)
+                .filter(\._$pass.$id == id)
+                .first()
         else {
             throw Abort(.notFound)
         }

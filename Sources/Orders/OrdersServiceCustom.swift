@@ -149,9 +149,10 @@ extension OrdersServiceCustom {
             throw Abort(.notModified)
         }
 
-        guard let orderData = try await OD.query(on: req.db)
-            .filter(\._$order.$id == id)
-            .first()
+        guard
+            let orderData = try await OD.query(on: req.db)
+                .filter(\._$order.$id == id)
+                .first()
         else {
             throw Abort(.notFound)
         }
