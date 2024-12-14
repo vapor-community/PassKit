@@ -9,20 +9,22 @@ For all the other custom data needed to generate the order, such as the barcodes
 The order data model will be used to generate the `order.json` file contents.
 
 The order you distribute to a user is a signed bundle that contains the `order.json` file, images, and optional localizations.
-The Orders framework provides the ``OrdersService`` class that handles the creation of the order JSON file and the signing of the order bundle, using an ``OrdersDelegate`` that you must implement.
+The Orders framework provides the ``OrdersService`` class that handles the creation of the order JSON file and the signing of the order bundle.
 The ``OrdersService`` class also provides methods to send push notifications to all devices registered when you update an order, and all the routes that Apple Wallet uses to retrieve orders.
 
 ### Implement the Order Data Model
 
-Your data model should contain all the fields that you store for your order, as well as a foreign key to ``Order``, the order model offered by the Orders framework.
+Your data model should contain all the fields that you store for your order, as well as a foreign key to ``Order``, the order model offered by the Orders framework, and a order type identifier that's registered with Apple.
 
 ```swift
 import Fluent
-import struct Foundation.UUID
+import Foundation
 import Orders
 
 final class OrderData: OrderDataModel, @unchecked Sendable {
     static let schema = "order_data"
+
+    static let typeIdentifier = Environment.get("ORDER_TYPE_IDENTIFIER")!
 
     @ID
     var id: UUID?
@@ -54,6 +56,23 @@ struct CreateOrderData: AsyncMigration {
 }
 ```
 
+You also have to define two methods in the ``OrderDataModel``:
+- ``OrderDataModel/orderJSON(on:)``, where you'll have to return a `struct` that conforms to ``OrderJSON/Properties``.
+- ``OrderDataModel/template(on:)``, where you'll have to return the path to a folder containing the order files.
+
+```swift
+extension OrderData {
+    func orderJSON(on db: any Database) async throws -> any OrderJSON.Properties {
+        try await OrderJSONData(data: self, order: self.$order.get(on: db))
+    }
+
+    func template(on db: any Database) async throws -> String {
+        // The location might vary depending on the type of order.
+        "Templates/Orders/"
+    }
+}
+```
+
 ### Handle Cleanup
 
 Depending on your implementation details, you may want to automatically clean out the orders and devices table when a registration is deleted.
@@ -73,7 +92,7 @@ import Orders
 
 struct OrderJSONData: OrderJSON.Properties {
     let schemaVersion = OrderJSON.SchemaVersion.v1
-    let orderTypeIdentifier = Environment.get("ORDER_TYPE_IDENTIFIER")!
+    let orderTypeIdentifier = OrderData.typeIdentifier
     let orderIdentifier: String
     let orderType = OrderJSON.OrderType.ecommerce
     let orderNumber = "HM090772020864"
@@ -108,41 +127,6 @@ struct OrderJSONData: OrderJSON.Properties {
 
 > Important: You **must** add `api/orders/` to your `webServiceURL`, as shown in the example above.
 
-### Implement the Delegate
-
-Create a delegate class that implements ``OrdersDelegate``.
-
-Because the files for your order's template and the method of encoding might vary by order type, you'll be provided the ``Order`` for those methods.
-In the ``OrdersDelegate/encode(order:db:encoder:)`` method, you'll want to encode a `struct` that conforms to ``OrderJSON``.
-
-```swift
-import Vapor
-import Fluent
-import Orders
-
-final class OrderDelegate: OrdersDelegate {
-    func encode<O: OrderModel>(order: O, db: Database, encoder: JSONEncoder) async throws -> Data {
-        // The specific OrderData class you use here may vary based on the `order.typeIdentifier`
-        // if you have multiple different types of orders, and thus multiple types of order data.
-        guard let orderData = try await OrderData.query(on: db)
-            .filter(\.$order.$id == order.requireID())
-            .first()
-        else {
-            throw Abort(.internalServerError)
-        }
-        guard let data = try? encoder.encode(OrderJSONData(data: orderData, order: order)) else {
-            throw Abort(.internalServerError)
-        }
-        return data
-    }
-
-    func template<O: OrderModel>(for order: O, db: Database) async throws -> String {
-        // The location might vary depending on the type of order.
-        "Templates/Orders/"
-    }
-}
-```
-
 ### Initialize the Service
 
 Next, initialize the ``OrdersService`` inside the `configure.swift` file.
@@ -155,21 +139,16 @@ import Fluent
 import Vapor
 import Orders
 
-let orderDelegate = OrderDelegate()
-
 public func configure(_ app: Application) async throws {
     ...
-    let ordersService = try OrdersService(
+    let ordersService = try OrdersService<OrderData>(
         app: app,
-        delegate: orderDelegate,
         pemWWDRCertificate: Environment.get("PEM_WWDR_CERTIFICATE")!,
         pemCertificate: Environment.get("PEM_CERTIFICATE")!,
         pemPrivateKey: Environment.get("PEM_PRIVATE_KEY")!
     )
 }
 ```
-
-> Note: Notice how the ``OrdersDelegate`` is created as a global variable. You need to ensure that the delegate doesn't go out of scope as soon as the `configure(_:)` method exits.
 
 If you wish to include routes specifically for sending push notifications to updated orders, you can also pass to the ``OrdersService`` initializer whatever `Middleware` you want Vapor to use to authenticate the two routes. Doing so will add two routes, the first one sends notifications and the second one retrieves a list of push tokens which would be sent a notification.
 
@@ -191,18 +170,16 @@ import Vapor
 import PassKit
 import Orders
 
-let orderDelegate = OrderDelegate()
-
 public func configure(_ app: Application) async throws {
     ...
     let ordersService = try OrdersServiceCustom<
+        OrderData,
         MyOrderType,
         MyDeviceType,
         MyOrdersRegistrationType,
         MyErrorLogType
     >(
         app: app,
-        delegate: orderDelegate,
         pemWWDRCertificate: Environment.get("PEM_WWDR_CERTIFICATE")!,
         pemCertificate: Environment.get("PEM_CERTIFICATE")!,
         pemPrivateKey: Environment.get("PEM_PRIVATE_KEY")!
@@ -215,7 +192,7 @@ public func configure(_ app: Application) async throws {
 If you're using the default schemas provided by this framework, you can register the default models in your `configure(_:)` method:
 
 ```swift
-OrdersService.register(migrations: app.migrations)
+OrdersService<OrderData>.register(migrations: app.migrations)
 ```
 
 > Important: Register the default models before the migration of your order data model.
@@ -232,9 +209,9 @@ import Fluent
 import Orders
 
 struct OrderDataMiddleware: AsyncModelMiddleware {
-    private unowned let service: OrdersService
+    private unowned let service: OrdersService<OrderData>
 
-    init(service: OrdersService) {
+    init(service: OrdersService<OrderData>) {
         self.service = service
     }
 
@@ -253,7 +230,7 @@ struct OrderDataMiddleware: AsyncModelMiddleware {
         order.updatedAt = Date()
         try await order.save(on: db)
         try await next.update(model, on: db)
-        try await service.sendPushNotifications(for: order, on: db)
+        try await service.sendPushNotifications(for: model, on: db)
     }
 }
 ```
@@ -291,15 +268,14 @@ Then use the object inside your route handlers to generate the order bundle with
 ```swift
 fileprivate func orderHandler(_ req: Request) async throws -> Response {
     ...
-    guard let orderData = try await OrderData.query(on: req.db)
+    guard let order = try await OrderData.query(on: req.db)
         .filter(...)
-        .with(\.$order)
         .first()
     else {
         throw Abort(.notFound)
     }
 
-    let bundle = try await ordersService.build(order: orderData.order, on: req.db)
+    let bundle = try await ordersService.build(order: order, on: req.db)
     let body = Response.Body(data: bundle)
     var headers = HTTPHeaders()
     headers.add(name: .contentType, value: "application/vnd.apple.order")

@@ -386,7 +386,7 @@ extension PassesServiceCustom {
     /// Sends push notifications for a given pass.
     ///
     /// - Parameters:
-    ///   - pass: The pass to send the notifications for.
+    ///   - passData: The pass to send the notifications for.
     ///   - db: The `Database` to use.
     public func sendPushNotifications(for passData: PD, on db: any Database) async throws {
         try await self.sendPushNotifications(for: passData._$pass.get(on: db), on: db)

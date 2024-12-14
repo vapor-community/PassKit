@@ -343,7 +343,7 @@ extension OrdersServiceCustom {
     /// Sends push notifications for a given order.
     ///
     /// - Parameters:
-    ///   - order: The order to send the notifications for.
+    ///   - orderData: The order to send the notifications for.
     ///   - db: The `Database` to use.
     public func sendPushNotifications(for orderData: OD, on db: any Database) async throws {
         try await sendPushNotifications(for: orderData._$order.get(on: db), on: db)

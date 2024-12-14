@@ -1,8 +1,6 @@
 import Fluent
+import Foundation
 import Passes
-import Vapor
-
-import struct Foundation.UUID
 
 final class PassData: PassDataModel, @unchecked Sendable {
     static let schema = PassData.FieldKeys.schemaName

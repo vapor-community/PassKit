@@ -14,11 +14,11 @@ For information on Apple Wallet orders, see the [Apple Developer Documentation](
 ### Essentials
 
 - <doc:GettingStarted>
+- ``OrderDataModel``
 - ``OrderJSON``
 
 ### Building and Distribution
 
-- ``OrdersDelegate``
 - ``OrdersService``
 - ``OrdersServiceCustom``
 
@@ -33,4 +33,3 @@ For information on Apple Wallet orders, see the [Apple Developer Documentation](
 
 - ``OrderModel``
 - ``OrdersRegistrationModel``
-- ``OrderDataModel``

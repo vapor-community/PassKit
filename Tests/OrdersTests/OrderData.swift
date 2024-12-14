@@ -1,8 +1,6 @@
 import Fluent
+import Foundation
 import Orders
-import Vapor
-
-import struct Foundation.UUID
 
 final class OrderData: OrderDataModel, @unchecked Sendable {
     static let schema = OrderData.FieldKeys.schemaName

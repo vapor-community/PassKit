@@ -22,11 +22,11 @@ For information on Apple Wallet passes, see the [Apple Developer Documentation](
 ### Essentials
 
 - <doc:GettingStarted>
+- ``PassDataModel``
 - ``PassJSON``
 
 ### Building and Distribution
 
-- ``PassesDelegate``
 - ``PassesService``
 - ``PassesServiceCustom``
 
@@ -41,7 +41,6 @@ For information on Apple Wallet passes, see the [Apple Developer Documentation](
 
 - ``PassModel``
 - ``PassesRegistrationModel``
-- ``PassDataModel``
 
 ### Personalized Passes (⚠️ WIP)
 
