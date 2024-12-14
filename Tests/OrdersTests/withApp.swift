@@ -8,21 +8,19 @@ import Zip
 
 func withApp(
     useEncryptedKey: Bool = false,
-    _ body: (Application, OrdersService) async throws -> Void
+    _ body: (Application, OrdersService<OrderData>) async throws -> Void
 ) async throws {
     let app = try await Application.make(.testing)
     do {
         try #require(isLoggingConfigured)
 
         app.databases.use(.sqlite(.memory), as: .sqlite)
-        OrdersService.register(migrations: app.migrations)
+        OrdersService<OrderData>.register(migrations: app.migrations)
         app.migrations.add(CreateOrderData())
         try await app.autoMigrate()
 
-        let delegate = TestOrdersDelegate()
-        let ordersService = try OrdersService(
+        let ordersService = try OrdersService<OrderData>(
             app: app,
-            delegate: delegate,
             pushRoutesMiddleware: SecretMiddleware(secret: "foo"),
             logger: app.logger,
             pemWWDRCertificate: TestCertificate.pemWWDRCertificate,

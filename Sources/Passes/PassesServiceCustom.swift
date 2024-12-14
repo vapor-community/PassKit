@@ -18,15 +18,15 @@ import Zip
 /// Class to handle ``PassesService``.
 ///
 /// The generics should be passed in this order:
+/// - Pass Data Model
 /// - Pass Type
 /// - User Personalization Type
 /// - Device Type
 /// - Registration Type
 /// - Error Log Type
-public final class PassesServiceCustom<P, U, D, R: PassesRegistrationModel, E: ErrorLogModel>: Sendable
-where P == R.PassType, D == R.DeviceType, U == P.UserPersonalizationType {
+public final class PassesServiceCustom<PD: PassDataModel, P, U, D, R: PassesRegistrationModel, E: ErrorLogModel>: Sendable
+where P == PD.PassType, P == R.PassType, D == R.DeviceType, U == P.UserPersonalizationType {
     private unowned let app: Application
-    private unowned let delegate: any PassesDelegate
     private let logger: Logger?
 
     private let pemWWDRCertificate: String
@@ -41,7 +41,6 @@ where P == R.PassType, D == R.DeviceType, U == P.UserPersonalizationType {
     ///
     /// - Parameters:
     ///   - app: The `Vapor.Application` to use in route handlers and APNs.
-    ///   - delegate: The ``PassesDelegate`` to use for pass generation.
     ///   - pushRoutesMiddleware: The `Middleware` to use for push notification routes. If `nil`, push routes will not be registered.
     ///   - logger: The `Logger` to use.
     ///   - pemWWDRCertificate: Apple's WWDR.pem certificate in PEM format.
@@ -51,7 +50,6 @@ where P == R.PassType, D == R.DeviceType, U == P.UserPersonalizationType {
     ///   - openSSLPath: The location of the `openssl` command as a file path.
     public init(
         app: Application,
-        delegate: any PassesDelegate,
         pushRoutesMiddleware: (any Middleware)? = nil,
         logger: Logger? = nil,
         pemWWDRCertificate: String,
@@ -61,7 +59,6 @@ where P == R.PassType, D == R.DeviceType, U == P.UserPersonalizationType {
         openSSLPath: String = "/usr/bin/openssl"
     ) throws {
         self.app = app
-        self.delegate = delegate
         self.logger = logger
 
         self.pemWWDRCertificate = pemWWDRCertificate
@@ -103,29 +100,30 @@ where P == R.PassType, D == R.DeviceType, U == P.UserPersonalizationType {
             isDefault: false
         )
 
+        let passTypeIdentifier = PathComponent(stringLiteral: PD.typeIdentifier)
         let v1 = app.grouped("api", "passes", "v1")
         v1.get(
-            "devices", ":deviceLibraryIdentifier", "registrations", ":passTypeIdentifier",
+            "devices", ":deviceLibraryIdentifier", "registrations", passTypeIdentifier,
             use: { try await self.passesForDevice(req: $0) }
         )
         v1.post("log", use: { try await self.logError(req: $0) })
-        v1.post("passes", ":passTypeIdentifier", ":passSerial", "personalize", use: { try await self.personalizedPass(req: $0) })
+        v1.post("passes", passTypeIdentifier, ":passSerial", "personalize", use: { try await self.personalizedPass(req: $0) })
 
         let v1auth = v1.grouped(ApplePassMiddleware<P>())
         v1auth.post(
-            "devices", ":deviceLibraryIdentifier", "registrations", ":passTypeIdentifier", ":passSerial",
+            "devices", ":deviceLibraryIdentifier", "registrations", passTypeIdentifier, ":passSerial",
             use: { try await self.registerDevice(req: $0) }
         )
-        v1auth.get("passes", ":passTypeIdentifier", ":passSerial", use: { try await self.latestVersionOfPass(req: $0) })
+        v1auth.get("passes", passTypeIdentifier, ":passSerial", use: { try await self.latestVersionOfPass(req: $0) })
         v1auth.delete(
-            "devices", ":deviceLibraryIdentifier", "registrations", ":passTypeIdentifier", ":passSerial",
+            "devices", ":deviceLibraryIdentifier", "registrations", passTypeIdentifier, ":passSerial",
             use: { try await self.unregisterDevice(req: $0) }
         )
 
         if let pushRoutesMiddleware {
             let pushAuth = v1.grouped(pushRoutesMiddleware)
-            pushAuth.post("push", ":passTypeIdentifier", ":passSerial", use: { try await self.pushUpdatesForPass(req: $0) })
-            pushAuth.get("push", ":passTypeIdentifier", ":passSerial", use: { try await self.tokensForPassUpdate(req: $0) })
+            pushAuth.post("push", passTypeIdentifier, ":passSerial", use: { try await self.pushUpdatesForPass(req: $0) })
+            pushAuth.get("push", passTypeIdentifier, ":passSerial", use: { try await self.tokensForPassUpdate(req: $0) })
         }
     }
 }
@@ -145,11 +143,10 @@ extension PassesServiceCustom {
         guard let serial = req.parameters.get("passSerial", as: UUID.self) else {
             throw Abort(.badRequest)
         }
-        let passTypeIdentifier = req.parameters.get("passTypeIdentifier")!
         let deviceLibraryIdentifier = req.parameters.get("deviceLibraryIdentifier")!
         guard
             let pass = try await P.query(on: req.db)
-                .filter(\._$typeIdentifier == passTypeIdentifier)
+                .filter(\._$typeIdentifier == PD.typeIdentifier)
                 .filter(\._$id == serial)
                 .first()
         else {
@@ -190,12 +187,11 @@ extension PassesServiceCustom {
     fileprivate func passesForDevice(req: Request) async throws -> PassesForDeviceDTO {
         logger?.debug("Called passesForDevice")
 
-        let passTypeIdentifier = req.parameters.get("passTypeIdentifier")!
         let deviceLibraryIdentifier = req.parameters.get("deviceLibraryIdentifier")!
 
         var query = R.for(
             deviceLibraryIdentifier: deviceLibraryIdentifier,
-            typeIdentifier: passTypeIdentifier,
+            typeIdentifier: PD.typeIdentifier,
             on: req.db
         )
         if let since: TimeInterval = req.query["passesUpdatedSince"] {
@@ -229,15 +225,13 @@ extension PassesServiceCustom {
             ifModifiedSince = ims
         }
 
-        guard let passTypeIdentifier = req.parameters.get("passTypeIdentifier"),
-            let id = req.parameters.get("passSerial", as: UUID.self)
-        else {
+        guard let id = req.parameters.get("passSerial", as: UUID.self) else {
             throw Abort(.badRequest)
         }
         guard
             let pass = try await P.query(on: req.db)
                 .filter(\._$id == id)
-                .filter(\._$typeIdentifier == passTypeIdentifier)
+                .filter(\._$typeIdentifier == PD.typeIdentifier)
                 .first()
         else {
             throw Abort(.notFound)
@@ -247,6 +241,13 @@ extension PassesServiceCustom {
             throw Abort(.notModified)
         }
 
+        guard let passData = try await PD.query(on: req.db)
+            .filter(\._$pass.$id == id)
+            .first()
+        else {
+            throw Abort(.notFound)
+        }
+
         var headers = HTTPHeaders()
         headers.add(name: .contentType, value: "application/vnd.apple.pkpass")
         headers.lastModified = HTTPHeaders.LastModified(pass.updatedAt ?? Date.distantPast)
@@ -254,7 +255,7 @@ extension PassesServiceCustom {
         return try await Response(
             status: .ok,
             headers: headers,
-            body: Response.Body(data: self.build(pass: pass, on: req.db))
+            body: Response.Body(data: self.build(pass: passData, on: req.db))
         )
     }
 
@@ -264,13 +265,12 @@ extension PassesServiceCustom {
         guard let passId = req.parameters.get("passSerial", as: UUID.self) else {
             throw Abort(.badRequest)
         }
-        let passTypeIdentifier = req.parameters.get("passTypeIdentifier")!
         let deviceLibraryIdentifier = req.parameters.get("deviceLibraryIdentifier")!
 
         guard
             let r = try await R.for(
                 deviceLibraryIdentifier: deviceLibraryIdentifier,
-                typeIdentifier: passTypeIdentifier,
+                typeIdentifier: PD.typeIdentifier,
                 on: req.db
             )
             .filter(P.self, \._$id == passId)
@@ -303,15 +303,13 @@ extension PassesServiceCustom {
     fileprivate func personalizedPass(req: Request) async throws -> Response {
         logger?.debug("Called personalizedPass")
 
-        guard let passTypeIdentifier = req.parameters.get("passTypeIdentifier"),
-            let id = req.parameters.get("passSerial", as: UUID.self)
-        else {
+        guard let id = req.parameters.get("passSerial", as: UUID.self) else {
             throw Abort(.badRequest)
         }
         guard
             let pass = try await P.query(on: req.db)
                 .filter(\._$id == id)
-                .filter(\._$typeIdentifier == passTypeIdentifier)
+                .filter(\._$typeIdentifier == PD.typeIdentifier)
                 .first()
         else {
             throw Abort(.notFound)
@@ -349,12 +347,11 @@ extension PassesServiceCustom {
         guard let id = req.parameters.get("passSerial", as: UUID.self) else {
             throw Abort(.badRequest)
         }
-        let passTypeIdentifier = req.parameters.get("passTypeIdentifier")!
 
         guard
             let pass = try await P.query(on: req.db)
                 .filter(\._$id == id)
-                .filter(\._$typeIdentifier == passTypeIdentifier)
+                .filter(\._$typeIdentifier == PD.typeIdentifier)
                 .first()
         else {
             throw Abort(.notFound)
@@ -370,12 +367,11 @@ extension PassesServiceCustom {
         guard let id = req.parameters.get("passSerial", as: UUID.self) else {
             throw Abort(.badRequest)
         }
-        let passTypeIdentifier = req.parameters.get("passTypeIdentifier")!
 
         guard
             let pass = try await P.query(on: req.db)
                 .filter(\._$id == id)
-                .filter(\._$typeIdentifier == passTypeIdentifier)
+                .filter(\._$typeIdentifier == PD.typeIdentifier)
                 .first()
         else {
             throw Abort(.notFound)
@@ -392,7 +388,11 @@ extension PassesServiceCustom {
     /// - Parameters:
     ///   - pass: The pass to send the notifications for.
     ///   - db: The `Database` to use.
-    public func sendPushNotifications(for pass: P, on db: any Database) async throws {
+    public func sendPushNotifications(for passData: PD, on db: any Database) async throws {
+        try await self.sendPushNotifications(for: passData._$pass.get(on: db), on: db)
+    }
+
+    private func sendPushNotifications(for pass: P, on db: any Database) async throws {
         let registrations = try await Self.registrations(for: pass, on: db)
         for reg in registrations {
             let backgroundNotification = APNSBackgroundNotification(
@@ -420,7 +420,7 @@ extension PassesServiceCustom {
             .join(parent: \._$device)
             .with(\._$pass)
             .with(\._$device)
-            .filter(P.self, \._$typeIdentifier == pass._$typeIdentifier.value!)
+            .filter(P.self, \._$typeIdentifier == PD.typeIdentifier)
             .filter(P.self, \._$id == pass.requireID())
             .all()
     }
@@ -501,8 +501,8 @@ extension PassesServiceCustom {
     ///   - db: The `Database` to use.
     ///
     /// - Returns: The generated pass content as `Data`.
-    public func build(pass: P, on db: any Database) async throws -> Data {
-        let filesDirectory = try await URL(fileURLWithPath: delegate.template(for: pass, db: db), isDirectory: true)
+    public func build(pass: PD, on db: any Database) async throws -> Data {
+        let filesDirectory = try await URL(fileURLWithPath: pass.template(on: db), isDirectory: true)
         guard
             (try? filesDirectory.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? false
         else {
@@ -515,12 +515,12 @@ extension PassesServiceCustom {
 
         var files: [ArchiveFile] = []
 
-        let passJSON = try await self.delegate.encode(pass: pass, db: db, encoder: self.encoder)
+        let passJSON = try await self.encoder.encode(pass.passJSON(on: db))
         try passJSON.write(to: tempDir.appendingPathComponent("pass.json"))
         files.append(ArchiveFile(filename: "pass.json", data: passJSON))
 
         // Pass Personalization
-        if let personalizationJSON = try await self.delegate.personalizationJSON(for: pass, db: db) {
+        if let personalizationJSON = try await pass.personalizationJSON(on: db) {
             let personalizationJSONData = try self.encoder.encode(personalizationJSON)
             try personalizationJSONData.write(to: tempDir.appendingPathComponent("personalization.json"))
             files.append(ArchiveFile(filename: "personalization.json", data: personalizationJSONData))
@@ -556,7 +556,7 @@ extension PassesServiceCustom {
     ///   - db: The `Database` to use.
     ///
     /// - Returns: The bundle of passes as `Data`.
-    public func build(passes: [P], on db: any Database) async throws -> Data {
+    public func build(passes: [PD], on db: any Database) async throws -> Data {
         guard passes.count > 1 && passes.count <= 10 else {
             throw WalletError.invalidNumberOfPasses
         }

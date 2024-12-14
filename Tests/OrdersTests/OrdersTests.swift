@@ -17,7 +17,9 @@ struct OrdersTests {
             let orderData = OrderData(title: "Test Order")
             try await orderData.create(on: app.db)
             let order = try await orderData.$order.get(on: app.db)
-            let data = try await ordersService.build(order: order, on: app.db)
+
+            let data = try await ordersService.build(order: orderData, on: app.db)
+
             let orderURL = FileManager.default.temporaryDirectory.appendingPathComponent("\(UUID().uuidString).order")
             try data.write(to: orderURL)
             let orderFolder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
@@ -327,7 +329,7 @@ struct OrdersTests {
             try await orderData.create(on: app.db)
             let order = try await orderData._$order.get(on: app.db)
 
-            try await ordersService.sendPushNotifications(for: order, on: app.db)
+            try await ordersService.sendPushNotifications(for: orderData, on: app.db)
 
             let deviceLibraryIdentifier = "abcdefg"
             let pushToken = "1234567890"

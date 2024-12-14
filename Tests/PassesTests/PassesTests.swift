@@ -17,7 +17,9 @@ struct PassesTests {
             let passData = PassData(title: "Test Pass")
             try await passData.create(on: app.db)
             let pass = try await passData.$pass.get(on: app.db)
-            let data = try await passesService.build(pass: pass, on: app.db)
+
+            let data = try await passesService.build(pass: passData, on: app.db)
+
             let passURL = FileManager.default.temporaryDirectory.appendingPathComponent("\(UUID().uuidString).pkpass")
             try data.write(to: passURL)
             let passFolder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
@@ -54,17 +56,15 @@ struct PassesTests {
         try await withApp { app, passesService in
             let passData1 = PassData(title: "Test Pass 1")
             try await passData1.create(on: app.db)
-            let pass1 = try await passData1.$pass.get(on: app.db)
 
             let passData2 = PassData(title: "Test Pass 2")
             try await passData2.create(on: app.db)
-            let pass2 = try await passData2._$pass.get(on: app.db)
 
-            let data = try await passesService.build(passes: [pass1, pass2], on: app.db)
+            let data = try await passesService.build(passes: [passData1, passData2], on: app.db)
             #expect(data != nil)
 
             do {
-                let data = try await passesService.build(passes: [pass1], on: app.db)
+                let data = try await passesService.build(passes: [passData1], on: app.db)
                 Issue.record("Expected error, got \(data)")
             } catch let error as WalletError {
                 #expect(error == .invalidNumberOfPasses)
@@ -78,7 +78,9 @@ struct PassesTests {
             let passData = PassData(title: "Personalize")
             try await passData.create(on: app.db)
             let pass = try await passData.$pass.get(on: app.db)
-            let data = try await passesService.build(pass: pass, on: app.db)
+
+            let data = try await passesService.build(pass: passData, on: app.db)
+            
             let passURL = FileManager.default.temporaryDirectory.appendingPathComponent("\(UUID().uuidString).pkpass")
             try data.write(to: passURL)
             let passFolder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
@@ -463,9 +465,9 @@ struct PassesTests {
 
             let passData = PassData(title: "Test Pass")
             try await passData.create(on: app.db)
-            let pass = try await passData._$pass.get(on: app.db)
+            let pass = try await passData.$pass.get(on: app.db)
 
-            try await passesService.sendPushNotifications(for: pass, on: app.db)
+            try await passesService.sendPushNotifications(for: passData, on: app.db)
 
             let deviceLibraryIdentifier = "abcdefg"
             let pushToken = "1234567890"
@@ -540,23 +542,5 @@ struct PassesTests {
 
         #expect(WalletError.noSourceFiles == WalletError.noSourceFiles)
         #expect(WalletError.noOpenSSLExecutable != WalletError.invalidNumberOfPasses)
-    }
-
-    @Test("Default PassesDelegate Properties")
-    func defaultDelegate() async throws {
-        final class DefaultPassesDelegate: PassesDelegate {
-            func template<P: PassModel>(for pass: P, db: any Database) async throws -> String { "" }
-            func encode<P: PassModel>(pass: P, db: any Database, encoder: JSONEncoder) async throws -> Data { Data() }
-        }
-
-        let defaultDelegate = DefaultPassesDelegate()
-
-        try await withApp { app, passesService in
-            let passData = PassData(title: "Test Pass")
-            try await passData.create(on: app.db)
-            let pass = try await passData.$pass.get(on: app.db)
-            let data = try await defaultDelegate.personalizationJSON(for: pass, db: app.db)
-            #expect(data == nil)
-        }
     }
 }

@@ -7,6 +7,8 @@ import struct Foundation.UUID
 final class OrderData: OrderDataModel, @unchecked Sendable {
     static let schema = OrderData.FieldKeys.schemaName
 
+    static let typeIdentifier = "order.com.example.pet-store"
+
     @ID(key: .id)
     var id: UUID?
 
@@ -46,13 +48,25 @@ extension OrderData {
     }
 }
 
+extension OrderData {
+    func orderJSON(on db: any Database) async throws -> any OrderJSON.Properties {
+        try await OrderJSONData(data: self, order: self.$order.get(on: db))
+    }
+
+    func template(on db: any Database) async throws -> String {
+        "\(FileManager.default.currentDirectoryPath)/Tests/OrdersTests/Templates/"
+    }
+}
+
+// MARK: - OrderJSON
+
 extension OrderJSON.SchemaVersion: Decodable {}
 extension OrderJSON.OrderType: Decodable {}
 extension OrderJSON.OrderStatus: Decodable {}
 
 struct OrderJSONData: OrderJSON.Properties, Decodable {
     let schemaVersion = OrderJSON.SchemaVersion.v1
-    let orderTypeIdentifier = "order.com.example.pet-store"
+    let orderTypeIdentifier = OrderData.typeIdentifier
     let orderIdentifier: String
     let orderType = OrderJSON.OrderType.ecommerce
     let orderNumber = "HM090772020864"
@@ -96,15 +110,15 @@ struct OrderJSONData: OrderJSON.Properties, Decodable {
 }
 
 struct OrderDataMiddleware: AsyncModelMiddleware {
-    private unowned let service: OrdersService
+    private unowned let service: OrdersService<OrderData>
 
-    init(service: OrdersService) {
+    init(service: OrdersService<OrderData>) {
         self.service = service
     }
 
     func create(model: OrderData, on db: any Database, next: any AnyAsyncModelResponder) async throws {
         let order = Order(
-            typeIdentifier: "order.com.example.pet-store",
+            typeIdentifier: OrderData.typeIdentifier,
             authenticationToken: Data([UInt8].random(count: 12)).base64EncodedString()
         )
         try await order.save(on: db)
@@ -117,6 +131,6 @@ struct OrderDataMiddleware: AsyncModelMiddleware {
         order.updatedAt = Date()
         try await order.save(on: db)
         try await next.update(model, on: db)
-        try await service.sendPushNotifications(for: order, on: db)
+        try await service.sendPushNotifications(for: model, on: db)
     }
 }
