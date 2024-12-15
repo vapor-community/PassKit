@@ -29,7 +29,7 @@
 import FluentKit
 import Foundation
 
-/// Represents the `Model` that stores PassKit passes.
+/// Represents the `Model` that stores Apple Wallet passes.
 ///
 /// Uses a UUID so people can't easily guess pass serial numbers.
 public protocol PassModel: Model where IDValue == UUID {

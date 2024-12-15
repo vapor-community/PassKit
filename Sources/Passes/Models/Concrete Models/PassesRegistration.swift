@@ -1,10 +1,3 @@
-//
-//  PassesRegistration.swift
-//  PassKit
-//
-//  Created by Francesco Paolo Severino on 29/06/24.
-//
-
 import FluentKit
 
 /// The `Model` that stores passes registrations.

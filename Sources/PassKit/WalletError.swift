@@ -1,10 +1,3 @@
-//
-//  WalletError.swift
-//  PassKit
-//
-//  Created by Francesco Paolo Severino on 04/07/24.
-//
-
 /// Errors that can be thrown by Apple Wallet passes and orders.
 public struct WalletError: Error, Sendable, Equatable {
     /// The type of the errors that can be thrown by Apple Wallet passes and orders.

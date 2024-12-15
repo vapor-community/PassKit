@@ -1,10 +1,3 @@
-//
-//  OrdersServiceCustom.swift
-//  PassKit
-//
-//  Created by Francesco Paolo Severino on 01/07/24.
-//
-
 import APNS
 import APNSCore
 import Fluent

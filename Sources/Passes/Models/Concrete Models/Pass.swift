@@ -1,14 +1,7 @@
-//
-//  Pass.swift
-//  PassKit
-//
-//  Created by Francesco Paolo Severino on 29/06/24.
-//
-
 import FluentKit
 import Foundation
 
-/// The `Model` that stores PassKit passes.
+/// The `Model` that stores Apple Wallet passes.
 ///
 /// Uses a UUID so people can't easily guess pass serial numbers.
 final public class Pass: PassModel, @unchecked Sendable {

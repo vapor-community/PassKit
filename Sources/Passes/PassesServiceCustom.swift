@@ -1,10 +1,3 @@
-//
-//  PassesServiceCustom.swift
-//  PassKit
-//
-//  Created by Francesco Paolo Severino on 29/06/24.
-//
-
 import APNS
 import APNSCore
 import Fluent
@@ -37,7 +30,7 @@ where P == PD.PassType, P == R.PassType, D == R.DeviceType, U == P.UserPersonali
 
     private let encoder = JSONEncoder()
 
-    /// Initializes the service and registers all the routes required for PassKit to work.
+    /// Initializes the service and registers all the routes required for Apple Wallet to work.
     ///
     /// - Parameters:
     ///   - app: The `Vapor.Application` to use in route handlers and APNs.

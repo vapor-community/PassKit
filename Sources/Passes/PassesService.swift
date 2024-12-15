@@ -29,11 +29,11 @@
 import FluentKit
 import Vapor
 
-/// The main class that handles PassKit passes.
+/// The main class that handles Apple Wallet passes.
 public final class PassesService<PD: PassDataModel>: Sendable where Pass == PD.PassType {
     private let service: PassesServiceCustom<PD, Pass, UserPersonalization, PassesDevice, PassesRegistration, PassesErrorLog>
 
-    /// Initializes the service and registers all the routes required for PassKit to work.
+    /// Initializes the service and registers all the routes required for Apple Wallet to work.
     ///
     /// - Parameters:
     ///   - app: The `Vapor.Application` to use in route handlers and APNs.
@@ -92,7 +92,7 @@ public final class PassesService<PD: PassDataModel>: Sendable where Pass == PD.P
         try await service.build(passes: passes, on: db)
     }
 
-    /// Adds the migrations for PassKit passes models.
+    /// Adds the migrations for Apple Wallet passes models.
     ///
     /// - Parameter migrations: The `Migrations` object to add the migrations to.
     public static func register(migrations: Migrations) {

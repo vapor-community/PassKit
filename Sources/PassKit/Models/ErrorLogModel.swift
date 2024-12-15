@@ -28,9 +28,9 @@
 
 import FluentKit
 
-/// Represents the `Model` that stores PassKit error logs.
+/// Represents the `Model` that stores Apple Wallet error logs.
 public protocol ErrorLogModel: Model {
-    /// The error message provided by PassKit.
+    /// The error message provided by Apple Wallet.
     var message: String { get set }
 
     /// The designated initializer.

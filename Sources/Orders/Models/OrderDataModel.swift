@@ -1,10 +1,3 @@
-//
-//  OrderDataModel.swift
-//  PassKit
-//
-//  Created by Francesco Paolo Severino on 30/06/24.
-//
-
 import FluentKit
 
 /// Represents the `Model` that stores custom app data associated to Wallet orders.

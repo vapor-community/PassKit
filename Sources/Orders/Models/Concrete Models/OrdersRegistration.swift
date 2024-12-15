@@ -1,10 +1,3 @@
-//
-//  OrdersRegistration.swift
-//  PassKit
-//
-//  Created by Francesco Paolo Severino on 30/06/24.
-//
-
 import FluentKit
 
 /// The `Model` that stores orders registrations.

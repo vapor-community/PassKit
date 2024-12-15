@@ -1,10 +1,3 @@
-//
-//  OrderJSON.swift
-//  PassKit
-//
-//  Created by Francesco Paolo Severino on 02/07/24.
-//
-
 /// The structure of a `order.json` file.
 public struct OrderJSON {
     /// A protocol that defines the structure of a `order.json` file.

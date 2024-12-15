@@ -1,16 +1,9 @@
-//
-//  PassesErrorLog.swift
-//  PassKit
-//
-//  Created by Francesco Paolo Severino on 29/06/24.
-//
-
 import FluentKit
 import PassKit
 
 import struct Foundation.Date
 
-/// The `Model` that stores PassKit passes error logs.
+/// The `Model` that stores Apple Wallet passes error logs.
 final public class PassesErrorLog: ErrorLogModel, @unchecked Sendable {
     /// The schema name of the error log model.
     public static let schema = PassesErrorLog.FieldKeys.schemaName
@@ -22,7 +15,7 @@ final public class PassesErrorLog: ErrorLogModel, @unchecked Sendable {
     @Timestamp(key: PassesErrorLog.FieldKeys.createdAt, on: .create)
     public var createdAt: Date?
 
-    /// The error message provided by PassKit.
+    /// The error message provided by Apple Wallet.
     @Field(key: PassesErrorLog.FieldKeys.message)
     public var message: String
 

@@ -1,14 +1,7 @@
-//
-//  PassesDevice.swift
-//  PassKit
-//
-//  Created by Francesco Paolo Severino on 29/06/24.
-//
-
 import FluentKit
 import PassKit
 
-/// The `Model` that stores PassKit passes devices.
+/// The `Model` that stores Apple Wallet passes devices.
 final public class PassesDevice: DeviceModel, @unchecked Sendable {
     /// The schema name of the device model.
     public static let schema = PassesDevice.FieldKeys.schemaName
@@ -20,7 +13,7 @@ final public class PassesDevice: DeviceModel, @unchecked Sendable {
     @Field(key: PassesDevice.FieldKeys.pushToken)
     public var pushToken: String
 
-    /// The identifier PassKit provides for the device.
+    /// The identifier Apple Wallet provides for the device.
     @Field(key: PassesDevice.FieldKeys.libraryIdentifier)
     public var libraryIdentifier: String
 
