@@ -4,20 +4,20 @@ import PackageDescription
 let package = Package(
     name: "PassKit",
     platforms: [
-        .macOS(.v14)
+        .macOS(.v13)
     ],
     products: [
         .library(name: "Passes", targets: ["Passes"]),
         .library(name: "Orders", targets: ["Orders"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/vapor/vapor.git", from: "4.0.0"),
-        .package(url: "https://github.com/vapor/fluent.git", from: "4.0.0"),
+        .package(url: "https://github.com/vapor/vapor.git", from: "4.107.0"),
+        .package(url: "https://github.com/vapor/fluent.git", from: "4.12.0"),
         .package(url: "https://github.com/vapor/apns.git", from: "4.2.0"),
         .package(url: "https://github.com/vapor-community/Zip.git", from: "2.2.4"),
         .package(url: "https://github.com/apple/swift-certificates.git", from: "1.6.1"),
         // used in tests
-        .package(url: "https://github.com/vapor/fluent-sqlite-driver.git", from: "4.0.0"),
+        .package(url: "https://github.com/vapor/fluent-sqlite-driver.git", from: "4.8.0"),
     ],
     targets: [
         .target(
@@ -76,7 +76,6 @@ let package = Package(
 
 var swiftSettings: [SwiftSetting] {
     [
-        .enableUpcomingFeature("ExistentialAny"),
-        .enableUpcomingFeature("FullTypedThrows"),
+        .enableUpcomingFeature("ExistentialAny")
     ]
 }
