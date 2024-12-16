@@ -28,7 +28,7 @@ func withApp(
             pemPrivateKey: useEncryptedKey ? TestCertificate.encryptedPemPrivateKey : TestCertificate.pemPrivateKey,
             pemPrivateKeyPassword: useEncryptedKey ? "password" : nil
         )
-        app.databases.middleware.use(OrderDataMiddleware(service: ordersService), on: .sqlite)
+        app.databases.middleware.use(ordersService, on: .sqlite)
 
         Zip.addCustomFileExtension("order")
 

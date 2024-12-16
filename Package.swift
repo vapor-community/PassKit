@@ -11,7 +11,7 @@ let package = Package(
         .library(name: "Orders", targets: ["Orders"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/vapor/vapor.git", from: "4.107.0"),
+        .package(url: "https://github.com/vapor/vapor.git", from: "4.108.0"),
         .package(url: "https://github.com/vapor/fluent.git", from: "4.12.0"),
         .package(url: "https://github.com/vapor/apns.git", from: "4.2.0"),
         .package(url: "https://github.com/vapor-community/Zip.git", from: "2.2.4"),

@@ -522,7 +522,7 @@ struct PassesTests {
             )
 
             if !useEncryptedKey {
-                // Test `PassDataMiddleware` update method
+                // Test `AsyncModelMiddleware` update method
                 passData.title = "Test Pass 2"
                 do {
                     try await passData.update(on: app.db)

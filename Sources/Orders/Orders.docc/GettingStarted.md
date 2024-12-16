@@ -199,49 +199,18 @@ OrdersService<OrderData>.register(migrations: app.migrations)
 
 ### Order Data Model Middleware
 
-You'll want to create a model middleware to handle the creation and update of the order data model.
-This middleware could be responsible for creating and linking an ``Order`` to the order data model, depending on your requirements.
-When your order data changes, it should also update the ``Order/updatedAt`` field of the ``Order`` and send a push notification to all devices registered to that order.
+This framework provides a model middleware to handle the creation and update of the order data model.
+
+When you create an ``OrderDataModel`` object, it will automatically create an ``OrderModel`` object with a random auth token and the correct type identifier and link it to the order data model.
+When you update an order data model, it will update the ``OrderModel`` object and send a push notification to all devices registered to that order.
+
+You can register it like so (either with an ``OrdersService`` or an ``OrdersServiceCustom``):
 
 ```swift
-import Vapor
-import Fluent
-import Orders
-
-struct OrderDataMiddleware: AsyncModelMiddleware {
-    private unowned let service: OrdersService<OrderData>
-
-    init(service: OrdersService<OrderData>) {
-        self.service = service
-    }
-
-    // Create the `Order` and add it to the `OrderData` automatically at creation
-    func create(model: OrderData, on db: Database, next: AnyAsyncModelResponder) async throws {
-        let order = Order(
-            typeIdentifier: Environment.get("ORDER_TYPE_IDENTIFIER")!,
-            authenticationToken: Data([UInt8].random(count: 12)).base64EncodedString())
-        try await order.save(on: db)
-        model.$order.id = try order.requireID()
-        try await next.create(model, on: db)
-    }
-
-    func update(model: OrderData, on db: Database, next: AnyAsyncModelResponder) async throws {
-        let order = try await model.$order.get(on: db)
-        order.updatedAt = Date()
-        try await order.save(on: db)
-        try await next.update(model, on: db)
-        try await service.sendPushNotifications(for: model, on: db)
-    }
-}
+app.databases.middleware.use(ordersService, on: .psql)
 ```
 
-You could register it in the `configure.swift` file.
-
-```swift
-app.databases.middleware.use(OrderDataMiddleware(service: ordersService), on: .psql)
-```
-
-> Important: Whenever your order data changes, you must update the ``Order/updatedAt`` time of the linked ``Order`` so that Wallet knows to retrieve a new order.
+> Note: If you don't like the default implementation of the model middleware, it is highly recommended that you create your own. But remember: whenever your order data changes, you must update the ``Order/updatedAt`` time of the linked ``Order`` so that Wallet knows to retrieve a new order.
 
 ### Generate the Order Content
 

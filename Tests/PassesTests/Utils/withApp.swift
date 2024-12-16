@@ -28,7 +28,7 @@ func withApp(
             pemPrivateKey: useEncryptedKey ? TestCertificate.encryptedPemPrivateKey : TestCertificate.pemPrivateKey,
             pemPrivateKeyPassword: useEncryptedKey ? "password" : nil
         )
-        app.databases.middleware.use(PassDataMiddleware(service: passesService), on: .sqlite)
+        app.databases.middleware.use(passesService, on: .sqlite)
 
         Zip.addCustomFileExtension("pkpass")
 

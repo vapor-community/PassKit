@@ -384,7 +384,7 @@ struct OrdersTests {
             )
 
             if !useEncryptedKey {
-                // Test `OrderDataMiddleware` update method
+                // Test `AsyncModelMiddleware` update method
                 orderData.title = "Test Order 2"
                 do {
                     try await orderData.update(on: app.db)
