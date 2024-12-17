@@ -1,10 +1,3 @@
-//
-//  OrderModel.swift
-//  PassKit
-//
-//  Created by Francesco Paolo Severino on 30/06/24.
-//
-
 import FluentKit
 import Foundation
 
@@ -23,6 +16,12 @@ public protocol OrderModel: Model where IDValue == UUID {
 
     /// The authentication token supplied to your web service.
     var authenticationToken: String { get set }
+
+    /// The designated initializer.
+    /// - Parameters:
+    ///   - typeIdentifier: The order type identifier that’s registered with Apple.
+    ///   - authenticationToken: The authentication token to use with the web service in the `webServiceURL` key.
+    init(typeIdentifier: String, authenticationToken: String)
 }
 
 extension OrderModel {

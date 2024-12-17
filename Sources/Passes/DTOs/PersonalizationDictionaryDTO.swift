@@ -1,10 +1,3 @@
-//
-//  PersonalizationDictionaryDTO.swift
-//  PassKit
-//
-//  Created by Francesco Paolo Severino on 04/07/24.
-//
-
 import Vapor
 
 struct PersonalizationDictionaryDTO: Content {

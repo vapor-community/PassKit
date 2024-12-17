@@ -8,12 +8,12 @@ public struct PersonalizationJSON: Codable, Sendable {
     /// The contents of this array define the data requested from the user.
     ///
     /// The signup form’s fields are generated based on these keys.
-    var requiredPersonalizationFields: [PersonalizationField]
+    let requiredPersonalizationFields: [PersonalizationField]
 
     /// A brief description of the program.
     ///
     /// This is displayed on the signup sheet, under the personalization logo.
-    var description: String
+    let description: String
 
     /// A description of the program’s terms and conditions.
     ///
@@ -21,7 +21,7 @@ public struct PersonalizationJSON: Codable, Sendable {
     ///
     /// If present, this information is displayed after the user enters their personal information and taps the Next button.
     /// The user then has the option to agree to the terms, or to cancel out of the signup process.
-    var termsAndConditions: String?
+    let termsAndConditions: String?
 
     /// Initializes a new ``PersonalizationJSON`` instance.
     ///

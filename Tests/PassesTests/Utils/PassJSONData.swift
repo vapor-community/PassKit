@@ -1,50 +1,4 @@
-import Fluent
 import Passes
-import Vapor
-
-import struct Foundation.UUID
-
-final class PassData: PassDataModel, @unchecked Sendable {
-    static let schema = PassData.FieldKeys.schemaName
-
-    @ID(key: .id)
-    var id: UUID?
-
-    @Field(key: PassData.FieldKeys.title)
-    var title: String
-
-    @Parent(key: PassData.FieldKeys.passID)
-    var pass: Pass
-
-    init() {}
-
-    init(id: UUID? = nil, title: String) {
-        self.id = id
-        self.title = title
-    }
-}
-
-struct CreatePassData: AsyncMigration {
-    func prepare(on database: any Database) async throws {
-        try await database.schema(PassData.FieldKeys.schemaName)
-            .id()
-            .field(PassData.FieldKeys.title, .string, .required)
-            .field(PassData.FieldKeys.passID, .uuid, .required, .references(Pass.schema, .id, onDelete: .cascade))
-            .create()
-    }
-
-    func revert(on database: any Database) async throws {
-        try await database.schema(PassData.FieldKeys.schemaName).delete()
-    }
-}
-
-extension PassData {
-    enum FieldKeys {
-        static let schemaName = "pass_data"
-        static let title = FieldKey(stringLiteral: "title")
-        static let passID = FieldKey(stringLiteral: "pass_id")
-    }
-}
 
 extension PassJSON.FormatVersion: Decodable {}
 extension PassJSON.BarcodeFormat: Decodable {}
@@ -54,7 +8,7 @@ struct PassJSONData: PassJSON.Properties, Decodable {
     let description: String
     let formatVersion = PassJSON.FormatVersion.v1
     let organizationName = "vapor-community"
-    let passTypeIdentifier = "pass.com.vapor-community.PassKit"
+    let passTypeIdentifier = PassData.typeIdentifier
     let serialNumber: String
     let teamIdentifier = "K6512ZA2S5"
 
@@ -114,31 +68,5 @@ struct PassJSONData: PassJSON.Properties, Decodable {
         self.description = data.title
         self.serialNumber = pass.id!.uuidString
         self.authenticationToken = pass.authenticationToken
-    }
-}
-
-struct PassDataMiddleware: AsyncModelMiddleware {
-    private unowned let service: PassesService
-
-    init(service: PassesService) {
-        self.service = service
-    }
-
-    func create(model: PassData, on db: any Database, next: any AnyAsyncModelResponder) async throws {
-        let pass = Pass(
-            typeIdentifier: "pass.com.vapor-community.PassKit",
-            authenticationToken: Data([UInt8].random(count: 12)).base64EncodedString()
-        )
-        try await pass.save(on: db)
-        model.$pass.id = try pass.requireID()
-        try await next.create(model, on: db)
-    }
-
-    func update(model: PassData, on db: any Database, next: any AnyAsyncModelResponder) async throws {
-        let pass = try await model.$pass.get(on: db)
-        pass.updatedAt = Date()
-        try await pass.save(on: db)
-        try await next.update(model, on: db)
-        try await service.sendPushNotifications(for: pass, on: db)
     }
 }

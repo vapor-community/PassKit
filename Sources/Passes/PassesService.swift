@@ -29,15 +29,14 @@
 import FluentKit
 import Vapor
 
-/// The main class that handles PassKit passes.
-public final class PassesService: Sendable {
-    private let service: PassesServiceCustom<Pass, UserPersonalization, PassesDevice, PassesRegistration, PassesErrorLog>
+/// The main class that handles Apple Wallet passes.
+public final class PassesService<PD: PassDataModel>: Sendable where Pass == PD.PassType {
+    private let service: PassesServiceCustom<PD, Pass, UserPersonalization, PassesDevice, PassesRegistration, PassesErrorLog>
 
-    /// Initializes the service and registers all the routes required for PassKit to work.
+    /// Initializes the service and registers all the routes required for Apple Wallet to work.
     ///
     /// - Parameters:
     ///   - app: The `Vapor.Application` to use in route handlers and APNs.
-    ///   - delegate: The ``PassesDelegate`` to use for pass generation.
     ///   - pushRoutesMiddleware: The `Middleware` to use for push notification routes. If `nil`, push routes will not be registered.
     ///   - logger: The `Logger` to use.
     ///   - pemWWDRCertificate: Apple's WWDR.pem certificate in PEM format.
@@ -47,7 +46,6 @@ public final class PassesService: Sendable {
     ///   - openSSLPath: The location of the `openssl` command as a file path.
     public init(
         app: Application,
-        delegate: any PassesDelegate,
         pushRoutesMiddleware: (any Middleware)? = nil,
         logger: Logger? = nil,
         pemWWDRCertificate: String,
@@ -58,7 +56,6 @@ public final class PassesService: Sendable {
     ) throws {
         self.service = try .init(
             app: app,
-            delegate: delegate,
             pushRoutesMiddleware: pushRoutesMiddleware,
             logger: logger,
             pemWWDRCertificate: pemWWDRCertificate,
@@ -76,7 +73,7 @@ public final class PassesService: Sendable {
     ///   - db: The `Database` to use.
     ///
     /// - Returns: The generated pass content as `Data`.
-    public func build(pass: Pass, on db: any Database) async throws -> Data {
+    public func build(pass: PD, on db: any Database) async throws -> Data {
         try await service.build(pass: pass, on: db)
     }
 
@@ -91,11 +88,11 @@ public final class PassesService: Sendable {
     ///   - db: The `Database` to use.
     ///
     /// - Returns: The bundle of passes as `Data`.
-    public func build(passes: [Pass], on db: any Database) async throws -> Data {
+    public func build(passes: [PD], on db: any Database) async throws -> Data {
         try await service.build(passes: passes, on: db)
     }
 
-    /// Adds the migrations for PassKit passes models.
+    /// Adds the migrations for Apple Wallet passes models.
     ///
     /// - Parameter migrations: The `Migrations` object to add the migrations to.
     public static func register(migrations: Migrations) {
@@ -111,7 +108,7 @@ public final class PassesService: Sendable {
     /// - Parameters:
     ///   - pass: The pass to send the notifications for.
     ///   - db: The `Database` to use.
-    public func sendPushNotifications(for pass: Pass, on db: any Database) async throws {
+    public func sendPushNotifications(for pass: PD, on db: any Database) async throws {
         try await service.sendPushNotifications(for: pass, on: db)
     }
 }

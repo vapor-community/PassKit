@@ -1,10 +1,3 @@
-//
-//  UserPersonalization.swift
-//  PassKit
-//
-//  Created by Francesco Paolo Severino on 12/07/24.
-//
-
 import FluentKit
 
 /// The `Model` that stores user personalization info.

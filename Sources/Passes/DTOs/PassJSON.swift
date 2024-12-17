@@ -1,10 +1,3 @@
-//
-//  PassJSON.swift
-//  PassKit
-//
-//  Created by Francesco Paolo Severino on 28/06/24.
-//
-
 /// The structure of a `pass.json` file.
 public struct PassJSON {
     /// A protocol that defines the structure of a `pass.json` file.

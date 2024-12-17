@@ -1,10 +1,3 @@
-//
-//  OrdersDevice.swift
-//  PassKit
-//
-//  Created by Francesco Paolo Severino on 30/06/24.
-//
-
 import FluentKit
 import PassKit
 

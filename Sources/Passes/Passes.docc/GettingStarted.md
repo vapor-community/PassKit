@@ -9,20 +9,22 @@ For all the other custom data needed to generate the pass, such as the barcodes,
 The pass data model will be used to generate the `pass.json` file contents.
 
 The pass you distribute to a user is a signed bundle that contains the `pass.json` file, images and optional localizations.
-The Passes framework provides the ``PassesService`` class that handles the creation of the pass JSON file and the signing of the pass bundle, using a ``PassesDelegate`` that you must implement.
+The Passes framework provides the ``PassesService`` class that handles the creation of the pass JSON file and the signing of the pass bundle.
 The ``PassesService`` class also provides methods to send push notifications to all devices registered when you update a pass, and all the routes that Apple Wallet uses to retrieve passes.
 
 ### Implement the Pass Data Model
 
-Your data model should contain all the fields that you store for your pass, as well as a foreign key to ``Pass``, the pass model offered by the Passes framework.
+Your data model should contain all the fields that you store for your pass, as well as a foreign key to ``Pass``, the pass model offered by the Passes framework, and a pass type identifier that's registered with Apple.
 
 ```swift
 import Fluent
-import struct Foundation.UUID
+import Foundation
 import Passes
 
 final class PassData: PassDataModel, @unchecked Sendable {
     static let schema = "pass_data"
+
+    static let typeIdentifier = Environment.get("PASS_TYPE_IDENTIFIER")!
 
     @ID
     var id: UUID?
@@ -58,6 +60,23 @@ struct CreatePassData: AsyncMigration {
 }
 ```
 
+You also have to define two methods in the ``PassDataModel``:
+- ``PassDataModel/passJSON(on:)``, where you'll have to return a `struct` that conforms to ``PassJSON/Properties``.
+- ``PassDataModel/template(on:)``, where you'll have to return the path to a folder containing the pass files.
+
+```swift
+extension PassData {
+    func passJSON(on db: any Database) async throws -> any PassJSON.Properties {
+        try await PassJSONData(data: self, pass: self.$pass.get(on: db))
+    }
+
+    func template(on db: any Database) async throws -> String {
+        // The location might vary depending on the type of pass.
+        "Templates/Passes/"
+    }
+}
+```
+
 ### Handle Cleanup
 
 Depending on your implementation details, you may want to automatically clean out the passes and devices table when a registration is deleted.
@@ -79,7 +98,7 @@ struct PassJSONData: PassJSON.Properties {
     let description: String
     let formatVersion = PassJSON.FormatVersion.v1
     let organizationName = "vapor-community"
-    let passTypeIdentifier = Environment.get("PASS_TYPE_IDENTIFIER")!
+    let passTypeIdentifier = PassData.typeIdentifier
     let serialNumber: String
     let teamIdentifier = Environment.get("APPLE_TEAM_IDENTIFIER")!
 
@@ -132,41 +151,6 @@ struct PassJSONData: PassJSON.Properties {
 
 > Important: You **must** add `api/passes/` to your `webServiceURL`, as shown in the example above.
 
-### Implement the Delegate
-
-Create a delegate class that implements ``PassesDelegate``.
-
-Because the files for your pass' template and the method of encoding might vary by pass type, you'll be provided the ``Pass`` for those methods.
-In the ``PassesDelegate/encode(pass:db:encoder:)`` method, you'll want to encode a `struct` that conforms to ``PassJSON``.
-
-```swift
-import Vapor
-import Fluent
-import Passes
-
-final class PassDelegate: PassesDelegate {
-    func encode<P: PassModel>(pass: P, db: Database, encoder: JSONEncoder) async throws -> Data {
-        // The specific PassData class you use here may vary based on the `pass.typeIdentifier`
-        // if you have multiple different types of passes, and thus multiple types of pass data.
-        guard let passData = try await PassData.query(on: db)
-            .filter(\.$pass.$id == pass.requireID())
-            .first()
-        else {
-            throw Abort(.internalServerError)
-        }
-        guard let data = try? encoder.encode(PassJSONData(data: passData, pass: pass)) else {
-            throw Abort(.internalServerError)
-        }
-        return data
-    }
-
-    func template<P: PassModel>(for pass: P, db: Database) async throws -> String {
-        // The location might vary depending on the type of pass.
-        "Templates/Passes/"
-    }
-}
-```
-
 ### Initialize the Service
 
 Next, initialize the ``PassesService`` inside the `configure.swift` file.
@@ -179,21 +163,16 @@ import Fluent
 import Vapor
 import Passes
 
-let passDelegate = PassDelegate()
-
 public func configure(_ app: Application) async throws {
     ...
-    let passesService = try PassesService(
+    let passesService = try PassesService<PassData>(
         app: app,
-        delegate: passDelegate,
         pemWWDRCertificate: Environment.get("PEM_WWDR_CERTIFICATE")!,
         pemCertificate: Environment.get("PEM_CERTIFICATE")!,
         pemPrivateKey: Environment.get("PEM_PRIVATE_KEY")!
     )
 }
 ```
-
-> Note: Notice how the ``PassesDelegate`` is created as a global variable. You need to ensure that the delegate doesn't go out of scope as soon as the `configure(_:)` method exits.
 
 If you wish to include routes specifically for sending push notifications to updated passes, you can also pass to the ``PassesService`` initializer whatever `Middleware` you want Vapor to use to authenticate the two routes. Doing so will add two routes, the first one sends notifications and the second one retrieves a list of push tokens which would be sent a notification.
 
@@ -215,11 +194,10 @@ import Vapor
 import PassKit
 import Passes
 
-let passDelegate = PassDelegate()
-
 public func configure(_ app: Application) async throws {
     ...
     let passesService = try PassesServiceCustom<
+        PassData,
         MyPassType,
         MyUserPersonalizationType,
         MyDeviceType,
@@ -227,7 +205,6 @@ public func configure(_ app: Application) async throws {
         MyErrorLogType
     >(
         app: app,
-        delegate: passDelegate,
         pemWWDRCertificate: Environment.get("PEM_WWDR_CERTIFICATE")!,
         pemCertificate: Environment.get("PEM_CERTIFICATE")!,
         pemPrivateKey: Environment.get("PEM_PRIVATE_KEY")!
@@ -240,56 +217,25 @@ public func configure(_ app: Application) async throws {
 If you're using the default schemas provided by this framework, you can register the default models in your `configure(_:)` method:
 
 ```swift
-PassesService.register(migrations: app.migrations)
+PassesService<PassData>.register(migrations: app.migrations)
 ```
 
 > Important: Register the default models before the migration of your pass data model.
 
 ### Pass Data Model Middleware
 
-You'll want to create a model middleware to handle the creation and update of the pass data model.
-This middleware could be responsible for creating and linking a ``Pass`` to the pass data model, depending on your requirements.
-When your pass data changes, it should also update the ``Pass/updatedAt`` field of the ``Pass`` and send a push notification to all devices registered to that pass. 
+This framework provides a model middleware to handle the creation and update of the pass data model.
+
+When you create a ``PassDataModel`` object, it will automatically create a ``PassModel`` object with a random auth token and the correct type identifier and link it to the pass data model.
+When you update a pass data model, it will update the ``PassModel`` object and send a push notification to all devices registered to that pass.
+
+You can register it like so (either with a ``PassesService`` or a ``PassesServiceCustom``):
 
 ```swift
-import Vapor
-import Fluent
-import Passes
-
-struct PassDataMiddleware: AsyncModelMiddleware {
-    private unowned let service: PassesService
-
-    init(service: PassesService) {
-        self.service = service
-    }
-
-    // Create the `Pass` and add it to the `PassData` automatically at creation
-    func create(model: PassData, on db: Database, next: AnyAsyncModelResponder) async throws {
-        let pass = Pass(
-            typeIdentifier: Environment.get("PASS_TYPE_IDENTIFIER")!,
-            authenticationToken: Data([UInt8].random(count: 12)).base64EncodedString())
-        try await pass.save(on: db)
-        model.$pass.id = try pass.requireID()
-        try await next.create(model, on: db)
-    }
-
-    func update(model: PassData, on db: Database, next: AnyAsyncModelResponder) async throws {
-        let pass = try await model.$pass.get(on: db)
-        pass.updatedAt = Date()
-        try await pass.save(on: db)
-        try await next.update(model, on: db)
-        try await service.sendPushNotifications(for: pass, on: db)
-    }
-}
+app.databases.middleware.use(passesService, on: .psql)
 ```
 
-You could register it in the `configure.swift` file.
-
-```swift
-app.databases.middleware.use(PassDataMiddleware(service: passesService), on: .psql)
-```
-
-> Important: Whenever your pass data changes, you must update the ``Pass/updatedAt`` time of the linked ``Pass`` so that Wallet knows to retrieve a new pass.
+> Note: If you don't like the default implementation of the model middleware, it is highly recommended that you create your own. But remember: whenever your pass data changes, you must update the ``Pass/updatedAt`` time of the linked ``Pass`` so that Wallet knows to retrieve a new pass.
 
 ### Generate the Pass Content
 
@@ -316,15 +262,14 @@ Then use the object inside your route handlers to generate the pass bundle with 
 ```swift
 fileprivate func passHandler(_ req: Request) async throws -> Response {
     ...
-    guard let passData = try await PassData.query(on: req.db)
+    guard let pass = try await PassData.query(on: req.db)
         .filter(...)
-        .with(\.$pass)
         .first()
     else {
         throw Abort(.notFound)
     }
 
-    let bundle = try await passesService.build(pass: passData.pass, on: req.db)
+    let bundle = try await passesService.build(pass: pass, on: req.db)
     let body = Response.Body(data: bundle)
     var headers = HTTPHeaders()
     headers.add(name: .contentType, value: "application/vnd.apple.pkpass")
@@ -346,8 +291,7 @@ The MIME type for a bundle of passes is "`application/vnd.apple.pkpasses`".
 ```swift
 fileprivate func passesHandler(_ req: Request) async throws -> Response {
     ...
-    let passesData = try await PassData.query(on: req.db).with(\.$pass).all()
-    let passes = passesData.map { $0.pass }
+    let passes = try await PassData.query(on: req.db).all()
 
     let bundle = try await passesService.build(passes: passes, on: req.db)
     let body = Response.Body(data: bundle)

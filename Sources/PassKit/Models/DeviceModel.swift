@@ -28,12 +28,12 @@
 
 import FluentKit
 
-/// Represents the `Model` that stores PassKit devices.
+/// Represents the `Model` that stores Apple Wallet devices.
 public protocol DeviceModel: Model where IDValue == Int {
     /// The push token used for sending updates to the device.
     var pushToken: String { get set }
 
-    /// The identifier PassKit provides for the device.
+    /// The identifier Apple Wallet provides for the device.
     var libraryIdentifier: String { get set }
 
     /// The designated initializer.
