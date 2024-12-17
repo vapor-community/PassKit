@@ -36,6 +36,7 @@ func withApp(
 
         try await app.autoRevert()
     } catch {
+        try? await app.autoRevert()
         try await app.asyncShutdown()
         throw error
     }
